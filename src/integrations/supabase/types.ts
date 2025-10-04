@@ -50,6 +50,45 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_contacts: {
+        Row: {
+          campaign_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          link_token: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          link_token?: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          link_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           created_at: string | null

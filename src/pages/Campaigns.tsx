@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, Copy, Check } from "lucide-react";
+import { Plus, Users, Eye, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -24,17 +26,29 @@ interface Campaign {
   sent_at: string | null;
 }
 
+interface Contact {
+  id: string;
+  name: string;
+  email: string;
+  is_company: boolean;
+}
+
 const Campaigns = () => {
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [contactsDialogOpen, setContactsDialogOpen] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({ name: "", message: "" });
   const [saving, setSaving] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCampaigns();
+    fetchContacts();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -97,20 +111,74 @@ const Campaigns = () => {
     }
   };
 
-  const generateLink = (campaignId: string, contactId: string) => {
-    const token = `${campaignId}-${contactId}-${Date.now()}`;
-    return `${window.location.origin}/nps/${token}`;
+  const fetchContacts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, name, email, is_company")
+        .eq("user_id", user.id)
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const copyLink = (campaignId: string) => {
-    const link = generateLink(campaignId, "CONTACT_ID");
-    navigator.clipboard.writeText(link);
-    setCopiedId(campaignId);
-    setTimeout(() => setCopiedId(null), 2000);
-    toast({
-      title: "Link copiado!",
-      description: "Substitua CONTACT_ID pelo ID do contato.",
-    });
+  const openContactsDialog = (campaignId: string) => {
+    setSelectedCampaignId(campaignId);
+    setSelectedContactIds([]);
+    setContactsDialogOpen(true);
+  };
+
+  const handleContactToggle = (contactId: string) => {
+    setSelectedContactIds((prev) =>
+      prev.includes(contactId)
+        ? prev.filter((id) => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const handleAddContacts = async () => {
+    if (!selectedCampaignId || selectedContactIds.length === 0) return;
+    setSaving(true);
+
+    try {
+      const inserts = selectedContactIds.map((contactId) => ({
+        campaign_id: selectedCampaignId,
+        contact_id: contactId,
+      }));
+
+      const { error } = await supabase
+        .from("campaign_contacts")
+        .insert(inserts);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: `${selectedContactIds.length} contato(s) adicionado(s) à campanha.`,
+      });
+
+      setContactsDialogOpen(false);
+      setSelectedContactIds([]);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -159,6 +227,54 @@ const Campaigns = () => {
               </form>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={contactsDialogOpen} onOpenChange={setContactsDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Adicionar Contatos à Campanha</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {contacts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    Você ainda não tem contatos cadastrados.
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {contacts.map((contact) => (
+                        <div
+                          key={contact.id}
+                          className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                          onClick={() => handleContactToggle(contact.id)}
+                        >
+                          <Checkbox
+                            checked={selectedContactIds.includes(contact.id)}
+                            onCheckedChange={() => handleContactToggle(contact.id)}
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium">{contact.name}</p>
+                            <p className="text-sm text-muted-foreground">{contact.email}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {contact.is_company ? "Empresa" : "Pessoa"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={handleAddContacts}
+                      className="w-full"
+                      disabled={saving || selectedContactIds.length === 0}
+                    >
+                      {saving
+                        ? "Adicionando..."
+                        : `Adicionar ${selectedContactIds.length} Contato(s)`}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {loading ? (
@@ -190,13 +306,13 @@ const Campaigns = () => {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Button variant="outline" onClick={() => copyLink(campaign.id)}>
-                    {copiedId === campaign.id ? (
-                      <Check className="mr-2 h-4 w-4" />
-                    ) : (
-                      <Copy className="mr-2 h-4 w-4" />
-                    )}
-                    Copiar Link Modelo
+                  <Button variant="outline" onClick={() => openContactsDialog(campaign.id)}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Adicionar Contatos
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Ver Detalhes
                   </Button>
                 </div>
 
