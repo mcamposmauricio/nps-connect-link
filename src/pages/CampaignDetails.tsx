@@ -21,6 +21,8 @@ interface Contact {
   email: string;
   phone: string | null;
   is_company: boolean;
+  company_document: string | null;
+  company_sector: string | null;
 }
 
 interface CampaignContact {
@@ -79,7 +81,9 @@ const CampaignDetails = () => {
             name,
             email,
             phone,
-            is_company
+            is_company,
+            company_document,
+            company_sector
           )
         `)
         .eq("campaign_id", id);
@@ -166,47 +170,76 @@ const CampaignDetails = () => {
               Nenhum contato adicionado a esta campanha ainda.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Link Individual</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaignContacts.map((cc) => (
-                  <TableRow key={cc.id}>
-                    <TableCell>
-                      {cc.contacts.is_company ? (
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <User className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{cc.contacts.name}</TableCell>
-                    <TableCell>{cc.contacts.email}</TableCell>
-                    <TableCell>{cc.contacts.phone || "-"}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyLink(cc.link_token)}
-                      >
-                        {copiedToken === cc.link_token ? (
-                          <Check className="mr-2 h-4 w-4" />
-                        ) : (
-                          <Copy className="mr-2 h-4 w-4" />
-                        )}
-                        Copiar Link
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Setor</TableHead>
+                    <TableHead className="text-right">Link Individual</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {campaignContacts.map((cc) => (
+                    <TableRow key={cc.id}>
+                      <TableCell>
+                        {cc.contacts.is_company ? (
+                          <div className="flex items-center space-x-2">
+                            <Building2 className="h-4 w-4 text-primary" />
+                            <span className="text-xs">Empresa</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs">Pessoa</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{cc.contacts.name}</TableCell>
+                      <TableCell>
+                        <span className="text-sm">{cc.contacts.email}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{cc.contacts.phone || "-"}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {cc.contacts.company_document || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {cc.contacts.company_sector || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyLink(cc.link_token)}
+                        >
+                          {copiedToken === cc.link_token ? (
+                            <>
+                              <Check className="mr-2 h-4 w-4" />
+                              Copiado
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="mr-2 h-4 w-4" />
+                              Copiar
+                            </>
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </Card>
       </div>
