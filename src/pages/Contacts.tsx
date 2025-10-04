@@ -24,6 +24,9 @@ interface Contact {
   email: string;
   phone: string | null;
   is_company: boolean;
+  company_document: string | null;
+  company_sector: string | null;
+  custom_fields: Record<string, any>;
   created_at: string;
 }
 
@@ -31,7 +34,17 @@ const Contacts = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", is_company: false });
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    email: "", 
+    phone: "", 
+    is_company: false,
+    company_document: "",
+    company_sector: "",
+    custom_fields: {} as Record<string, string>
+  });
+  const [customFieldKey, setCustomFieldKey] = useState("");
+  const [customFieldValue, setCustomFieldValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "companies" | "individuals">("all");
@@ -54,7 +67,10 @@ const Contacts = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setContacts(data || []);
+      setContacts((data || []).map(c => ({
+        ...c,
+        custom_fields: (c.custom_fields as any) || {}
+      })));
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -80,6 +96,9 @@ const Contacts = () => {
         email: formData.email,
         phone: formData.phone || null,
         is_company: formData.is_company,
+        company_document: formData.is_company ? formData.company_document || null : null,
+        company_sector: formData.is_company ? formData.company_sector || null : null,
+        custom_fields: formData.custom_fields,
       });
 
       if (error) throw error;
@@ -89,7 +108,9 @@ const Contacts = () => {
         description: "Contato adicionado com sucesso.",
       });
 
-      setFormData({ name: "", email: "", phone: "", is_company: false });
+      setFormData({ name: "", email: "", phone: "", is_company: false, company_document: "", company_sector: "", custom_fields: {} });
+      setCustomFieldKey("");
+      setCustomFieldValue("");
       setDialogOpen(false);
       fetchContacts();
     } catch (error: any) {
@@ -137,13 +158,19 @@ const Contacts = () => {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error("Usuário não autenticado");
 
-          const contactsToInsert = results.data.map((row: any) => ({
-            user_id: user.id,
-            name: row.name || row.Nome || "",
-            email: row.email || row.Email || row["E-mail"] || "",
-            phone: row.phone || row.Telefone || row.telefone || null,
-            is_company: row.is_company === "true" || row.is_company === "TRUE" || row["Empresa"] === "Sim" || false,
-          })).filter(contact => contact.name && contact.email);
+          const contactsToInsert = results.data.map((row: any) => {
+            const isCompany = row.is_company === "true" || row.is_company === "TRUE" || row["Empresa"] === "Sim" || false;
+            return {
+              user_id: user.id,
+              name: row.name || row.Nome || "",
+              email: row.email || row.Email || row["E-mail"] || "",
+              phone: row.phone || row.Telefone || row.telefone || null,
+              is_company: isCompany,
+              company_document: isCompany ? (row.company_document || row.CNPJ || row.cnpj || null) : null,
+              company_sector: isCompany ? (row.company_sector || row.Setor || row.setor || null) : null,
+              custom_fields: {},
+            };
+          }).filter(contact => contact.name && contact.email);
 
           const { error } = await supabase.from("contacts").insert(contactsToInsert);
           
@@ -259,6 +286,83 @@ const Contacts = () => {
                     onCheckedChange={(checked) => setFormData({ ...formData, is_company: checked })}
                   />
                 </div>
+                
+                {formData.is_company && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">CNPJ (opcional)</label>
+                      <Input
+                        value={formData.company_document}
+                        onChange={(e) => setFormData({ ...formData, company_document: e.target.value })}
+                        placeholder="00.000.000/0000-00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Setor (opcional)</label>
+                      <Input
+                        value={formData.company_sector}
+                        onChange={(e) => setFormData({ ...formData, company_sector: e.target.value })}
+                        placeholder="Ex: Tecnologia, Varejo, Saúde"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="border-t pt-4">
+                  <label className="block text-sm font-medium mb-2">Campos Personalizados</label>
+                  <div className="space-y-2">
+                    {Object.entries(formData.custom_fields).map(([key, value]) => (
+                      <div key={key} className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">{key}:</span>
+                        <span className="text-muted-foreground">{value}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newFields = { ...formData.custom_fields };
+                            delete newFields[key];
+                            setFormData({ ...formData, custom_fields: newFields });
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nome do campo"
+                        value={customFieldKey}
+                        onChange={(e) => setCustomFieldKey(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Valor"
+                        value={customFieldValue}
+                        onChange={(e) => setCustomFieldValue(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (customFieldKey && customFieldValue) {
+                            setFormData({
+                              ...formData,
+                              custom_fields: {
+                                ...formData.custom_fields,
+                                [customFieldKey]: customFieldValue,
+                              },
+                            });
+                            setCustomFieldKey("");
+                            setCustomFieldValue("");
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                 <Button type="submit" className="w-full" disabled={saving}>
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar
@@ -320,6 +424,21 @@ const Contacts = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">{contact.email}</p>
                     {contact.phone && <p className="text-sm text-muted-foreground">{contact.phone}</p>}
+                    {contact.company_document && (
+                      <p className="text-sm text-muted-foreground">CNPJ: {contact.company_document}</p>
+                    )}
+                    {contact.company_sector && (
+                      <p className="text-sm text-muted-foreground">Setor: {contact.company_sector}</p>
+                    )}
+                    {Object.keys(contact.custom_fields || {}).length > 0 && (
+                      <div className="mt-2 pt-2 border-t">
+                        {Object.entries(contact.custom_fields).map(([key, value]) => (
+                          <p key={key} className="text-xs text-muted-foreground">
+                            {key}: {value}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>

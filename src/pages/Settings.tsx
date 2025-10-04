@@ -1,0 +1,329 @@
+import { useEffect, useState, useRef } from "react";
+import Layout from "@/components/Layout";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Upload, Palette } from "lucide-react";
+import { Label } from "@/components/ui/label";
+
+interface BrandSettings {
+  id?: string;
+  company_name: string;
+  logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+}
+
+const Settings = () => {
+  const [settings, setSettings] = useState<BrandSettings>({
+    company_name: "",
+    logo_url: null,
+    primary_color: "#8B5CF6",
+    secondary_color: "#EC4899",
+    accent_color: "#10B981",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("brand_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSettings(data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching settings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const settingsData = {
+        user_id: user.id,
+        company_name: settings.company_name,
+        logo_url: settings.logo_url,
+        primary_color: settings.primary_color,
+        secondary_color: settings.secondary_color,
+        accent_color: settings.accent_color,
+      };
+
+      const { error } = settings.id
+        ? await supabase.from("brand_settings").update(settingsData).eq("id", settings.id)
+        : await supabase.from("brand_settings").insert(settingsData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Configurações salvas com sucesso.",
+      });
+
+      fetchSettings();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("logos")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("logos")
+        .getPublicUrl(fileName);
+
+      setSettings({ ...settings, logo_url: publicUrl });
+
+      toast({
+        title: "Sucesso!",
+        description: "Logo enviado com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Configurações de Marca</h1>
+            <p className="text-muted-foreground">
+              Personalize a aparência das suas pesquisas
+            </p>
+          </div>
+
+          <Card className="p-6 space-y-6">
+            <div>
+              <Label htmlFor="company-name">Nome da Empresa</Label>
+              <Input
+                id="company-name"
+                value={settings.company_name}
+                onChange={(e) => setSettings({ ...settings, company_name: e.target.value })}
+                placeholder="Digite o nome da sua empresa"
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <Label>Logo da Empresa</Label>
+              <div className="mt-2 space-y-4">
+                {settings.logo_url && (
+                  <div className="flex items-center justify-center p-4 border rounded-lg bg-muted">
+                    <img
+                      src={settings.logo_url}
+                      alt="Logo"
+                      className="max-h-24 object-contain"
+                    />
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full"
+                >
+                  {uploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {settings.logo_url ? "Alterar Logo" : "Enviar Logo"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Label>
+                <Palette className="inline mr-2 h-4 w-4" />
+                Cores da Marca
+              </Label>
+              
+              <div>
+                <Label htmlFor="primary-color" className="text-sm">Cor Primária</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    id="primary-color"
+                    type="color"
+                    value={settings.primary_color}
+                    onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <Input
+                    value={settings.primary_color}
+                    onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })}
+                    placeholder="#8B5CF6"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="secondary-color" className="text-sm">Cor Secundária</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    id="secondary-color"
+                    type="color"
+                    value={settings.secondary_color}
+                    onChange={(e) => setSettings({ ...settings, secondary_color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <Input
+                    value={settings.secondary_color}
+                    onChange={(e) => setSettings({ ...settings, secondary_color: e.target.value })}
+                    placeholder="#EC4899"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="accent-color" className="text-sm">Cor de Destaque</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    id="accent-color"
+                    type="color"
+                    value={settings.accent_color}
+                    onChange={(e) => setSettings({ ...settings, accent_color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <Input
+                    value={settings.accent_color}
+                    onChange={(e) => setSettings({ ...settings, accent_color: e.target.value })}
+                    placeholder="#10B981"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Button onClick={handleSave} className="w-full" disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Configurações
+            </Button>
+          </Card>
+        </div>
+
+        <div className="lg:sticky lg:top-6 h-fit">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Preview em Tempo Real</h2>
+            <div 
+              className="min-h-[400px] rounded-lg p-8 flex flex-col items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color})`
+              }}
+            >
+              <Card className="w-full max-w-md p-6 bg-background/95 backdrop-blur">
+                {settings.logo_url && (
+                  <div className="flex justify-center mb-6">
+                    <img
+                      src={settings.logo_url}
+                      alt="Logo preview"
+                      className="max-h-16 object-contain"
+                    />
+                  </div>
+                )}
+                <h3 className="text-2xl font-bold text-center mb-4">
+                  {settings.company_name || "Sua Empresa"}
+                </h3>
+                <p className="text-center text-muted-foreground mb-6">
+                  Pesquisa de Satisfação
+                </p>
+                <div className="grid grid-cols-11 gap-1 mb-4">
+                  {Array.from({ length: 11 }, (_, i) => (
+                    <div
+                      key={i}
+                      className="aspect-square rounded border-2 flex items-center justify-center text-xs font-semibold"
+                      style={{
+                        borderColor: i === 5 ? settings.primary_color : 'hsl(var(--border))',
+                        backgroundColor: i === 5 ? settings.accent_color : 'transparent',
+                        color: i === 5 ? 'white' : 'inherit'
+                      }}
+                    >
+                      {i}
+                    </div>
+                  ))}
+                </div>
+                <Button 
+                  className="w-full"
+                  style={{ backgroundColor: settings.primary_color }}
+                >
+                  Enviar Resposta
+                </Button>
+              </Card>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default Settings;

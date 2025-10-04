@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_settings: {
+        Row: {
+          accent_color: string | null
+          company_name: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accent_color?: string | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           created_at: string | null
@@ -46,7 +82,10 @@ export type Database = {
       }
       contacts: {
         Row: {
+          company_document: string | null
+          company_sector: string | null
           created_at: string | null
+          custom_fields: Json | null
           email: string
           id: string
           is_company: boolean
@@ -56,7 +95,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          company_document?: string | null
+          company_sector?: string | null
           created_at?: string | null
+          custom_fields?: Json | null
           email: string
           id?: string
           is_company?: boolean
@@ -66,7 +108,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          company_document?: string | null
+          company_sector?: string | null
           created_at?: string | null
+          custom_fields?: Json | null
           email?: string
           id?: string
           is_company?: boolean

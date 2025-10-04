@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Users, Send, TrendingUp, LogOut } from "lucide-react";
+import { BarChart3, Users, Send, TrendingUp, LogOut, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LayoutProps {
@@ -57,6 +57,7 @@ const Layout = ({ children }: LayoutProps) => {
     { path: "/contacts", icon: Users, label: "Contatos" },
     { path: "/campaigns", icon: Send, label: "Campanhas" },
     { path: "/results", icon: TrendingUp, label: "Resultados" },
+    { path: "/settings", icon: Settings, label: "Configurações" },
   ];
 
   return (

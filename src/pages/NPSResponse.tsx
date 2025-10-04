@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart3, CheckCircle } from "lucide-react";
+
+interface BrandSettings {
+  company_name: string | null;
+  logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+}
 
 const NPSResponse = () => {
   const { token } = useParams();
@@ -15,6 +23,44 @@ const NPSResponse = () => {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [brandSettings, setBrandSettings] = useState<BrandSettings>({
+    company_name: null,
+    logo_url: null,
+    primary_color: "#8B5CF6",
+    secondary_color: "#EC4899",
+    accent_color: "#10B981",
+  });
+
+  useEffect(() => {
+    fetchBrandSettings();
+  }, []);
+
+  const fetchBrandSettings = async () => {
+    try {
+      if (!token) return;
+      const [campaignId] = token.split("-");
+      
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("user_id")
+        .eq("id", campaignId)
+        .single();
+
+      if (campaign) {
+        const { data: settings } = await supabase
+          .from("brand_settings")
+          .select("*")
+          .eq("user_id", campaign.user_id)
+          .maybeSingle();
+
+        if (settings) {
+          setBrandSettings(settings);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching brand settings:", error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (selectedScore === null) {
@@ -57,9 +103,21 @@ const NPSResponse = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-purple-600 p-4">
-        <Card className="w-full max-w-md p-8 text-center">
-          <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: `linear-gradient(135deg, ${brandSettings.primary_color}, ${brandSettings.secondary_color})`
+        }}
+      >
+        <Card className="w-full max-w-md p-8 text-center bg-background/95 backdrop-blur">
+          {brandSettings.logo_url && (
+            <img
+              src={brandSettings.logo_url}
+              alt="Logo"
+              className="max-h-16 object-contain mx-auto mb-4"
+            />
+          )}
+          <CheckCircle className="h-16 w-16 mx-auto mb-4" style={{ color: brandSettings.accent_color }} />
           <h1 className="text-2xl font-bold mb-2">Obrigado!</h1>
           <p className="text-muted-foreground">Sua resposta foi registrada com sucesso.</p>
         </Card>
@@ -68,11 +126,26 @@ const NPSResponse = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-purple-600 p-4">
-      <Card className="w-full max-w-2xl p-8">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: `linear-gradient(135deg, ${brandSettings.primary_color}, ${brandSettings.secondary_color})`
+      }}
+    >
+      <Card className="w-full max-w-2xl p-8 bg-background/95 backdrop-blur">
         <div className="flex items-center justify-center mb-8">
-          <BarChart3 className="h-12 w-12 text-primary mr-3" />
-          <h1 className="text-3xl font-bold">Pesquisa de Satisfação</h1>
+          {brandSettings.logo_url ? (
+            <img
+              src={brandSettings.logo_url}
+              alt="Logo"
+              className="max-h-12 object-contain mr-3"
+            />
+          ) : (
+            <BarChart3 className="h-12 w-12 mr-3" style={{ color: brandSettings.primary_color }} />
+          )}
+          <h1 className="text-3xl font-bold">
+            {brandSettings.company_name || "Pesquisa de Satisfação"}
+          </h1>
         </div>
 
         <div className="mb-8">
@@ -85,15 +158,15 @@ const NPSResponse = () => {
               <button
                 key={score}
                 onClick={() => setSelectedScore(score)}
-                className={`aspect-square rounded-lg border-2 font-semibold text-lg transition-all ${
-                  selectedScore === score
-                    ? score >= 9
-                      ? "bg-success text-white border-success shadow-lg scale-110"
-                      : score >= 7
-                      ? "bg-warning text-white border-warning shadow-lg scale-110"
-                      : "bg-destructive text-white border-destructive shadow-lg scale-110"
-                    : "border-border hover:border-primary hover:scale-105"
-                }`}
+                className="aspect-square rounded-lg border-2 font-semibold text-lg transition-all hover:scale-105"
+                style={{
+                  borderColor: selectedScore === score ? brandSettings.primary_color : 'hsl(var(--border))',
+                  backgroundColor: selectedScore === score 
+                    ? (score >= 9 ? brandSettings.accent_color : score >= 7 ? brandSettings.secondary_color : '#ef4444')
+                    : 'transparent',
+                  color: selectedScore === score ? 'white' : 'inherit',
+                  transform: selectedScore === score ? 'scale(1.1)' : 'scale(1)',
+                }}
               >
                 {score}
               </button>
@@ -118,7 +191,12 @@ const NPSResponse = () => {
           />
         </div>
 
-        <Button onClick={handleSubmit} className="w-full" disabled={submitting}>
+        <Button 
+          onClick={handleSubmit} 
+          className="w-full" 
+          disabled={submitting}
+          style={{ backgroundColor: brandSettings.primary_color }}
+        >
           {submitting ? "Enviando..." : "Enviar Resposta"}
         </Button>
       </Card>
