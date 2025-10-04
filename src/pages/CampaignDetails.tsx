@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2 } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -47,6 +47,7 @@ const CampaignDetails = () => {
   const [campaignContacts, setCampaignContacts] = useState<CampaignContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [copiedEmbedToken, setCopiedEmbedToken] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -105,6 +106,11 @@ const CampaignDetails = () => {
     return `${window.location.origin}/nps/${token}`;
   };
 
+  const generateEmbedCode = (token: string) => {
+    const link = generateLink(token);
+    return `<iframe src="${link}" width="100%" height="600" frameborder="0"></iframe>`;
+  };
+
   const copyLink = (token: string) => {
     const link = generateLink(token);
     navigator.clipboard.writeText(link);
@@ -113,6 +119,17 @@ const CampaignDetails = () => {
     toast({
       title: "Link copiado!",
       description: "Link individual copiado para área de transferência.",
+    });
+  };
+
+  const copyEmbedCode = (token: string) => {
+    const embedCode = generateEmbedCode(token);
+    navigator.clipboard.writeText(embedCode);
+    setCopiedEmbedToken(token);
+    setTimeout(() => setCopiedEmbedToken(null), 2000);
+    toast({
+      title: "Código embed copiado!",
+      description: "Código de incorporação copiado para área de transferência.",
     });
   };
 
@@ -180,7 +197,7 @@ const CampaignDetails = () => {
                     <TableHead>Telefone</TableHead>
                     <TableHead>Documento</TableHead>
                     <TableHead>Setor</TableHead>
-                    <TableHead className="text-right">Link Individual</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -217,23 +234,42 @@ const CampaignDetails = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyLink(cc.link_token)}
-                        >
-                          {copiedToken === cc.link_token ? (
-                            <>
-                              <Check className="mr-2 h-4 w-4" />
-                              Copiado
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="mr-2 h-4 w-4" />
-                              Copiar
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyLink(cc.link_token)}
+                          >
+                            {copiedToken === cc.link_token ? (
+                              <>
+                                <Check className="mr-2 h-4 w-4" />
+                                Copiado
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Link
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyEmbedCode(cc.link_token)}
+                          >
+                            {copiedEmbedToken === cc.link_token ? (
+                              <>
+                                <Check className="mr-2 h-4 w-4" />
+                                Copiado
+                              </>
+                            ) : (
+                              <>
+                                <Code2 className="mr-2 h-4 w-4" />
+                                Embed
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
