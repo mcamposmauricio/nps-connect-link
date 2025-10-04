@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Palette } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import NPSForm from "@/components/NPSForm";
 
 interface BrandSettings {
   id?: string;
@@ -274,50 +275,27 @@ const Settings = () => {
         <div className="lg:sticky lg:top-6 h-fit">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Preview em Tempo Real</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Visualização exata de como a pesquisa aparecerá para seus contatos
+            </p>
             <div 
-              className="min-h-[400px] rounded-lg p-8 flex flex-col items-center justify-center"
+              className="rounded-lg overflow-hidden"
               style={{
                 background: `linear-gradient(135deg, ${settings.primary_color}, ${settings.secondary_color})`
               }}
             >
-              <Card className="w-full max-w-md p-6 bg-background/95 backdrop-blur">
-                {settings.logo_url && (
-                  <div className="flex justify-center mb-6">
-                    <img
-                      src={settings.logo_url}
-                      alt="Logo preview"
-                      className="max-h-16 object-contain"
-                    />
-                  </div>
-                )}
-                <h3 className="text-2xl font-bold text-center mb-4">
-                  {settings.company_name || "Sua Empresa"}
-                </h3>
-                <p className="text-center text-muted-foreground mb-6">
-                  Pesquisa de Satisfação
-                </p>
-                <div className="grid grid-cols-11 gap-1 mb-4">
-                  {Array.from({ length: 11 }, (_, i) => (
-                    <div
-                      key={i}
-                      className="aspect-square rounded border-2 flex items-center justify-center text-xs font-semibold"
-                      style={{
-                        borderColor: i === 5 ? settings.primary_color : 'hsl(var(--border))',
-                        backgroundColor: i === 5 ? settings.accent_color : 'transparent',
-                        color: i === 5 ? 'white' : 'inherit'
-                      }}
-                    >
-                      {i}
-                    </div>
-                  ))}
-                </div>
-                <Button 
-                  className="w-full"
-                  style={{ backgroundColor: settings.primary_color }}
-                >
-                  Enviar Resposta
-                </Button>
-              </Card>
+              <div className="p-8 flex items-center justify-center min-h-[500px]">
+                <NPSForm
+                  brandSettings={{
+                    company_name: settings.company_name,
+                    logo_url: settings.logo_url,
+                    primary_color: settings.primary_color,
+                    secondary_color: settings.secondary_color,
+                    accent_color: settings.accent_color,
+                  }}
+                  isPreview={true}
+                />
+              </div>
             </div>
           </Card>
         </div>
