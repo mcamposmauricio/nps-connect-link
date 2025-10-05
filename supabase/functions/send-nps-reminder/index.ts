@@ -106,35 +106,88 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending NPS reminder to:", contactEmail);
 
     const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Olá, ${contactName}!</h1>
-        
-        <p style="color: #555; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-          ${campaignMessage}
-        </p>
-        
-        <p style="color: #555; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-          Sua opinião é muito importante para nós. Por favor, responda nossa pesquisa de satisfação abaixo:
-        </p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <iframe src="${npsLink}" width="100%" height="500" frameborder="0" style="border: none; border-radius: 8px;"></iframe>
-        </div>
-        
-        <div style="text-align: center; margin: 20px 0;">
-          <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
-            Se o formulário não carregar, clique no botão abaixo:
-          </p>
-          <a href="${npsLink}" 
-             style="display: inline-block; background-color: #8B5CF6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
-            Acessar Pesquisa
-          </a>
-        </div>
-        
-        <p style="color: #999; font-size: 14px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
-          Este é um e-mail automático. Se você não deseja receber estas mensagens, por favor ignore este e-mail.
-        </p>
-      </div>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                <!-- Header -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); padding: 40px 40px 30px;">
+                    <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; text-align: center;">
+                      ${companyName || 'Pesquisa de Satisfação'}
+                    </h1>
+                  </td>
+                </tr>
+                
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px;">
+                    <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 22px; font-weight: 600;">
+                      Olá, ${contactName}! 👋
+                    </h2>
+                    
+                    <p style="margin: 0 0 20px; color: #4a5568; font-size: 16px; line-height: 1.6;">
+                      ${campaignMessage}
+                    </p>
+                    
+                    <div style="background-color: #f8fafc; border-left: 4px solid #8B5CF6; padding: 16px; margin: 24px 0; border-radius: 4px;">
+                      <p style="margin: 0; color: #1a1a1a; font-size: 15px; line-height: 1.5;">
+                        <strong>💡 Sua opinião é muito importante!</strong><br/>
+                        Leva apenas 1 minuto para responder e nos ajuda a melhorar cada vez mais.
+                      </p>
+                    </div>
+                    
+                    <!-- CTA Button -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center">
+                          <a href="${npsLink}" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); color: white; padding: 16px 48px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); transition: transform 0.2s;">
+                            Responder Pesquisa →
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <p style="margin: 24px 0 0; color: #718096; font-size: 14px; line-height: 1.5; text-align: center;">
+                      Ou copie e cole este link no seu navegador:<br/>
+                      <a href="${npsLink}" style="color: #8B5CF6; text-decoration: none; word-break: break-all;">${npsLink}</a>
+                    </p>
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e2e8f0;">
+                    <p style="margin: 0; color: #a0aec0; font-size: 13px; line-height: 1.6; text-align: center;">
+                      Este é um e-mail automático enviado por <strong>${companyName || 'nossa equipe'}</strong>.<br/>
+                      Se você tiver dúvidas, entre em contato conosco.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Email Footer -->
+              <table width="600" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                <tr>
+                  <td style="text-align: center; padding: 20px;">
+                    <p style="margin: 0; color: #a0aec0; font-size: 12px;">
+                      © ${new Date().getFullYear()} ${companyName || 'Todos os direitos reservados'}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `;
 
     const messageId = await sendGmailEmail(
