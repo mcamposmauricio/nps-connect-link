@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Eye, Check } from "lucide-react";
+import { Plus, Users, Eye, Check, Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { exportToCSV } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -181,6 +182,21 @@ const Campaigns = () => {
     }
   };
 
+  const handleExportCSV = () => {
+    const csvData = campaigns.map((campaign) => ({
+      "Nome": campaign.name,
+      "Mensagem": campaign.message,
+      "Status": campaign.status === "sent" ? "Enviada" : "Rascunho",
+      "Data de Criação": new Date(campaign.created_at).toLocaleDateString("pt-BR"),
+      "Data de Envio": campaign.sent_at ? new Date(campaign.sent_at).toLocaleDateString("pt-BR") : "",
+    }));
+    exportToCSV(csvData, "campanhas");
+    toast({
+      title: "CSV exportado!",
+      description: "Arquivo baixado com sucesso.",
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -190,13 +206,20 @@ const Campaigns = () => {
             <p className="text-muted-foreground">Crie e gerencie suas pesquisas de NPS</p>
           </div>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Campanha
+          <div className="flex gap-2">
+            {campaigns.length > 0 && (
+              <Button onClick={handleExportCSV} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
               </Button>
-            </DialogTrigger>
+            )}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nova Campanha
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Criar Campanha</DialogTitle>
@@ -227,8 +250,10 @@ const Campaigns = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
+        </div>
 
-          <Dialog open={contactsDialogOpen} onOpenChange={setContactsDialogOpen}>
+        <Dialog open={contactsDialogOpen} onOpenChange={setContactsDialogOpen}>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Adicionar Contatos à Campanha</DialogTitle>
@@ -275,7 +300,6 @@ const Campaigns = () => {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-64">

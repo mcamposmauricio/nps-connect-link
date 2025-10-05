@@ -3,8 +3,10 @@ import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
+import { exportToCSV } from "@/lib/utils";
 
 interface Response {
   id: string;
@@ -97,12 +99,37 @@ const Results = () => {
     return "Detrator";
   };
 
+  const handleExportCSV = () => {
+    const csvData = filteredResponses.map((r) => ({
+      "Nome do Contato": r.contacts.name,
+      "Email": r.contacts.email,
+      "Campanha": r.campaigns.name,
+      "Nota": r.score,
+      "Categoria": getScoreLabel(r.score),
+      "Comentário": r.comment || "",
+      "Data de Resposta": new Date(r.responded_at).toLocaleString("pt-BR"),
+    }));
+    exportToCSV(csvData, "resultados_nps");
+    toast({
+      title: "CSV exportado!",
+      description: "Arquivo baixado com sucesso.",
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Resultados</h1>
-          <p className="text-muted-foreground">Visualize todas as respostas de NPS</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Resultados</h1>
+            <p className="text-muted-foreground">Visualize todas as respostas de NPS</p>
+          </div>
+          {filteredResponses.length > 0 && (
+            <Button onClick={handleExportCSV} variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
+          )}
         </div>
 
         <div className="relative">

@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2, Code2 } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2, Download } from "lucide-react";
+import { exportToCSV } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -133,6 +134,24 @@ const CampaignDetails = () => {
     });
   };
 
+  const handleExportCSV = () => {
+    const csvData = campaignContacts.map((cc) => ({
+      "Tipo": cc.contacts.is_company ? "Empresa" : "Pessoa",
+      "Nome": cc.contacts.name,
+      "Email": cc.contacts.email,
+      "Telefone": cc.contacts.phone || "",
+      "Documento": cc.contacts.company_document || "",
+      "Setor": cc.contacts.company_sector || "",
+      "Link NPS": generateLink(cc.link_token),
+      "Código Embed": generateEmbedCode(cc.link_token),
+    }));
+    exportToCSV(csvData, `campanha_${campaign?.name || 'contatos'}`);
+    toast({
+      title: "CSV exportado!",
+      description: "Arquivo baixado com sucesso.",
+    });
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -178,9 +197,17 @@ const CampaignDetails = () => {
         </div>
 
         <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">
-            Contatos da Campanha ({campaignContacts.length})
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold">
+              Contatos da Campanha ({campaignContacts.length})
+            </h2>
+            {campaignContacts.length > 0 && (
+              <Button onClick={handleExportCSV} variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
+              </Button>
+            )}
+          </div>
           
           {campaignContacts.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">

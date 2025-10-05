@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Loader2, Upload, Building2, User } from "lucide-react";
+import { Plus, Trash2, Loader2, Upload, Building2, User, Download } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import Papa from "papaparse";
+import { exportToCSV } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -210,6 +211,23 @@ const Contacts = () => {
     return true;
   });
 
+  const handleExportCSV = () => {
+    const csvData = filteredContacts.map((contact) => ({
+      "Tipo": contact.is_company ? "Empresa" : "Pessoa",
+      "Nome": contact.name,
+      "Email": contact.email,
+      "Telefone": contact.phone || "",
+      "CNPJ": contact.company_document || "",
+      "Setor": contact.company_sector || "",
+      ...contact.custom_fields,
+    }));
+    exportToCSV(csvData, `contatos_${activeTab}`);
+    toast({
+      title: "CSV exportado!",
+      description: "Arquivo baixado com sucesso.",
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -220,6 +238,12 @@ const Contacts = () => {
           </div>
 
           <div className="flex gap-2">
+            {contacts.length > 0 && (
+              <Button onClick={handleExportCSV} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
+              </Button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
