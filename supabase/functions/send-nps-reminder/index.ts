@@ -114,11 +114,21 @@ const handler = async (req: Request): Promise<Response> => {
         </p>
         
         <p style="color: #555; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-          Sua opinião é muito importante para nós. Por favor, clique no link abaixo para responder nossa pesquisa de satisfação:
+          Sua opinião é muito importante para nós. Por favor, responda nossa pesquisa de satisfação abaixo:
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
           <iframe src="${npsLink}" width="100%" height="500" frameborder="0" style="border: none; border-radius: 8px;"></iframe>
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
+            Se o formulário não carregar, clique no botão abaixo:
+          </p>
+          <a href="${npsLink}" 
+             style="display: inline-block; background-color: #8B5CF6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+            Acessar Pesquisa
+          </a>
         </div>
         
         <p style="color: #999; font-size: 14px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
