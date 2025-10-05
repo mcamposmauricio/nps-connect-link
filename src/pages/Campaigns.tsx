@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Eye, Check, Download } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Eye, Download, TrendingUp, Mail, MessageSquare, BarChart3 } from "lucide-react";
+
 import { exportToCSV } from "@/lib/utils";
 import {
   Dialog,
@@ -27,6 +27,14 @@ interface Campaign {
   sent_at: string | null;
 }
 
+interface CampaignMetrics {
+  total: number;
+  sent: number;
+  responded: number;
+  avgScore: number;
+  nps: number;
+}
+
 interface Contact {
   id: string;
   name: string;
@@ -37,19 +45,16 @@ interface Contact {
 const Campaigns = () => {
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignMetrics, setCampaignMetrics] = useState<Record<string, CampaignMetrics>>({});
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [contactsDialogOpen, setContactsDialogOpen] = useState(false);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({ name: "", message: "" });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCampaigns();
-    fetchContacts();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -65,6 +70,48 @@ const Campaigns = () => {
 
       if (error) throw error;
       setCampaigns(data || []);
+
+      // Fetch metrics for each campaign
+      if (data) {
+        const metrics: Record<string, CampaignMetrics> = {};
+        
+        for (const campaign of data) {
+          // Get campaign contacts
+          const { data: contactsData } = await supabase
+            .from("campaign_contacts")
+            .select("id, contact_id, email_sent")
+            .eq("campaign_id", campaign.id);
+
+          const total = contactsData?.length || 0;
+          const sent = contactsData?.filter(c => c.email_sent).length || 0;
+
+          // Get responses
+          const { data: responsesData } = await supabase
+            .from("responses")
+            .select("score, contact_id")
+            .eq("campaign_id", campaign.id);
+
+          const responded = responsesData?.length || 0;
+          
+          // Calculate average score and NPS
+          let avgScore = 0;
+          let nps = 0;
+          
+          if (responsesData && responsesData.length > 0) {
+            const scores = responsesData.map(r => r.score);
+            avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            
+            // Calculate NPS (Net Promoter Score)
+            const promoters = scores.filter(s => s >= 9).length;
+            const detractors = scores.filter(s => s <= 6).length;
+            nps = ((promoters - detractors) / scores.length) * 100;
+          }
+
+          metrics[campaign.id] = { total, sent, responded, avgScore, nps };
+        }
+        
+        setCampaignMetrics(metrics);
+      }
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -112,75 +159,6 @@ const Campaigns = () => {
     }
   };
 
-  const fetchContacts = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("id, name, email, is_company")
-        .eq("user_id", user.id)
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-      setContacts(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const openContactsDialog = (campaignId: string) => {
-    setSelectedCampaignId(campaignId);
-    setSelectedContactIds([]);
-    setContactsDialogOpen(true);
-  };
-
-  const handleContactToggle = (contactId: string) => {
-    setSelectedContactIds((prev) =>
-      prev.includes(contactId)
-        ? prev.filter((id) => id !== contactId)
-        : [...prev, contactId]
-    );
-  };
-
-  const handleAddContacts = async () => {
-    if (!selectedCampaignId || selectedContactIds.length === 0) return;
-    setSaving(true);
-
-    try {
-      const inserts = selectedContactIds.map((contactId) => ({
-        campaign_id: selectedCampaignId,
-        contact_id: contactId,
-      }));
-
-      const { error } = await supabase
-        .from("campaign_contacts")
-        .insert(inserts);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso!",
-        description: `${selectedContactIds.length} contato(s) adicionado(s) à campanha.`,
-      });
-
-      setContactsDialogOpen(false);
-      setSelectedContactIds([]);
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleExportCSV = () => {
     const csvData = campaigns.map((campaign) => ({
@@ -253,53 +231,6 @@ const Campaigns = () => {
           </div>
         </div>
 
-        <Dialog open={contactsDialogOpen} onOpenChange={setContactsDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Adicionar Contatos à Campanha</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {contacts.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Você ainda não tem contatos cadastrados.
-                  </p>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      {contacts.map((contact) => (
-                        <div
-                          key={contact.id}
-                          className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                          onClick={() => handleContactToggle(contact.id)}
-                        >
-                          <Checkbox
-                            checked={selectedContactIds.includes(contact.id)}
-                            onCheckedChange={() => handleContactToggle(contact.id)}
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium">{contact.name}</p>
-                            <p className="text-sm text-muted-foreground">{contact.email}</p>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {contact.is_company ? "Empresa" : "Pessoa"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={handleAddContacts}
-                      className="w-full"
-                      disabled={saving || selectedContactIds.length === 0}
-                    >
-                      {saving
-                        ? "Adicionando..."
-                        : `Adicionar ${selectedContactIds.length} Contato(s)`}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -311,40 +242,84 @@ const Campaigns = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {campaigns.map((campaign) => (
-              <Card key={campaign.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">{campaign.name}</h3>
-                    <p className="text-muted-foreground">{campaign.message}</p>
+            {campaigns.map((campaign) => {
+              const metrics = campaignMetrics[campaign.id];
+              return (
+                <Card key={campaign.id} className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold mb-2">{campaign.name}</h3>
+                      <p className="text-muted-foreground text-sm">{campaign.message}</p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ml-4 ${
+                        campaign.status === "sent"
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {campaign.status === "sent" ? "Enviada" : "Rascunho"}
+                    </span>
                   </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      campaign.status === "sent"
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {campaign.status === "sent" ? "Enviada" : "Rascunho"}
-                  </span>
-                </div>
 
-                <div className="flex items-center space-x-2">
-                  <Button variant="outline" onClick={() => openContactsDialog(campaign.id)}>
-                    <Users className="mr-2 h-4 w-4" />
-                    Adicionar Contatos
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Ver Detalhes
-                  </Button>
-                </div>
+                  {metrics && (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 my-4 p-4 bg-muted/30 rounded-lg">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                          <BarChart3 className="h-3 w-3" />
+                          <span>Total</span>
+                        </div>
+                        <div className="text-2xl font-bold">{metrics.total}</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                          <Mail className="h-3 w-3" />
+                          <span>Enviados</span>
+                        </div>
+                        <div className="text-2xl font-bold text-blue-600">{metrics.sent}</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                          <MessageSquare className="h-3 w-3" />
+                          <span>Responderam</span>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600">{metrics.responded}</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                          <TrendingUp className="h-3 w-3" />
+                          <span>Nota Média</span>
+                        </div>
+                        <div className="text-2xl font-bold text-purple-600">
+                          {metrics.avgScore > 0 ? metrics.avgScore.toFixed(1) : "-"}
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                          <TrendingUp className="h-3 w-3" />
+                          <span>NPS</span>
+                        </div>
+                        <div className={`text-2xl font-bold ${
+                          metrics.nps > 0 ? "text-green-600" : metrics.nps < 0 ? "text-red-600" : "text-gray-600"
+                        }`}>
+                          {metrics.responded > 0 ? `${metrics.nps.toFixed(0)}%` : "-"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                <p className="text-xs text-muted-foreground mt-4">
-                  Criada em {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
-                </p>
-              </Card>
-            ))}
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Criada em {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
