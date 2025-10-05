@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2, Code2, Download } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail } from "lucide-react";
 import { exportToCSV } from "@/lib/utils";
 import {
   Table,
@@ -49,6 +49,7 @@ const CampaignDetails = () => {
   const [loading, setLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [copiedEmbedToken, setCopiedEmbedToken] = useState<string | null>(null);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -150,6 +151,49 @@ const CampaignDetails = () => {
       title: "CSV exportado!",
       description: "Arquivo baixado com sucesso.",
     });
+  };
+
+  const sendNPSReminder = async (contactId: string) => {
+    const campaignContact = campaignContacts.find(cc => cc.contact_id === contactId);
+    if (!campaignContact || !campaign) return;
+
+    setSendingEmail(contactId);
+    
+    try {
+      // Fetch brand settings for company name
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: brandSettings } = await supabase
+        .from("brand_settings")
+        .select("company_name")
+        .eq("user_id", user?.id)
+        .single();
+
+      const { error } = await supabase.functions.invoke("send-nps-reminder", {
+        body: {
+          contactName: campaignContact.contacts.name,
+          contactEmail: campaignContact.contacts.email,
+          campaignName: campaign.name,
+          campaignMessage: campaign.message,
+          npsLink: generateLink(campaignContact.link_token),
+          companyName: brandSettings?.company_name || undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "E-mail enviado!",
+        description: `Lembrete enviado para ${campaignContact.contacts.name}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao enviar e-mail",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmail(null);
+    }
   };
 
   if (loading) {
@@ -295,6 +339,15 @@ const CampaignDetails = () => {
                                 Embed
                               </>
                             )}
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => sendNPSReminder(cc.contact_id)}
+                            disabled={sendingEmail === cc.contact_id}
+                          >
+                            <Mail className="mr-2 h-4 w-4" />
+                            {sendingEmail === cc.contact_id ? "Enviando..." : "Enviar"}
                           </Button>
                         </div>
                       </TableCell>
