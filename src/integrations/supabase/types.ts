@@ -55,6 +55,8 @@ export type Database = {
           campaign_id: string
           contact_id: string
           created_at: string
+          email_sent: boolean | null
+          email_sent_at: string | null
           id: string
           link_token: string
         }
@@ -62,6 +64,8 @@ export type Database = {
           campaign_id: string
           contact_id: string
           created_at?: string
+          email_sent?: boolean | null
+          email_sent_at?: string | null
           id?: string
           link_token?: string
         }
@@ -69,6 +73,8 @@ export type Database = {
           campaign_id?: string
           contact_id?: string
           created_at?: string
+          email_sent?: boolean | null
+          email_sent_at?: string | null
           id?: string
           link_token?: string
         }
