@@ -56,7 +56,6 @@ const Layout = ({ children }: LayoutProps) => {
     { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
     { path: "/contacts", icon: Users, label: "Contatos" },
     { path: "/campaigns", icon: Send, label: "Campanhas" },
-    { path: "/results", icon: TrendingUp, label: "Resultados" },
     { path: "/settings", icon: Settings, label: "Configurações" },
   ];
 

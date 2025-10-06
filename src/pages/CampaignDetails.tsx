@@ -61,6 +61,15 @@ interface CampaignStats {
   nps: number;
 }
 
+interface Response {
+  id: string;
+  score: number;
+  comment: string | null;
+  responded_at: string;
+  contact_id: string;
+  contacts: Contact;
+}
+
 interface Campaign {
   id: string;
   name: string;
@@ -86,11 +95,13 @@ const CampaignDetails = () => {
   const [addContactsDialogOpen, setAddContactsDialogOpen] = useState(false);
   const [selectedNewContactIds, setSelectedNewContactIds] = useState<string[]>([]);
   const [addingContacts, setAddingContacts] = useState(false);
+  const [responses, setResponses] = useState<Response[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCampaignDetails();
     fetchAllContacts();
+    fetchResponses();
   }, [id]);
 
   const fetchCampaignDetails = async () => {
@@ -463,6 +474,48 @@ const CampaignDetails = () => {
     }
   };
 
+  const fetchResponses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("responses")
+        .select(`
+          id,
+          score,
+          comment,
+          responded_at,
+          contact_id,
+          contacts (
+            id,
+            name,
+            email,
+            phone,
+            is_company,
+            company_document,
+            company_sector
+          )
+        `)
+        .eq("campaign_id", id)
+        .order("responded_at", { ascending: false });
+
+      if (error) throw error;
+      setResponses(data || []);
+    } catch (error: any) {
+      console.error("Error fetching responses:", error);
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 9) return "bg-success/10 text-success border-success/20";
+    if (score >= 7) return "bg-warning/10 text-warning border-warning/20";
+    return "bg-destructive/10 text-destructive border-destructive/20";
+  };
+
+  const getScoreLabel = (score: number) => {
+    if (score >= 9) return "Promotor";
+    if (score >= 7) return "Neutro";
+    return "Detrator";
+  };
+
   const availableContacts = allContacts.filter(
     contact => !campaignContacts.some(cc => cc.contact_id === contact.id)
   );
@@ -720,6 +773,43 @@ const CampaignDetails = () => {
             </div>
           )}
         </Card>
+
+        {/* Respostas da Campanha */}
+        {responses.length > 0 && (
+          <Card className="p-6">
+            <h2 className="text-2xl font-semibold mb-4">
+              Respostas Recebidas ({responses.length})
+            </h2>
+            <div className="space-y-4">
+              {responses.map((response) => (
+                <div key={response.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="font-semibold">{response.contacts.name}</h4>
+                        <span className="text-sm text-muted-foreground">{response.contacts.email}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Respondido em {new Date(response.responded_at).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className={`px-4 py-2 rounded-lg border ${getScoreColor(response.score)}`}>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{response.score}</div>
+                        <div className="text-xs">{getScoreLabel(response.score)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  {response.comment && (
+                    <div className="mt-3 p-3 bg-muted rounded-lg">
+                      <p className="text-sm italic">&ldquo;{response.comment}&rdquo;</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
 
       <AlertDialog open={!!contactToDelete} onOpenChange={() => setContactToDelete(null)}>

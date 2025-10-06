@@ -8,7 +8,6 @@ import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetails from "./pages/CampaignDetails";
-import Results from "./pages/Results";
 import Settings from "./pages/Settings";
 import NPSResponse from "./pages/NPSResponse";
 import NotFound from "./pages/NotFound";
@@ -28,7 +27,6 @@ const App = () => (
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaigns/:id" element={<CampaignDetails />} />
-          <Route path="/results" element={<Results />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/nps/:token" element={<NPSResponse />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
