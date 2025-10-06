@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare } from "lucide-react";
 import { exportToCSV } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -57,6 +57,8 @@ interface CampaignStats {
   sent: number;
   responded: number;
   pending: number;
+  avgScore: number;
+  nps: number;
 }
 
 interface Campaign {
@@ -80,7 +82,7 @@ const CampaignDetails = () => {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [sendingBulk, setSendingBulk] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
-  const [stats, setStats] = useState<CampaignStats>({ total: 0, sent: 0, responded: 0, pending: 0 });
+  const [stats, setStats] = useState<CampaignStats>({ total: 0, sent: 0, responded: 0, pending: 0, avgScore: 0, nps: 0 });
   const [addContactsDialogOpen, setAddContactsDialogOpen] = useState(false);
   const [selectedNewContactIds, setSelectedNewContactIds] = useState<string[]>([]);
   const [addingContacts, setAddingContacts] = useState(false);
@@ -146,7 +148,28 @@ const CampaignDetails = () => {
       const responded = contacts.filter(c => respondedContactIds.has(c.contact_id)).length;
       const pending = total - sent;
       
-      setStats({ total, sent, responded, pending });
+      // Calculate average score and NPS
+      let avgScore = 0;
+      let nps = 0;
+      
+      if (responsesData && responsesData.length > 0) {
+        const { data: scoresData } = await supabase
+          .from("responses")
+          .select("score")
+          .eq("campaign_id", id);
+        
+        if (scoresData && scoresData.length > 0) {
+          const scores = scoresData.map(r => r.score);
+          avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+          
+          // Calculate NPS (Net Promoter Score)
+          const promoters = scores.filter(s => s >= 9).length;
+          const detractors = scores.filter(s => s <= 6).length;
+          nps = ((promoters - detractors) / scores.length) * 100;
+        }
+      }
+      
+      setStats({ total, sent, responded, pending, avgScore, nps });
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -488,16 +511,45 @@ const CampaignDetails = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="p-6">
-            <div className="text-sm text-muted-foreground mb-1">Total de Contatos</div>
-            <div className="text-3xl font-bold">{stats.total}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-6">
+          <Card className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Total</span>
+            </div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </Card>
-          <Card className="p-6">
-            <div className="text-sm text-muted-foreground mb-1">E-mails Enviados</div>
-            <div className="text-3xl font-bold text-blue-600">{stats.sent}</div>
+          <Card className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+              <Mail className="h-4 w-4" />
+              <span>Enviados</span>
+            </div>
+            <div className="text-2xl font-bold text-blue-600">{stats.sent}</div>
           </Card>
-          <Card className="p-6">
+          <Card className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+              <MessageSquare className="h-4 w-4" />
+              <span>Respostas</span>
+            </div>
+            <div className="text-2xl font-bold text-green-600">{stats.responded}</div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+              <Mail className="h-4 w-4" />
+              <span>Pendentes</span>
+            </div>
+            <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+              <TrendingUp className="h-4 w-4" />
+              <span>Média</span>
+            </div>
+            <div className="text-2xl font-bold text-purple-600">
+              {stats.avgScore > 0 ? stats.avgScore.toFixed(1) : "-"}
+            </div>
+          </Card>
+          <Card className="p-4">
             <div className="text-sm text-muted-foreground mb-1">Responderam</div>
             <div className="text-3xl font-bold text-green-600">{stats.responded}</div>
           </Card>

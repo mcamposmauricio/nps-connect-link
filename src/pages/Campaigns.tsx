@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Eye, Download, TrendingUp, Mail, MessageSquare, BarChart3 } from "lucide-react";
+import { Plus, Eye, Download, TrendingUp, Mail, MessageSquare, BarChart3, Edit } from "lucide-react";
 
 import { exportToCSV } from "@/lib/utils";
 import {
@@ -49,7 +49,9 @@ const Campaigns = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", message: "" });
+  const [editFormData, setEditFormData] = useState({ id: "", name: "", message: "" });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -160,6 +162,48 @@ const Campaigns = () => {
   };
 
 
+  const handleEdit = (campaign: Campaign) => {
+    setEditFormData({ 
+      id: campaign.id, 
+      name: campaign.name, 
+      message: campaign.message 
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const { error } = await supabase
+        .from("campaigns")
+        .update({
+          name: editFormData.name,
+          message: editFormData.message,
+        })
+        .eq("id", editFormData.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Campanha atualizada com sucesso.",
+      });
+
+      setEditDialogOpen(false);
+      fetchCampaigns();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExportCSV = () => {
     const csvData = campaigns.map((campaign) => ({
       "Nome": campaign.name,
@@ -241,87 +285,129 @@ const Campaigns = () => {
             <p className="text-muted-foreground">Nenhuma campanha criada ainda.</p>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-4">
             {campaigns.map((campaign) => {
               const metrics = campaignMetrics[campaign.id];
               return (
-                <Card key={campaign.id} className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold mb-2">{campaign.name}</h3>
-                      <p className="text-muted-foreground text-sm">{campaign.message}</p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ml-4 ${
-                        campaign.status === "sent"
-                          ? "bg-success/10 text-success"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {campaign.status === "sent" ? "Enviada" : "Rascunho"}
-                    </span>
-                  </div>
-
-                  {metrics && (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 my-4 p-4 bg-muted/30 rounded-lg">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <BarChart3 className="h-3 w-3" />
-                          <span>Total</span>
+                <Card key={campaign.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 mr-4">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-2xl font-bold">{campaign.name}</h3>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              campaign.status === "sent"
+                                ? "bg-success/10 text-success"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {campaign.status === "sent" ? "Enviada" : "Rascunho"}
+                          </span>
                         </div>
-                        <div className="text-2xl font-bold">{metrics.total}</div>
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <Mail className="h-3 w-3" />
-                          <span>Enviados</span>
-                        </div>
-                        <div className="text-2xl font-bold text-blue-600">{metrics.sent}</div>
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <MessageSquare className="h-3 w-3" />
-                          <span>Responderam</span>
-                        </div>
-                        <div className="text-2xl font-bold text-green-600">{metrics.responded}</div>
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <TrendingUp className="h-3 w-3" />
-                          <span>Nota Média</span>
-                        </div>
-                        <div className="text-2xl font-bold text-purple-600">
-                          {metrics.avgScore > 0 ? metrics.avgScore.toFixed(1) : "-"}
-                        </div>
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <TrendingUp className="h-3 w-3" />
-                          <span>NPS</span>
-                        </div>
-                        <div className={`text-2xl font-bold ${
-                          metrics.nps > 0 ? "text-green-600" : metrics.nps < 0 ? "text-red-600" : "text-gray-600"
-                        }`}>
-                          {metrics.responded > 0 ? `${metrics.nps.toFixed(0)}%` : "-"}
-                        </div>
+                        <p className="text-muted-foreground">{campaign.message}</p>
                       </div>
                     </div>
-                  )}
 
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      Criada em {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
-                    </p>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Detalhes
-                    </Button>
+                    {metrics && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg border border-border/50">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+                            <BarChart3 className="h-3.5 w-3.5" />
+                            <span>Total</span>
+                          </div>
+                          <div className="text-2xl font-bold">{metrics.total}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+                            <Mail className="h-3.5 w-3.5" />
+                            <span>Enviados</span>
+                          </div>
+                          <div className="text-2xl font-bold text-blue-600">{metrics.sent}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span>Respostas</span>
+                          </div>
+                          <div className="text-2xl font-bold text-green-600">{metrics.responded}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            <span>Média</span>
+                          </div>
+                          <div className="text-2xl font-bold text-purple-600">
+                            {metrics.avgScore > 0 ? metrics.avgScore.toFixed(1) : "-"}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            <span>NPS</span>
+                          </div>
+                          <div className={`text-2xl font-bold ${
+                            metrics.nps > 0 ? "text-green-600" : metrics.nps < 0 ? "text-red-600" : "text-muted-foreground"
+                          }`}>
+                            {metrics.responded > 0 ? `${metrics.nps.toFixed(0)}%` : "-"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Criada em {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(campaign)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Ver Detalhes
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </Card>
               );
             })}
           </div>
         )}
+
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Campanha</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateCampaign} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Nome da Campanha</label>
+                <Input
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  placeholder="Ex: Pesquisa Q1 2024"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Mensagem</label>
+                <Textarea
+                  value={editFormData.message}
+                  onChange={(e) => setEditFormData({ ...editFormData, message: e.target.value })}
+                  placeholder="Como você avaliaria nosso serviço?"
+                  rows={4}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving ? "Salvando..." : "Salvar Alterações"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
