@@ -50,6 +50,7 @@ interface CampaignContact {
   email_sent: boolean;
   email_sent_at: string | null;
   contacts: Contact;
+  nps_score?: number | null;
 }
 
 interface CampaignStats {
@@ -142,21 +143,30 @@ const CampaignDetails = () => {
         .eq("campaign_id", id);
 
       if (contactsError) throw contactsError;
-      const contacts = contactsData || [];
-      setCampaignContacts(contacts);
-
-      // Fetch response stats
+      
+      // Fetch responses to get NPS scores and stats
       const { data: responsesData } = await supabase
         .from("responses")
-        .select("contact_id")
+        .select("contact_id, score")
         .eq("campaign_id", id);
+      
+      // Create a map of contact_id to score
+      const scoresMap = new Map(responsesData?.map(r => [r.contact_id, r.score]) || []);
+      
+      // Add NPS scores to contacts
+      const contactsWithScores = (contactsData || []).map(cc => ({
+        ...cc,
+        nps_score: scoresMap.get(cc.contact_id) || null
+      }));
+      
+      setCampaignContacts(contactsWithScores);
 
       const respondedContactIds = new Set(responsesData?.map(r => r.contact_id) || []);
       
       // Calculate stats
-      const total = contacts.length;
-      const sent = contacts.filter(c => c.email_sent).length;
-      const responded = contacts.filter(c => respondedContactIds.has(c.contact_id)).length;
+      const total = contactsWithScores.length;
+      const sent = contactsWithScores.filter(c => c.email_sent).length;
+      const responded = contactsWithScores.filter(c => respondedContactIds.has(c.contact_id)).length;
       const pending = total - sent;
       
       // Calculate average score and NPS
@@ -164,20 +174,13 @@ const CampaignDetails = () => {
       let nps = 0;
       
       if (responsesData && responsesData.length > 0) {
-        const { data: scoresData } = await supabase
-          .from("responses")
-          .select("score")
-          .eq("campaign_id", id);
+        const scores = responsesData.map(r => r.score);
+        avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
         
-        if (scoresData && scoresData.length > 0) {
-          const scores = scoresData.map(r => r.score);
-          avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-          
-          // Calculate NPS (Net Promoter Score)
-          const promoters = scores.filter(s => s >= 9).length;
-          const detractors = scores.filter(s => s <= 6).length;
-          nps = ((promoters - detractors) / scores.length) * 100;
-        }
+        // Calculate NPS (Net Promoter Score)
+        const promoters = scores.filter(s => s >= 9).length;
+        const detractors = scores.filter(s => s <= 6).length;
+        nps = ((promoters - detractors) / scores.length) * 100;
       }
       
       setStats({ total, sent, responded, pending, avgScore, nps });
@@ -660,6 +663,7 @@ const CampaignDetails = () => {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>NPS</TableHead>
                     <TableHead>Enviado em</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -698,6 +702,16 @@ const CampaignDetails = () => {
                         }`}>
                           {cc.email_sent ? "Enviado" : "Pendente"}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {cc.nps_score !== null && cc.nps_score !== undefined ? (
+                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border ${getScoreColor(cc.nps_score)}`}>
+                            <span className="font-bold">{cc.nps_score}</span>
+                            <span className="text-xs">{getScoreLabel(cc.nps_score)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">

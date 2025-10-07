@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Users, Send, TrendingUp, MessageSquare, Search, Mail, Building2, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -52,7 +53,25 @@ interface ContactCampaign {
   };
 }
 
+interface RecentResponse {
+  id: string;
+  score: number;
+  comment: string | null;
+  responded_at: string;
+  contact_id: string;
+  campaign_id: string;
+  contacts: {
+    name: string;
+    email: string;
+    is_company: boolean;
+  };
+  campaigns: {
+    name: string;
+  };
+}
+
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({
     totalContacts: 0,
     totalCampaigns: 0,
@@ -69,6 +88,7 @@ const Dashboard = () => {
   const [contactResponses, setContactResponses] = useState<ContactResponse[]>([]);
   const [contactCampaigns, setContactCampaigns] = useState<ContactCampaign[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [recentResponses, setRecentResponses] = useState<RecentResponse[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -109,7 +129,43 @@ const Dashboard = () => {
       }
     };
 
+    const fetchRecentResponses = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from("responses")
+          .select(`
+            id,
+            score,
+            comment,
+            responded_at,
+            contact_id,
+            campaign_id,
+            contacts (
+              name,
+              email,
+              is_company
+            ),
+            campaigns!inner (
+              name,
+              user_id
+            )
+          `)
+          .eq("campaigns.user_id", user.id)
+          .order("responded_at", { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        setRecentResponses(data || []);
+      } catch (error) {
+        console.error("Error fetching recent responses:", error);
+      }
+    };
+
     fetchStats();
+    fetchRecentResponses();
   }, []);
 
   useEffect(() => {
@@ -317,6 +373,69 @@ const Dashboard = () => {
             <p className="text-sm text-muted-foreground mt-2">Score 0-6</p>
           </Card>
         </div>
+
+        {/* Recent Responses Log */}
+        <Card className="p-6">
+          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+            <MessageSquare className="h-6 w-6" />
+            Últimas Respostas NPS
+          </h2>
+          {recentResponses.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              Nenhuma resposta ainda.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {recentResponses.map((response) => (
+                <div
+                  key={response.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/campaigns/${response.campaign_id}`)}
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    {response.contacts.is_company ? (
+                      <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    ) : (
+                      <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate">{response.contacts.name}</p>
+                        <span className="text-xs text-muted-foreground truncate">{response.contacts.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-xs text-muted-foreground">
+                          Campanha: {response.campaigns.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(response.responded_at).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </span>
+                      </div>
+                      {response.comment && (
+                        <p className="text-sm text-muted-foreground italic mt-1 line-clamp-1">
+                          &ldquo;{response.comment}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`ml-4 px-3 py-2 rounded-lg border ${getScoreColor(response.score)} flex-shrink-0`}>
+                    <div className="text-center">
+                      <div className="text-xl font-bold">{response.score}</div>
+                      <div className="text-xs whitespace-nowrap">{getScoreLabel(response.score)}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
       {/* Contact Details Dialog */}
