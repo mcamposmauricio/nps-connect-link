@@ -61,13 +61,13 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b bg-card shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      <nav className="border-b bg-card">
+        <div className="container mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
-            <Link to="/dashboard" className="flex items-center space-x-2">
-              <BarChart3 className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                NPS System
+            <Link to="/dashboard" className="flex items-center space-x-3">
+              <TrendingUp className="h-6 w-6 text-primary" />
+              <span className="text-xl font-semibold text-foreground">
+                Meu NPS
               </span>
             </Link>
 
@@ -79,15 +79,16 @@ const Layout = ({ children }: LayoutProps) => {
                   <Button
                     key={item.path}
                     variant={isActive ? "default" : "ghost"}
+                    size="sm"
                     onClick={() => navigate(item.path)}
                     className="flex items-center space-x-2"
                   >
                     <Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{item.label}</span>
+                    <span className="hidden md:inline">{item.label}</span>
                   </Button>
                 );
               })}
-              <Button variant="ghost" onClick={handleLogout} className="ml-2">
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="ml-2">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -95,7 +96,7 @@ const Layout = ({ children }: LayoutProps) => {
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-8">{children}</main>
+      <main className="container mx-auto px-6 py-6">{children}</main>
     </div>
   );
 };
