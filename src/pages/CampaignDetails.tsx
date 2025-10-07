@@ -5,7 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { exportToCSV } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -97,13 +104,21 @@ const CampaignDetails = () => {
   const [selectedNewContactIds, setSelectedNewContactIds] = useState<string[]>([]);
   const [addingContacts, setAddingContacts] = useState(false);
   const [responses, setResponses] = useState<Response[]>([]);
+  const [filters, setFilters] = useState({
+    emailStatus: 'all', // 'all', 'sent', 'pending'
+    responseStatus: 'all', // 'all', 'responded', 'not_responded'
+    npsCategory: 'all', // 'all', 'promoter', 'passive', 'detractor'
+  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCampaignDetails();
     fetchAllContacts();
-    fetchResponses();
   }, [id]);
+
+  useEffect(() => {
+    calculateFilteredStats();
+  }, [campaignContacts, filters]);
 
   const fetchCampaignDetails = async () => {
     try {
@@ -404,10 +419,11 @@ const CampaignDetails = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedContacts.length === campaignContacts.length) {
+    const filteredContacts = getFilteredContacts();
+    if (selectedContacts.length === filteredContacts.length) {
       setSelectedContacts([]);
     } else {
-      setSelectedContacts(campaignContacts.map(cc => cc.contact_id));
+      setSelectedContacts(filteredContacts.map(cc => cc.contact_id));
     }
   };
 
@@ -477,34 +493,84 @@ const CampaignDetails = () => {
     }
   };
 
-  const fetchResponses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("responses")
-        .select(`
-          id,
-          score,
-          comment,
-          responded_at,
-          contact_id,
-          contacts (
-            id,
-            name,
-            email,
-            phone,
-            is_company,
-            company_document,
-            company_sector
-          )
-        `)
-        .eq("campaign_id", id)
-        .order("responded_at", { ascending: false });
+  const getNpsCategory = (score: number | null | undefined): string => {
+    if (score === null || score === undefined) return 'none';
+    if (score >= 9) return 'promoter';
+    if (score >= 7) return 'passive';
+    return 'detractor';
+  };
 
-      if (error) throw error;
-      setResponses(data || []);
-    } catch (error: any) {
-      console.error("Error fetching responses:", error);
+  const calculateFilteredStats = () => {
+    let filtered = [...campaignContacts];
+
+    // Filter by email status
+    if (filters.emailStatus === 'sent') {
+      filtered = filtered.filter(cc => cc.email_sent);
+    } else if (filters.emailStatus === 'pending') {
+      filtered = filtered.filter(cc => !cc.email_sent);
     }
+
+    // Filter by response status
+    if (filters.responseStatus === 'responded') {
+      filtered = filtered.filter(cc => cc.nps_score !== null && cc.nps_score !== undefined);
+    } else if (filters.responseStatus === 'not_responded') {
+      filtered = filtered.filter(cc => cc.nps_score === null || cc.nps_score === undefined);
+    }
+
+    // Filter by NPS category
+    if (filters.npsCategory !== 'all') {
+      filtered = filtered.filter(cc => {
+        const category = getNpsCategory(cc.nps_score);
+        return category === filters.npsCategory;
+      });
+    }
+
+    // Calculate stats from filtered data
+    const total = filtered.length;
+    const sent = filtered.filter(c => c.email_sent).length;
+    const responded = filtered.filter(c => c.nps_score !== null && c.nps_score !== undefined).length;
+    const pending = total - sent;
+
+    let avgScore = 0;
+    let nps = 0;
+
+    const scores = filtered
+      .filter(c => c.nps_score !== null && c.nps_score !== undefined)
+      .map(c => c.nps_score!);
+
+    if (scores.length > 0) {
+      avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const promoters = scores.filter(s => s >= 9).length;
+      const detractors = scores.filter(s => s <= 6).length;
+      nps = ((promoters - detractors) / scores.length) * 100;
+    }
+
+    setStats({ total, sent, responded, pending, avgScore, nps });
+  };
+
+  const getFilteredContacts = (): CampaignContact[] => {
+    let filtered = [...campaignContacts];
+
+    if (filters.emailStatus === 'sent') {
+      filtered = filtered.filter(cc => cc.email_sent);
+    } else if (filters.emailStatus === 'pending') {
+      filtered = filtered.filter(cc => !cc.email_sent);
+    }
+
+    if (filters.responseStatus === 'responded') {
+      filtered = filtered.filter(cc => cc.nps_score !== null && cc.nps_score !== undefined);
+    } else if (filters.responseStatus === 'not_responded') {
+      filtered = filtered.filter(cc => cc.nps_score === null || cc.nps_score === undefined);
+    }
+
+    if (filters.npsCategory !== 'all') {
+      filtered = filtered.filter(cc => {
+        const category = getNpsCategory(cc.nps_score);
+        return category === filters.npsCategory;
+      });
+    }
+
+    return filtered;
   };
 
   const getScoreColor = (score: number) => {
@@ -567,6 +633,56 @@ const CampaignDetails = () => {
           </span>
         </div>
 
+        {/* Filters */}
+        <Card className="p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Filtros</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status de Envio</label>
+              <Select value={filters.emailStatus} onValueChange={(value) => setFilters(prev => ({ ...prev, emailStatus: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="sent">Enviados</SelectItem>
+                  <SelectItem value="pending">Pendentes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status de Resposta</label>
+              <Select value={filters.responseStatus} onValueChange={(value) => setFilters(prev => ({ ...prev, responseStatus: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="responded">Respondidos</SelectItem>
+                  <SelectItem value="not_responded">Não Respondidos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Categoria NPS</label>
+              <Select value={filters.npsCategory} onValueChange={(value) => setFilters(prev => ({ ...prev, npsCategory: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="promoter">Promotores (9-10)</SelectItem>
+                  <SelectItem value="passive">Neutros (7-8)</SelectItem>
+                  <SelectItem value="detractor">Detratores (0-6)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </Card>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-6">
           <Card className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
@@ -618,7 +734,7 @@ const CampaignDetails = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">
-              Contatos da Campanha ({campaignContacts.length})
+              Contatos da Campanha ({getFilteredContacts().length})
             </h2>
             <div className="flex gap-2">
               <Button onClick={openAddContactsDialog} variant="outline" size="sm">
@@ -644,9 +760,11 @@ const CampaignDetails = () => {
             </div>
           </div>
           
-          {campaignContacts.length === 0 ? (
+          {getFilteredContacts().length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              Nenhum contato adicionado a esta campanha ainda.
+              {campaignContacts.length === 0 
+                ? "Nenhum contato adicionado a esta campanha ainda."
+                : "Nenhum contato corresponde aos filtros selecionados."}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -655,7 +773,7 @@ const CampaignDetails = () => {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedContacts.length === campaignContacts.length && campaignContacts.length > 0}
+                        checked={selectedContacts.length === getFilteredContacts().length && getFilteredContacts().length > 0}
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
@@ -669,7 +787,7 @@ const CampaignDetails = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {campaignContacts.map((cc) => (
+                  {getFilteredContacts().map((cc) => (
                     <TableRow key={cc.id}>
                       <TableCell>
                         <Checkbox
@@ -787,43 +905,6 @@ const CampaignDetails = () => {
             </div>
           )}
         </Card>
-
-        {/* Respostas da Campanha */}
-        {responses.length > 0 && (
-          <Card className="p-6">
-            <h2 className="text-2xl font-semibold mb-4">
-              Respostas Recebidas ({responses.length})
-            </h2>
-            <div className="space-y-4">
-              {responses.map((response) => (
-                <div key={response.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h4 className="font-semibold">{response.contacts.name}</h4>
-                        <span className="text-sm text-muted-foreground">{response.contacts.email}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Respondido em {new Date(response.responded_at).toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                    <div className={`px-4 py-2 rounded-lg border ${getScoreColor(response.score)}`}>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{response.score}</div>
-                        <div className="text-xs">{getScoreLabel(response.score)}</div>
-                      </div>
-                    </div>
-                  </div>
-                  {response.comment && (
-                    <div className="mt-3 p-3 bg-muted rounded-lg">
-                      <p className="text-sm italic">&ldquo;{response.comment}&rdquo;</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
       </div>
 
       <AlertDialog open={!!contactToDelete} onOpenChange={() => setContactToDelete(null)}>
