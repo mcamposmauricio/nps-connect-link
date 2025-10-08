@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { toZonedTime, fromZonedTime } from "https://esm.sh/date-fns-tz@3.2.0";
+
+const BRAZIL_TIMEZONE = 'America/Sao_Paulo';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,13 +38,19 @@ serve(async (req) => {
 
     console.log('Starting automatic campaign processing...');
 
+    // Get current time in Brazil timezone and convert to UTC for comparison
+    const nowBrazil = new Date();
+    const nowUTC = nowBrazil.toISOString();
+
+    console.log(`Current time (UTC): ${nowUTC}`);
+
     // Get campaigns that need to be sent now
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
       .select('*')
       .eq('campaign_type', 'automatic')
       .in('status', ['scheduled', 'live'])
-      .lte('next_send', new Date().toISOString());
+      .lte('next_send', nowUTC);
 
     if (campaignsError) {
       console.error('Error fetching campaigns:', campaignsError);
@@ -175,21 +184,25 @@ serve(async (req) => {
 
         console.log(`Campaign ${campaign.id} completed`);
       } else {
-        // Calculate next send date
+        // Calculate next send date in Brazil timezone
         const daysToAdd = campaign.cycle_type === 'weekly' ? 7 : 15;
-        const nextSend = new Date();
-        nextSend.setDate(nextSend.getDate() + daysToAdd);
+        const currentNextSend = new Date(campaign.next_send);
+        const nextSendBrazil = toZonedTime(currentNextSend, BRAZIL_TIMEZONE);
+        nextSendBrazil.setDate(nextSendBrazil.getDate() + daysToAdd);
+        
+        // Convert back to UTC for storage
+        const nextSendUTC = fromZonedTime(nextSendBrazil, BRAZIL_TIMEZONE);
 
         await supabase
           .from('campaigns')
           .update({
             status: 'live',
             attempt_current: newAttempt,
-            next_send: nextSend.toISOString()
+            next_send: nextSendUTC.toISOString()
           })
           .eq('id', campaign.id);
 
-        console.log(`Campaign ${campaign.id} scheduled for next send: ${nextSend.toISOString()}`);
+        console.log(`Campaign ${campaign.id} scheduled for next send: ${nextSendUTC.toISOString()} (Brazil time: ${nextSendBrazil.toISOString()})`);
       }
     }
 

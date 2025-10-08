@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Clock } from "lucide-react";
-import { calculateNextSendDates, formatDate } from "@/utils/campaignUtils";
+import { calculateNextSendDates, formatDate, fromBrazilTime } from "@/utils/campaignUtils";
 
 interface CampaignFormProps {
   onSuccess: () => void;
@@ -54,12 +54,15 @@ export const CampaignForm = ({ onSuccess, onCancel }: CampaignFormProps) => {
           throw new Error("Data e hora de início são obrigatórias para campanhas automáticas");
         }
 
+        // Treat the input as Brazil time and convert to UTC
         const dateTime = new Date(`${startDate}T${startTime}`);
-        campaignData.start_date = dateTime.toISOString();
+        const utcDateTime = fromBrazilTime(dateTime);
+        
+        campaignData.start_date = utcDateTime.toISOString();
         campaignData.cycle_type = cycleType;
         campaignData.attempts_total = attemptsTotal;
         campaignData.attempt_current = 0;
-        campaignData.next_send = dateTime.toISOString();
+        campaignData.next_send = utcDateTime.toISOString();
         campaignData.status = 'scheduled';
       }
 
