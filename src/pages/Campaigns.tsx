@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Eye, Download, TrendingUp, Mail, MessageSquare, BarChart3, Edit } from "lucide-react";
+import { Plus, Eye, Download, TrendingUp, Mail, MessageSquare, BarChart3, Edit, Calendar, Clock, RefreshCw } from "lucide-react";
+import { getStatusLabel, getStatusColor, getCycleLabel, formatDate } from "@/utils/campaignUtils";
 
 import { exportToCSV } from "@/lib/utils";
 import {
@@ -17,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { CampaignForm } from "@/components/CampaignForm";
 
 interface Campaign {
   id: string;
@@ -25,6 +25,12 @@ interface Campaign {
   status: string;
   created_at: string;
   sent_at: string | null;
+  campaign_type: 'manual' | 'automatic';
+  start_date: string | null;
+  cycle_type: 'weekly' | 'biweekly' | null;
+  attempts_total: number | null;
+  attempt_current: number;
+  next_send: string | null;
 }
 
 interface CampaignMetrics {
@@ -49,10 +55,6 @@ const Campaigns = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: "", message: "" });
-  const [editFormData, setEditFormData] = useState({ id: "", name: "", message: "" });
-  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -71,7 +73,7 @@ const Campaigns = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setCampaigns(data || []);
+      setCampaigns((data || []) as Campaign[]);
 
       // Fetch metrics for each campaign
       if (data) {
@@ -125,85 +127,6 @@ const Campaigns = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const { error } = await supabase.from("campaigns").insert({
-        user_id: user.id,
-        name: formData.name,
-        message: formData.message,
-        status: "draft",
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso!",
-        description: "Campanha criada com sucesso.",
-      });
-
-      setFormData({ name: "", message: "" });
-      setDialogOpen(false);
-      fetchCampaigns();
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-
-  const handleEdit = (campaign: Campaign) => {
-    setEditFormData({ 
-      id: campaign.id, 
-      name: campaign.name, 
-      message: campaign.message 
-    });
-    setEditDialogOpen(true);
-  };
-
-  const handleUpdateCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from("campaigns")
-        .update({
-          name: editFormData.name,
-          message: editFormData.message,
-        })
-        .eq("id", editFormData.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso!",
-        description: "Campanha atualizada com sucesso.",
-      });
-
-      setEditDialogOpen(false);
-      fetchCampaigns();
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleExportCSV = () => {
     const csvData = campaigns.map((campaign) => ({
       "Nome": campaign.name,
@@ -242,36 +165,19 @@ const Campaigns = () => {
                   Nova Campanha
                 </Button>
               </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar Campanha</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Nome da Campanha</label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Pesquisa Q1 2024"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Mensagem</label>
-                  <Textarea
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    placeholder="Como você avaliaria nosso serviço?"
-                    rows={4}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={saving}>
-                  {saving ? "Salvando..." : "Criar Campanha"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Campanha</DialogTitle>
+                </DialogHeader>
+                <CampaignForm
+                  onSuccess={() => {
+                    setDialogOpen(false);
+                    fetchCampaigns();
+                  }}
+                  onCancel={() => setDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -295,19 +201,44 @@ const Campaigns = () => {
                       <div className="flex-1 mr-4">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-2xl font-bold">{campaign.name}</h3>
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              campaign.status === "sent"
-                                ? "bg-success/10 text-success"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {campaign.status === "sent" ? "Enviada" : "Rascunho"}
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(campaign.status)}`}>
+                            {getStatusLabel(campaign.status)}
                           </span>
+                          {campaign.campaign_type === 'automatic' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                              Automática
+                            </span>
+                          )}
                         </div>
                         <p className="text-muted-foreground">{campaign.message}</p>
                       </div>
                     </div>
+
+                    {campaign.campaign_type === 'automatic' && (
+                      <div className="mb-4 p-4 bg-muted/30 rounded-lg border space-y-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Ciclo:</span>
+                            <span className="font-medium">{getCycleLabel(campaign.cycle_type)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Tentativas:</span>
+                            <span className="font-medium">
+                              {campaign.attempt_current} de {campaign.attempts_total}
+                            </span>
+                          </div>
+                          {campaign.next_send && campaign.status !== 'completed' && (
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Próximo:</span>
+                              <span className="font-medium">{formatDate(campaign.next_send)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {metrics && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg border border-border/50">
@@ -360,10 +291,6 @@ const Campaigns = () => {
                         Criada em {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
                       </p>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(campaign)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </Button>
                         <Button variant="default" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalhes
@@ -376,38 +303,6 @@ const Campaigns = () => {
             })}
           </div>
         )}
-
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Editar Campanha</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpdateCampaign} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Nome da Campanha</label>
-                <Input
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  placeholder="Ex: Pesquisa Q1 2024"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Mensagem</label>
-                <Textarea
-                  value={editFormData.message}
-                  onChange={(e) => setEditFormData({ ...editFormData, message: e.target.value })}
-                  placeholder="Como você avaliaria nosso serviço?"
-                  rows={4}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={saving}>
-                {saving ? "Salvando..." : "Salvar Alterações"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
     </Layout>
   );
