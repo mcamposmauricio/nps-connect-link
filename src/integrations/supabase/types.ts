@@ -95,31 +95,97 @@ export type Database = {
           },
         ]
       }
+      campaign_sends: {
+        Row: {
+          attempt: number
+          campaign_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          response_at: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempt: number
+          campaign_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          response_at?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempt?: number
+          campaign_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          response_at?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_sends_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
+          attempt_current: number | null
+          attempts_total: number | null
+          campaign_type: string
           created_at: string | null
+          cycle_type: string | null
           id: string
           message: string
           name: string
+          next_send: string | null
           sent_at: string | null
+          start_date: string | null
           status: string | null
           user_id: string
         }
         Insert: {
+          attempt_current?: number | null
+          attempts_total?: number | null
+          campaign_type?: string
           created_at?: string | null
+          cycle_type?: string | null
           id?: string
           message: string
           name: string
+          next_send?: string | null
           sent_at?: string | null
+          start_date?: string | null
           status?: string | null
           user_id: string
         }
         Update: {
+          attempt_current?: number | null
+          attempts_total?: number | null
+          campaign_type?: string
           created_at?: string | null
+          cycle_type?: string | null
           id?: string
           message?: string
           name?: string
+          next_send?: string | null
           sent_at?: string | null
+          start_date?: string | null
           status?: string | null
           user_id?: string
         }
