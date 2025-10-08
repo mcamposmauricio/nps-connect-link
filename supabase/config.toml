@@ -1,1 +1,4 @@
 project_id = "mfmkxpdufcbwydixbbbe"
+
+[functions.process-automatic-campaigns]
+verify_jwt = false

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { exportToCSV } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CampaignScheduler } from "@/components/CampaignScheduler";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,6 +85,12 @@ interface Campaign {
   message: string;
   status: string;
   created_at: string;
+  campaign_type: string;
+  start_date: string | null;
+  next_send: string | null;
+  cycle_type: 'weekly' | 'biweekly' | null;
+  attempts_total: number | null;
+  attempt_current: number | null;
 }
 
 const CampaignDetails = () => {
@@ -632,6 +639,8 @@ const CampaignDetails = () => {
             {campaign.status === "sent" ? "Enviada" : "Rascunho"}
           </span>
         </div>
+
+        <CampaignScheduler campaign={campaign} onUpdate={fetchCampaignDetails} />
 
         {/* Filters */}
         <Card className="p-4 mb-6">
