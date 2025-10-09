@@ -47,13 +47,13 @@ serve(async (req) => {
 
     console.log(`Current time (UTC, normalized to hour): ${nowUTC}`);
 
-    // Get campaigns that need to be sent now (at or before current hour)
+    // Get campaigns that need to be sent now (exactly at current hour)
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
       .select('*')
       .eq('campaign_type', 'automatic')
       .in('status', ['scheduled', 'live'])
-      .lte('next_send', nowUTC);
+      .eq('next_send', nowUTC);
 
     if (campaignsError) {
       console.error('Error fetching campaigns:', campaignsError);
