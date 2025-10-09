@@ -88,7 +88,7 @@ interface Campaign {
   campaign_type: string;
   start_date: string | null;
   next_send: string | null;
-  cycle_type: 'weekly' | 'biweekly' | null;
+  cycle_type: string | null;
   attempts_total: number | null;
   attempt_current: number | null;
 }
