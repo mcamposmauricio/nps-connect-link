@@ -5,6 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Users, Send, TrendingUp, MessageSquare, Search, Mail, Building2, User } from "lucide-react";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -345,33 +351,75 @@ const Dashboard = () => {
           })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="p-6 bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold">Promotores</h3>
-              <span className="text-2xl">😊</span>
-            </div>
-            <p className="text-4xl font-bold text-success">{stats.promoters}</p>
-            <p className="text-sm text-muted-foreground mt-2">Score 9-10</p>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-6 bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold">Promotores</h3>
+                <span className="text-2xl">😊</span>
+              </div>
+              <p className="text-4xl font-bold text-success">{stats.promoters}</p>
+              <p className="text-sm text-muted-foreground mt-2">Score 9-10</p>
+            </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold">Neutros</h3>
-              <span className="text-2xl">😐</span>
-            </div>
-            <p className="text-4xl font-bold text-warning">{stats.passives}</p>
-            <p className="text-sm text-muted-foreground mt-2">Score 7-8</p>
-          </Card>
+            <Card className="p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold">Neutros</h3>
+                <span className="text-2xl">😐</span>
+              </div>
+              <p className="text-4xl font-bold text-warning">{stats.passives}</p>
+              <p className="text-sm text-muted-foreground mt-2">Score 7-8</p>
+            </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold">Detratores</h3>
-              <span className="text-2xl">😞</span>
-            </div>
-            <p className="text-4xl font-bold text-destructive">{stats.detractors}</p>
-            <p className="text-sm text-muted-foreground mt-2">Score 0-6</p>
-          </Card>
+            <Card className="p-6 bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold">Detratores</h3>
+                <span className="text-2xl">😞</span>
+              </div>
+              <p className="text-4xl font-bold text-destructive">{stats.detractors}</p>
+              <p className="text-sm text-muted-foreground mt-2">Score 0-6</p>
+            </Card>
+          </div>
+
+          {stats.totalResponses > 0 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Distribuição NPS
+              </h3>
+              <div className="h-64">
+                <ChartContainer config={{
+                  promoters: { label: "Promotores", color: "hsl(var(--success))" },
+                  passives: { label: "Neutros", color: "hsl(var(--warning))" },
+                  detractors: { label: "Detratores", color: "hsl(var(--destructive))" },
+                }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Promotores', value: stats.promoters },
+                          { name: 'Neutros', value: stats.passives },
+                          { name: 'Detratores', value: stats.detractors },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        <Cell fill="hsl(var(--success))" />
+                        <Cell fill="hsl(var(--warning))" />
+                        <Cell fill="hsl(var(--destructive))" />
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Recent Responses Log */}

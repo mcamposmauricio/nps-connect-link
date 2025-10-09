@@ -7,6 +7,12 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter } from "lucide-react";
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -692,10 +698,10 @@ const CampaignDetails = () => {
           </div>
         </Card>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
           <Card className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
-              <BarChart3 className="h-4 w-4" />
+              <Users className="h-4 w-4" />
               <span>Total</span>
             </div>
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -712,33 +718,98 @@ const CampaignDetails = () => {
               <MessageSquare className="h-4 w-4" />
               <span>Respostas</span>
             </div>
-            <div className="text-2xl font-bold text-green-600">{stats.responded}</div>
+            <div className="text-2xl font-bold text-success">{stats.responded}</div>
           </Card>
           <Card className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
-              <Mail className="h-4 w-4" />
+              <Send className="h-4 w-4" />
               <span>Pendentes</span>
             </div>
-            <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
+            <div className="text-2xl font-bold text-warning">{stats.pending}</div>
           </Card>
           <Card className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
               <TrendingUp className="h-4 w-4" />
-              <span>Média</span>
+              <span>NPS Score</span>
             </div>
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.avgScore > 0 ? stats.avgScore.toFixed(1) : "-"}
+            <div className="text-2xl font-bold text-primary">
+              {stats.nps > 0 ? Math.round(stats.nps) : "-"}
             </div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-sm text-muted-foreground mb-1">Responderam</div>
-            <div className="text-3xl font-bold text-green-600">{stats.responded}</div>
-          </Card>
-          <Card className="p-6">
-            <div className="text-sm text-muted-foreground mb-1">Pendentes</div>
-            <div className="text-3xl font-bold text-orange-600">{stats.pending}</div>
           </Card>
         </div>
+
+        {/* Chart Section */}
+        {stats.responded > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Distribuição de Respostas
+              </h3>
+              <div className="h-64">
+                <ChartContainer config={{
+                  promoters: { label: "Promotores", color: "hsl(var(--success))" },
+                  passives: { label: "Neutros", color: "hsl(var(--warning))" },
+                  detractors: { label: "Detratores", color: "hsl(var(--destructive))" },
+                }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { 
+                        name: 'NPS', 
+                        promoters: campaignContacts.filter(cc => cc.nps_score && cc.nps_score >= 9).length,
+                        passives: campaignContacts.filter(cc => cc.nps_score && cc.nps_score >= 7 && cc.nps_score <= 8).length,
+                        detractors: campaignContacts.filter(cc => cc.nps_score && cc.nps_score <= 6).length,
+                      }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="promoters" fill="var(--color-promoters)" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="passives" fill="var(--color-passives)" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="detractors" fill="var(--color-detractors)" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Status de Envios
+              </h3>
+              <div className="h-64">
+                <ChartContainer config={{
+                  sent: { label: "Enviados", color: "hsl(var(--primary))" },
+                  pending: { label: "Pendentes", color: "hsl(var(--muted))" },
+                }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Enviados', value: stats.sent },
+                          { name: 'Pendentes', value: stats.pending },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        <Cell fill="hsl(var(--primary))" />
+                        <Cell fill="hsl(var(--muted))" />
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </Card>
+          </div>
+        )}
 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
