@@ -38,13 +38,16 @@ serve(async (req) => {
 
     console.log('Starting automatic campaign processing...');
 
-    // Get current time in Brazil timezone and convert to UTC for comparison
+    // Get current time in Brazil timezone normalized to start of hour
     const nowBrazil = new Date();
+    nowBrazil.setMinutes(0);
+    nowBrazil.setSeconds(0);
+    nowBrazil.setMilliseconds(0);
     const nowUTC = nowBrazil.toISOString();
 
-    console.log(`Current time (UTC): ${nowUTC}`);
+    console.log(`Current time (UTC, normalized to hour): ${nowUTC}`);
 
-    // Get campaigns that need to be sent now
+    // Get campaigns that need to be sent now (at or before current hour)
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
       .select('*')
@@ -189,6 +192,11 @@ serve(async (req) => {
         const currentNextSend = new Date(campaign.next_send);
         const nextSendBrazil = toZonedTime(currentNextSend, BRAZIL_TIMEZONE);
         nextSendBrazil.setDate(nextSendBrazil.getDate() + daysToAdd);
+        
+        // Normalize to start of hour
+        nextSendBrazil.setMinutes(0);
+        nextSendBrazil.setSeconds(0);
+        nextSendBrazil.setMilliseconds(0);
         
         // Convert back to UTC for storage
         const nextSendUTC = fromZonedTime(nextSendBrazil, BRAZIL_TIMEZONE);

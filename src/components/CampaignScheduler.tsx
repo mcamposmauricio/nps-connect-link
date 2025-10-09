@@ -55,7 +55,12 @@ export const CampaignScheduler = ({ campaign, onUpdate }: CampaignSchedulerProps
 
     setScheduling(true);
     try {
-      const dateTime = new Date(`${startDate}T${startTime}`);
+      // Normalize to start of hour (00 minutes, 00 seconds)
+      const dateTime = new Date(`${startDate}T${startTime}:00`);
+      dateTime.setMinutes(0);
+      dateTime.setSeconds(0);
+      dateTime.setMilliseconds(0);
+      
       const utcDateTime = fromBrazilTime(dateTime);
 
       const { error } = await supabase
@@ -230,11 +235,18 @@ export const CampaignScheduler = ({ campaign, onUpdate }: CampaignSchedulerProps
               <Clock className="h-4 w-4" />
               Hora do Envio (Horário de Brasília)
             </Label>
-            <Input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
+            <Select value={startTime} onValueChange={setStartTime}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a hora" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                  <SelectItem key={hour} value={`${hour.toString().padStart(2, '0')}:00`}>
+                    {`${hour.toString().padStart(2, '0')}:00`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
