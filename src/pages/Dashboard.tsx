@@ -4,13 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Send, TrendingUp, MessageSquare, Search, Mail, Building2, User } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -76,6 +77,16 @@ interface RecentResponse {
   };
 }
 
+interface CampaignStats {
+  id: string;
+  name: string;
+  totalResponses: number;
+  npsScore: number;
+  promoters: number;
+  passives: number;
+  detractors: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({
@@ -95,6 +106,8 @@ const Dashboard = () => {
   const [contactCampaigns, setContactCampaigns] = useState<ContactCampaign[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [recentResponses, setRecentResponses] = useState<RecentResponse[]>([]);
+  const [viewMode, setViewMode] = useState<"campaign" | "contact">("campaign");
+  const [campaignStats, setCampaignStats] = useState<CampaignStats[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,8 +183,53 @@ const Dashboard = () => {
       }
     };
 
+    const fetchCampaignStats = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: campaigns } = await supabase
+          .from("campaigns")
+          .select("id, name")
+          .eq("user_id", user.id);
+
+        if (!campaigns) return;
+
+        const campaignStatsData = await Promise.all(
+          campaigns.map(async (campaign) => {
+            const { data: responses } = await supabase
+              .from("responses")
+              .select("score")
+              .eq("campaign_id", campaign.id);
+
+            const responsesData = responses || [];
+            const promoters = responsesData.filter((r) => r.score >= 9).length;
+            const passives = responsesData.filter((r) => r.score >= 7 && r.score <= 8).length;
+            const detractors = responsesData.filter((r) => r.score <= 6).length;
+            const total = responsesData.length;
+            const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+
+            return {
+              id: campaign.id,
+              name: campaign.name,
+              totalResponses: total,
+              npsScore,
+              promoters,
+              passives,
+              detractors,
+            };
+          })
+        );
+
+        setCampaignStats(campaignStatsData);
+      } catch (error) {
+        console.error("Error fetching campaign stats:", error);
+      }
+    };
+
     fetchStats();
     fetchRecentResponses();
+    fetchCampaignStats();
   }, []);
 
   useEffect(() => {
@@ -292,46 +350,63 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Visão geral do seu sistema de NPS</p>
         </div>
 
-        {/* Search Bar */}
+        {/* View Mode Filter */}
         <Card className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar contato por nome ou email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          {searchResults.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {searchResults.map((contact) => (
-                <div
-                  key={contact.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => {
-                    fetchContactDetails(contact);
-                    setSearchTerm("");
-                    setSearchResults([]);
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    {contact.is_company ? (
-                      <Building2 className="h-5 w-5 text-primary" />
-                    ) : (
-                      <User className="h-5 w-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="font-medium">{contact.name}</p>
-                      <p className="text-sm text-muted-foreground">{contact.email}</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">Ver Detalhes</Button>
-                </div>
-              ))}
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">Visualização</h2>
+              <p className="text-sm text-muted-foreground">Escolha como visualizar os dados</p>
             </div>
-          )}
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "campaign" | "contact")}>
+              <TabsList>
+                <TabsTrigger value="campaign">Por Campanha</TabsTrigger>
+                <TabsTrigger value="contact">Por Contato</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </Card>
+
+        {viewMode === "contact" && (
+          <Card className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar contato por nome ou email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {searchResults.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {searchResults.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      fetchContactDetails(contact);
+                      setSearchTerm("");
+                      setSearchResults([]);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {contact.is_company ? (
+                        <Building2 className="h-5 w-5 text-primary" />
+                      ) : (
+                        <User className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-medium">{contact.name}</p>
+                        <p className="text-sm text-muted-foreground">{contact.email}</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm">Ver Detalhes</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map((stat) => {
@@ -382,38 +457,80 @@ const Dashboard = () => {
           </div>
 
           {stats.totalResponses > 0 && (
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
+            <Card className="p-6 bg-gradient-to-br from-background via-card to-muted/20 shadow-lg border-primary/10">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
                 Distribuição NPS
               </h3>
-              <div className="h-64">
+              <div className="h-80">
                 <ChartContainer config={{
-                  promoters: { label: "Promotores", color: "hsl(var(--success))" },
-                  passives: { label: "Neutros", color: "hsl(var(--warning))" },
-                  detractors: { label: "Detratores", color: "hsl(var(--destructive))" },
+                  promoters: { label: "Promotores", color: "hsl(var(--promoter))" },
+                  passives: { label: "Neutros", color: "hsl(var(--passive))" },
+                  detractors: { label: "Detratores", color: "hsl(var(--detractor))" },
                 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
+                      <defs>
+                        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.2"/>
+                        </filter>
+                      </defs>
                       <Pie
                         data={[
-                          { name: 'Promotores', value: stats.promoters },
-                          { name: 'Neutros', value: stats.passives },
-                          { name: 'Detratores', value: stats.detractors },
+                          { name: 'Promotores', value: stats.promoters, label: '😊' },
+                          { name: 'Neutros', value: stats.passives, label: '😐' },
+                          { name: 'Detratores', value: stats.detractors, label: '😞' },
                         ]}
                         cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
+                        cy="45%"
+                        labelLine={{
+                          stroke: "hsl(var(--border))",
+                          strokeWidth: 2,
+                        }}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, label }) => {
+                          const RADIAN = Math.PI / 180;
+                          const radius = outerRadius + 30;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          
+                          return (
+                            <text 
+                              x={x} 
+                              y={y} 
+                              fill="hsl(var(--foreground))" 
+                              textAnchor={x > cx ? 'start' : 'end'} 
+                              dominantBaseline="central"
+                              className="font-semibold text-sm"
+                            >
+                              {`${label} ${name}`}
+                              <tspan x={x} dy="1.2em" className="text-xs font-normal">
+                                {`${(percent * 100).toFixed(1)}%`}
+                              </tspan>
+                            </text>
+                          );
+                        }}
+                        outerRadius={100}
+                        innerRadius={60}
+                        paddingAngle={2}
                         dataKey="value"
+                        filter="url(#shadow)"
                       >
-                        <Cell fill="hsl(var(--success))" />
-                        <Cell fill="hsl(var(--warning))" />
-                        <Cell fill="hsl(var(--destructive))" />
+                        <Cell fill="hsl(var(--promoter))" stroke="hsl(var(--background))" strokeWidth={3} />
+                        <Cell fill="hsl(var(--passive))" stroke="hsl(var(--background))" strokeWidth={3} />
+                        <Cell fill="hsl(var(--detractor))" stroke="hsl(var(--background))" strokeWidth={3} />
                       </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartTooltip 
+                        content={<ChartTooltipContent 
+                          labelFormatter={(_, payload) => {
+                            if (payload && payload[0]) {
+                              return payload[0].name;
+                            }
+                            return "";
+                          }}
+                        />} 
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -422,68 +539,116 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Recent Responses Log */}
-        <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-            <MessageSquare className="h-6 w-6" />
-            Últimas Respostas NPS
-          </h2>
-          {recentResponses.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Nenhuma resposta ainda.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentResponses.map((response) => (
-                <div
-                  key={response.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/campaigns/${response.campaign_id}`)}
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    {response.contacts.is_company ? (
-                      <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
-                    ) : (
-                      <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold truncate">{response.contacts.name}</p>
-                        <span className="text-xs text-muted-foreground truncate">{response.contacts.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-xs text-muted-foreground">
-                          Campanha: {response.campaigns.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">•</span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(response.responded_at).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
+        {/* Recent Responses or Campaign Stats */}
+        {viewMode === "campaign" ? (
+          campaignStats.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+                <Send className="h-6 w-6" />
+                Estatísticas por Campanha
+              </h2>
+              <div className="space-y-4">
+                {campaignStats.map((campaign) => (
+                  <div
+                    key={campaign.id}
+                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-lg">{campaign.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">NPS:</span>
+                        <span className={`text-xl font-bold ${campaign.npsScore >= 50 ? 'text-success' : campaign.npsScore >= 0 ? 'text-warning' : 'text-destructive'}`}>
+                          {campaign.npsScore}
                         </span>
                       </div>
-                      {response.comment && (
-                        <p className="text-sm text-muted-foreground italic mt-1 line-clamp-1">
-                          &ldquo;{response.comment}&rdquo;
-                        </p>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="text-center p-2 rounded bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Respostas</p>
+                        <p className="text-lg font-semibold">{campaign.totalResponses}</p>
+                      </div>
+                      <div className="text-center p-2 rounded bg-success/10">
+                        <p className="text-xs text-muted-foreground">Promotores</p>
+                        <p className="text-lg font-semibold text-success">{campaign.promoters}</p>
+                      </div>
+                      <div className="text-center p-2 rounded bg-warning/10">
+                        <p className="text-xs text-muted-foreground">Neutros</p>
+                        <p className="text-lg font-semibold text-warning">{campaign.passives}</p>
+                      </div>
+                      <div className="text-center p-2 rounded bg-destructive/10">
+                        <p className="text-xs text-muted-foreground">Detratores</p>
+                        <p className="text-lg font-semibold text-destructive">{campaign.detractors}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )
+        ) : (
+          <Card className="p-6">
+            <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+              <MessageSquare className="h-6 w-6" />
+              Últimas Respostas NPS
+            </h2>
+            {recentResponses.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Nenhuma resposta ainda.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recentResponses.map((response) => (
+                  <div
+                    key={response.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/campaigns/${response.campaign_id}`)}
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      {response.contacts.is_company ? (
+                        <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
+                      ) : (
+                        <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold truncate">{response.contacts.name}</p>
+                          <span className="text-xs text-muted-foreground truncate">{response.contacts.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-xs text-muted-foreground">
+                            Campanha: {response.campaigns.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">•</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(response.responded_at).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </span>
+                        </div>
+                        {response.comment && (
+                          <p className="text-sm text-muted-foreground italic mt-1 line-clamp-1">
+                            &ldquo;{response.comment}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`ml-4 px-3 py-2 rounded-lg border ${getScoreColor(response.score)} flex-shrink-0`}>
+                      <div className="text-center">
+                        <div className="text-xl font-bold">{response.score}</div>
+                        <div className="text-xs whitespace-nowrap">{getScoreLabel(response.score)}</div>
+                      </div>
                     </div>
                   </div>
-                  <div className={`ml-4 px-3 py-2 rounded-lg border ${getScoreColor(response.score)} flex-shrink-0`}>
-                    <div className="text-center">
-                      <div className="text-xl font-bold">{response.score}</div>
-                      <div className="text-xs whitespace-nowrap">{getScoreLabel(response.score)}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       {/* Contact Details Dialog */}
