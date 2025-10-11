@@ -5,8 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter, Plus } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter, Plus, XCircle, AlertTriangle } from "lucide-react";
 import { QuickContactForm } from "@/components/QuickContactForm";
+import { getStatusLabel, getStatusColor } from "@/utils/campaignUtils";
 import {
   ChartContainer,
   ChartTooltip,
@@ -124,6 +125,8 @@ const CampaignDetails = () => {
     npsCategory: 'all', // 'all', 'promoter', 'passive', 'detractor'
   });
   const [showNewContactForm, setShowNewContactForm] = useState(false);
+  const [cancellingCampaign, setCancellingCampaign] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -605,6 +608,39 @@ const CampaignDetails = () => {
     contact => !campaignContacts.some(cc => cc.contact_id === contact.id)
   );
 
+  const isScheduledCampaign = campaign?.status === 'scheduled' || campaign?.status === 'live';
+  const canAddContacts = campaign?.campaign_type === 'manual' || !isScheduledCampaign;
+
+  const handleCancelCampaign = async () => {
+    if (!campaign) return;
+    
+    setCancellingCampaign(true);
+    try {
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ status: 'cancelled' })
+        .eq("id", campaign.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Campanha cancelada",
+        description: "A campanha foi cancelada com sucesso. Todos os agendamentos foram interrompidos.",
+      });
+
+      await fetchCampaignDetails();
+      setShowCancelDialog(false);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao cancelar campanha",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingCampaign(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -638,18 +674,41 @@ const CampaignDetails = () => {
               <p className="text-muted-foreground">{campaign.message}</p>
             </div>
           </div>
-          <span
-            className={`px-3 py-1 rounded-full text-sm ${
-              campaign.status === "sent"
-                ? "bg-success/10 text-success"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {campaign.status === "sent" ? "Enviada" : "Rascunho"}
-          </span>
+          <div className="flex items-center gap-2">
+            {campaign.status !== 'cancelled' && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowCancelDialog(true)}
+                className="text-destructive hover:text-destructive"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Cancelar Campanha
+              </Button>
+            )}
+            <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(campaign.status)}`}>
+              {getStatusLabel(campaign.status)}
+            </span>
+          </div>
         </div>
 
         <CampaignScheduler campaign={campaign} onUpdate={fetchCampaignDetails} />
+
+        {/* Warning for scheduled campaigns */}
+        {!canAddContacts && (
+          <Card className="p-4 border-warning bg-warning/5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-warning mb-1">Campanha Agendada</h3>
+                <p className="text-sm text-muted-foreground">
+                  Esta campanha já está agendada e ativa. Não é possível adicionar novos contatos a campanhas agendadas. 
+                  Para adicionar novos contatos, pause a campanha primeiro ou crie uma nova campanha.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="p-4 mb-6">
@@ -820,7 +879,12 @@ const CampaignDetails = () => {
               Contatos da Campanha ({getFilteredContacts().length})
             </h2>
             <div className="flex gap-2">
-              <Button onClick={openAddContactsDialog} variant="outline" size="sm">
+              <Button 
+                onClick={openAddContactsDialog} 
+                variant="outline" 
+                size="sm"
+                disabled={!canAddContacts}
+              >
                 <Users className="mr-2 h-4 w-4" />
                 Adicionar Contatos
               </Button>
@@ -1096,6 +1160,28 @@ const CampaignDetails = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Campanha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá cancelar a campanha e interromper todos os envios agendados. 
+              As respostas já recebidas serão mantidas. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleCancelCampaign}
+              disabled={cancellingCampaign}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {cancellingCampaign ? "Cancelando..." : "Sim, Cancelar Campanha"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

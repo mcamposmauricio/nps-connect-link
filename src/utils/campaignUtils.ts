@@ -42,7 +42,8 @@ export const getStatusLabel = (status: string): string => {
     scheduled: 'Agendada',
     live: 'Ativa',
     paused: 'Pausada',
-    completed: 'Encerrada'
+    completed: 'Encerrada',
+    cancelled: 'Cancelada'
   };
   return statusMap[status] || status;
 };
@@ -53,7 +54,8 @@ export const getStatusColor = (status: string): string => {
     scheduled: 'bg-blue-100 text-blue-700',
     live: 'bg-green-100 text-green-700',
     paused: 'bg-yellow-100 text-yellow-700',
-    completed: 'bg-gray-100 text-gray-700'
+    completed: 'bg-gray-100 text-gray-700',
+    cancelled: 'bg-red-100 text-red-700'
   };
   return colorMap[status] || 'bg-muted text-muted-foreground';
 };

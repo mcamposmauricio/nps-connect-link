@@ -71,15 +71,22 @@ const Campaigns = () => {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
+      
+      // Sort to put cancelled campaigns at the end
+      const sortedData = data?.sort((a, b) => {
+        if (a.status === 'cancelled' && b.status !== 'cancelled') return 1;
+        if (a.status !== 'cancelled' && b.status === 'cancelled') return -1;
+        return 0;
+      });
 
       if (error) throw error;
-      setCampaigns((data || []) as Campaign[]);
+      setCampaigns((sortedData || []) as Campaign[]);
 
       // Fetch metrics for each campaign
-      if (data) {
+      if (sortedData) {
         const metrics: Record<string, CampaignMetrics> = {};
         
-        for (const campaign of data) {
+        for (const campaign of sortedData) {
           // Get campaign contacts
           const { data: contactsData } = await supabase
             .from("campaign_contacts")
