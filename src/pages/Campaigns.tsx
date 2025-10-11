@@ -191,111 +191,75 @@ const Campaigns = () => {
             <p className="text-muted-foreground">Nenhuma campanha criada ainda.</p>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {campaigns.map((campaign) => {
               const metrics = campaignMetrics[campaign.id];
               return (
-                <Card key={campaign.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1 mr-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-2xl font-bold">{campaign.name}</h3>
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(campaign.status)}`}>
-                            {getStatusLabel(campaign.status)}
-                          </span>
-                          {campaign.campaign_type === 'automatic' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                              Automática
+                <Card key={campaign.id} className="overflow-hidden hover:shadow-md transition-all hover:border-primary/20">
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="text-xl font-bold truncate">{campaign.name}</h3>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(campaign.status)}`}>
+                              {getStatusLabel(campaign.status)}
                             </span>
-                          )}
+                            {campaign.campaign_type === 'automatic' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                Auto
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-muted-foreground">{campaign.message}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1">{campaign.message}</p>
                       </div>
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)} className="shrink-0">
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     </div>
 
-                    {campaign.campaign_type === 'automatic' && (
-                      <div className="mb-4 p-4 bg-muted/30 rounded-lg border space-y-2">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Ciclo:</span>
-                            <span className="font-medium">{getCycleLabel(campaign.cycle_type)}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Tentativas:</span>
-                            <span className="font-medium">
-                              {campaign.attempt_current} de {campaign.attempts_total}
-                            </span>
-                          </div>
-                          {campaign.next_send && campaign.status !== 'completed' && (
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Próximo:</span>
-                              <span className="font-medium">{formatDate(campaign.next_send)}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        {metrics && (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">Total:</span>
+                              <span className="text-sm font-semibold">{metrics.total}</span>
                             </div>
-                          )}
-                        </div>
+                            <div className="flex items-center gap-1.5">
+                              <Mail className="h-3.5 w-3.5 text-blue-600" />
+                              <span className="text-xs text-muted-foreground">Enviados:</span>
+                              <span className="text-sm font-semibold text-blue-600">{metrics.sent}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <MessageSquare className="h-3.5 w-3.5 text-success" />
+                              <span className="text-xs text-muted-foreground">Respostas:</span>
+                              <span className="text-sm font-semibold text-success">{metrics.responded}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                              <span className="text-xs text-muted-foreground">NPS:</span>
+                              <span className={`text-sm font-bold ${
+                                metrics.nps > 0 ? "text-success" : metrics.nps < 0 ? "text-destructive" : "text-muted-foreground"
+                              }`}>
+                                {metrics.responded > 0 ? `${metrics.nps.toFixed(0)}%` : "-"}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {campaign.campaign_type === 'automatic' && campaign.next_send && campaign.status !== 'completed' && (
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Próximo:</span>
+                            <span className="text-sm font-medium">{formatDate(campaign.next_send)}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-
-                    {metrics && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg border border-border/50">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
-                            <BarChart3 className="h-3.5 w-3.5" />
-                            <span>Total</span>
-                          </div>
-                          <div className="text-2xl font-bold">{metrics.total}</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
-                            <Mail className="h-3.5 w-3.5" />
-                            <span>Enviados</span>
-                          </div>
-                          <div className="text-2xl font-bold text-blue-600">{metrics.sent}</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            <span>Respostas</span>
-                          </div>
-                          <div className="text-2xl font-bold text-green-600">{metrics.responded}</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
-                            <TrendingUp className="h-3.5 w-3.5" />
-                            <span>Média</span>
-                          </div>
-                          <div className="text-2xl font-bold text-purple-600">
-                            {metrics.avgScore > 0 ? metrics.avgScore.toFixed(1) : "-"}
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
-                            <TrendingUp className="h-3.5 w-3.5" />
-                            <span>NPS</span>
-                          </div>
-                          <div className={`text-2xl font-bold ${
-                            metrics.nps > 0 ? "text-green-600" : metrics.nps < 0 ? "text-red-600" : "text-muted-foreground"
-                          }`}>
-                            {metrics.responded > 0 ? `${metrics.nps.toFixed(0)}%` : "-"}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        Criada em {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button variant="default" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver Detalhes
-                        </Button>
-                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {new Date(campaign.created_at).toLocaleDateString("pt-BR")}
+                      </span>
                     </div>
                   </div>
                 </Card>

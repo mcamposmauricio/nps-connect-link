@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter } from "lucide-react";
+import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter, Plus } from "lucide-react";
+import { QuickContactForm } from "@/components/QuickContactForm";
 import {
   ChartContainer,
   ChartTooltip,
@@ -122,6 +123,7 @@ const CampaignDetails = () => {
     responseStatus: 'all', // 'all', 'responded', 'not_responded'
     npsCategory: 'all', // 'all', 'promoter', 'passive', 'detractor'
   });
+  const [showNewContactForm, setShowNewContactForm] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -460,6 +462,7 @@ const CampaignDetails = () => {
 
   const openAddContactsDialog = () => {
     setSelectedNewContactIds([]);
+    setShowNewContactForm(false);
     setAddContactsDialogOpen(true);
   };
 
@@ -1010,44 +1013,84 @@ const CampaignDetails = () => {
             <DialogTitle>Adicionar Contatos à Campanha</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {availableContacts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                {allContacts.length === 0 
-                  ? "Você ainda não tem contatos cadastrados."
-                  : "Todos os seus contatos já estão nesta campanha."}
-              </p>
+            {availableContacts.length === 0 && allContacts.length === 0 ? (
+              <div className="text-center py-8 space-y-4">
+                <p className="text-muted-foreground">Você ainda não tem contatos cadastrados.</p>
+                <Button variant="outline" onClick={() => setShowNewContactForm(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar Primeiro Contato
+                </Button>
+              </div>
+            ) : showNewContactForm ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <h3 className="font-semibold">Criar Novo Contato</h3>
+                  <Button variant="ghost" size="sm" onClick={() => setShowNewContactForm(false)}>
+                    Voltar para Lista
+                  </Button>
+                </div>
+                <QuickContactForm
+                  onSuccess={() => {
+                    setShowNewContactForm(false);
+                    fetchAllContacts();
+                    fetchCampaignDetails();
+                  }}
+                  onCancel={() => setShowNewContactForm(false)}
+                />
+              </div>
             ) : (
               <>
-                <div className="space-y-2">
-                  {availableContacts.map((contact) => (
-                    <div
-                      key={contact.id}
-                      className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                      onClick={() => handleNewContactToggle(contact.id)}
-                    >
-                      <Checkbox
-                        checked={selectedNewContactIds.includes(contact.id)}
-                        onCheckedChange={() => handleNewContactToggle(contact.id)}
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium">{contact.name}</p>
-                        <p className="text-sm text-muted-foreground">{contact.email}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {contact.is_company ? "Empresa" : "Pessoa"}
-                      </span>
+                {availableContacts.length === 0 ? (
+                  <div className="text-center py-8 space-y-4">
+                    <p className="text-muted-foreground">Todos os seus contatos já estão nesta campanha.</p>
+                    <Button variant="outline" onClick={() => setShowNewContactForm(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Criar Novo Contato
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between pb-2">
+                      <p className="text-sm text-muted-foreground">
+                        Selecione os contatos que deseja adicionar
+                      </p>
+                      <Button variant="outline" size="sm" onClick={() => setShowNewContactForm(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Novo Contato
+                      </Button>
                     </div>
-                  ))}
-                </div>
-                <Button
-                  onClick={handleAddNewContacts}
-                  className="w-full"
-                  disabled={addingContacts || selectedNewContactIds.length === 0}
-                >
-                  {addingContacts
-                    ? "Adicionando..."
-                    : `Adicionar ${selectedNewContactIds.length} Contato(s)`}
-                </Button>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {availableContacts.map((contact) => (
+                        <div
+                          key={contact.id}
+                          className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleNewContactToggle(contact.id)}
+                        >
+                          <Checkbox
+                            checked={selectedNewContactIds.includes(contact.id)}
+                            onCheckedChange={() => handleNewContactToggle(contact.id)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{contact.name}</p>
+                            <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {contact.is_company ? "Empresa" : "Pessoa"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={handleAddNewContacts}
+                      className="w-full"
+                      disabled={addingContacts || selectedNewContactIds.length === 0}
+                    >
+                      {addingContacts
+                        ? "Adicionando..."
+                        : `Adicionar ${selectedNewContactIds.length} Contato(s)`}
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
