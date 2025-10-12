@@ -202,7 +202,11 @@ const Campaigns = () => {
             {campaigns.map((campaign) => {
               const metrics = campaignMetrics[campaign.id];
               return (
-                <Card key={campaign.id} className="overflow-hidden hover:shadow-md transition-all hover:border-primary/20">
+                <Card 
+                  key={campaign.id} 
+                  className="overflow-hidden hover:shadow-md transition-all hover:border-primary/20 cursor-pointer"
+                  onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                >
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="flex-1 min-w-0">
@@ -221,9 +225,6 @@ const Campaigns = () => {
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-1">{campaign.message}</p>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => navigate(`/campaigns/${campaign.id}`)} className="shrink-0">
-                        <Eye className="h-4 w-4" />
-                      </Button>
                     </div>
 
                     <div className="flex items-center justify-between">

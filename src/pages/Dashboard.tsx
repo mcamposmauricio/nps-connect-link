@@ -108,6 +108,9 @@ const Dashboard = () => {
   const [recentResponses, setRecentResponses] = useState<RecentResponse[]>([]);
   const [viewMode, setViewMode] = useState<"campaign" | "contact">("campaign");
   const [campaignStats, setCampaignStats] = useState<CampaignStats[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [filteredStats, setFilteredStats] = useState<Stats | null>(null);
+  const [filteredResponses, setFilteredResponses] = useState<RecentResponse[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -233,6 +236,73 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    const fetchFilteredData = async () => {
+      if (!selectedCampaignId) {
+        setFilteredStats(null);
+        setFilteredResponses([]);
+        return;
+      }
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Fetch responses for the selected campaign
+        const { data: responses } = await supabase
+          .from("responses")
+          .select(`
+            id,
+            score,
+            comment,
+            responded_at,
+            contact_id,
+            campaign_id,
+            contacts (
+              name,
+              email,
+              is_company
+            ),
+            campaigns (
+              name
+            )
+          `)
+          .eq("campaign_id", selectedCampaignId)
+          .order("responded_at", { ascending: false });
+
+        const responsesData = responses || [];
+        setFilteredResponses(responsesData);
+
+        // Calculate filtered stats
+        const promoters = responsesData.filter((r) => r.score >= 9).length;
+        const passives = responsesData.filter((r) => r.score >= 7 && r.score <= 8).length;
+        const detractors = responsesData.filter((r) => r.score <= 6).length;
+        const total = responsesData.length;
+        const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+
+        // Get unique contacts for this campaign
+        const { count: contactsCount } = await supabase
+          .from("campaign_contacts")
+          .select("contact_id", { count: "exact", head: true })
+          .eq("campaign_id", selectedCampaignId);
+
+        setFilteredStats({
+          totalContacts: contactsCount || 0,
+          totalCampaigns: 1,
+          totalResponses: total,
+          npsScore,
+          promoters,
+          passives,
+          detractors,
+        });
+      } catch (error) {
+        console.error("Error fetching filtered data:", error);
+      }
+    };
+
+    fetchFilteredData();
+  }, [selectedCampaignId]);
+
+  useEffect(() => {
     const searchContacts = async () => {
       if (searchTerm.trim().length < 2) {
         setSearchResults([]);
@@ -323,11 +393,13 @@ const Dashboard = () => {
     return "Detrator";
   };
 
+  const displayStats = viewMode === "campaign" && selectedCampaignId && filteredStats ? filteredStats : stats;
+  
   const statCards = [
-    { title: "Contatos", value: stats.totalContacts, icon: Users, color: "text-blue-600" },
-    { title: "Campanhas", value: stats.totalCampaigns, icon: Send, color: "text-purple-600" },
-    { title: "Respostas", value: stats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
-    { title: "NPS Score", value: stats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
+    { title: "Contatos", value: displayStats.totalContacts, icon: Users, color: "text-blue-600" },
+    { title: "Campanhas", value: displayStats.totalCampaigns, icon: Send, color: "text-purple-600" },
+    { title: "Respostas", value: displayStats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
+    { title: "NPS Score", value: displayStats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
   ];
 
   const pendingCampaigns = contactCampaigns.filter(cc => !cc.email_sent);
@@ -433,7 +505,7 @@ const Dashboard = () => {
                 <h3 className="text-lg font-semibold">Promotores</h3>
                 <span className="text-2xl">😊</span>
               </div>
-              <p className="text-4xl font-bold text-success">{stats.promoters}</p>
+              <p className="text-4xl font-bold text-success">{displayStats.promoters}</p>
               <p className="text-sm text-muted-foreground mt-2">Score 9-10</p>
             </Card>
 
@@ -442,7 +514,7 @@ const Dashboard = () => {
                 <h3 className="text-lg font-semibold">Neutros</h3>
                 <span className="text-2xl">😐</span>
               </div>
-              <p className="text-4xl font-bold text-warning">{stats.passives}</p>
+              <p className="text-4xl font-bold text-warning">{displayStats.passives}</p>
               <p className="text-sm text-muted-foreground mt-2">Score 7-8</p>
             </Card>
 
@@ -451,12 +523,12 @@ const Dashboard = () => {
                 <h3 className="text-lg font-semibold">Detratores</h3>
                 <span className="text-2xl">😞</span>
               </div>
-              <p className="text-4xl font-bold text-destructive">{stats.detractors}</p>
+              <p className="text-4xl font-bold text-destructive">{displayStats.detractors}</p>
               <p className="text-sm text-muted-foreground mt-2">Score 0-6</p>
             </Card>
           </div>
 
-          {stats.totalResponses > 0 && (
+          {displayStats.totalResponses > 0 && (
             <Card className="p-6 bg-gradient-to-br from-background via-card to-muted/20 shadow-lg border-primary/10">
               <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-primary/10">
@@ -479,9 +551,9 @@ const Dashboard = () => {
                       </defs>
                       <Pie
                         data={[
-                          { name: 'Promotores', value: stats.promoters, label: '😊' },
-                          { name: 'Neutros', value: stats.passives, label: '😐' },
-                          { name: 'Detratores', value: stats.detractors, label: '😞' },
+                          { name: 'Promotores', value: displayStats.promoters, label: '😊' },
+                          { name: 'Neutros', value: displayStats.passives, label: '😐' },
+                          { name: 'Detratores', value: displayStats.detractors, label: '😞' },
                         ]}
                         cx="50%"
                         cy="45%"
@@ -543,47 +615,166 @@ const Dashboard = () => {
         {viewMode === "campaign" ? (
           campaignStats.length > 0 && (
             <Card className="p-6">
-              <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-                <Send className="h-6 w-6" />
-                Estatísticas por Campanha
-              </h2>
-              <div className="space-y-4">
-                {campaignStats.map((campaign) => (
-                  <div
-                    key={campaign.id}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold flex items-center gap-2">
+                  <Send className="h-6 w-6" />
+                  {selectedCampaignId ? "Detalhes da Campanha" : "Visão Geral"}
+                </h2>
+                {selectedCampaignId ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedCampaignId(null)}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-lg">{campaign.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">NPS:</span>
-                        <span className={`text-xl font-bold ${campaign.npsScore >= 50 ? 'text-success' : campaign.npsScore >= 0 ? 'text-warning' : 'text-destructive'}`}>
-                          {campaign.npsScore}
-                        </span>
+                    Limpar Filtro
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-muted-foreground">Filtrar por campanha:</label>
+                    <select
+                      className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={selectedCampaignId || ""}
+                      onChange={(e) => setSelectedCampaignId(e.target.value || null)}
+                    >
+                      <option value="">Todas as campanhas</option>
+                      {campaignStats.map((campaign) => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              
+              {selectedCampaignId ? (
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold text-lg mb-3">
+                      {campaignStats.find(c => c.id === selectedCampaignId)?.name}
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      <div className="text-center p-3 rounded bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Respostas</p>
+                        <p className="text-2xl font-semibold">{filteredStats?.totalResponses || 0}</p>
+                      </div>
+                      <div className="text-center p-3 rounded bg-success/10">
+                        <p className="text-xs text-muted-foreground">Promotores</p>
+                        <p className="text-2xl font-semibold text-success">{filteredStats?.promoters || 0}</p>
+                      </div>
+                      <div className="text-center p-3 rounded bg-warning/10">
+                        <p className="text-xs text-muted-foreground">Neutros</p>
+                        <p className="text-2xl font-semibold text-warning">{filteredStats?.passives || 0}</p>
+                      </div>
+                      <div className="text-center p-3 rounded bg-destructive/10">
+                        <p className="text-xs text-muted-foreground">Detratores</p>
+                        <p className="text-2xl font-semibold text-destructive">{filteredStats?.detractors || 0}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div className="text-center p-2 rounded bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Respostas</p>
-                        <p className="text-lg font-semibold">{campaign.totalResponses}</p>
-                      </div>
-                      <div className="text-center p-2 rounded bg-success/10">
-                        <p className="text-xs text-muted-foreground">Promotores</p>
-                        <p className="text-lg font-semibold text-success">{campaign.promoters}</p>
-                      </div>
-                      <div className="text-center p-2 rounded bg-warning/10">
-                        <p className="text-xs text-muted-foreground">Neutros</p>
-                        <p className="text-lg font-semibold text-warning">{campaign.passives}</p>
-                      </div>
-                      <div className="text-center p-2 rounded bg-destructive/10">
-                        <p className="text-xs text-muted-foreground">Detratores</p>
-                        <p className="text-lg font-semibold text-destructive">{campaign.detractors}</p>
-                      </div>
+                    <div className="flex items-center justify-center gap-2 p-3 rounded bg-primary/5">
+                      <span className="text-sm text-muted-foreground">NPS Score:</span>
+                      <span className={`text-3xl font-bold ${
+                        (filteredStats?.npsScore || 0) >= 50 ? 'text-success' : 
+                        (filteredStats?.npsScore || 0) >= 0 ? 'text-warning' : 
+                        'text-destructive'
+                      }`}>
+                        {filteredStats?.npsScore || 0}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                  
+                  {/* Filtered Responses */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Respostas Recebidas</h3>
+                    {filteredResponses.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">
+                        Nenhuma resposta ainda para esta campanha.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredResponses.map((response) => (
+                          <div
+                            key={response.id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              {response.contacts.is_company ? (
+                                <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                              ) : (
+                                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm truncate">{response.contacts.name}</p>
+                                  <span className="text-xs text-muted-foreground truncate">{response.contacts.email}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(response.responded_at).toLocaleDateString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </p>
+                                {response.comment && (
+                                  <p className="text-xs text-muted-foreground italic mt-1 line-clamp-1">
+                                    &ldquo;{response.comment}&rdquo;
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className={`ml-3 px-2 py-1 rounded ${getScoreColor(response.score)} flex-shrink-0`}>
+                              <div className="text-center">
+                                <div className="text-lg font-bold">{response.score}</div>
+                                <div className="text-xs whitespace-nowrap">{getScoreLabel(response.score)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {campaignStats.map((campaign) => (
+                    <div
+                      key={campaign.id}
+                      className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setSelectedCampaignId(campaign.id)}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-lg">{campaign.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">NPS:</span>
+                          <span className={`text-xl font-bold ${campaign.npsScore >= 50 ? 'text-success' : campaign.npsScore >= 0 ? 'text-warning' : 'text-destructive'}`}>
+                            {campaign.npsScore}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="text-center p-2 rounded bg-muted/50">
+                          <p className="text-xs text-muted-foreground">Respostas</p>
+                          <p className="text-lg font-semibold">{campaign.totalResponses}</p>
+                        </div>
+                        <div className="text-center p-2 rounded bg-success/10">
+                          <p className="text-xs text-muted-foreground">Promotores</p>
+                          <p className="text-lg font-semibold text-success">{campaign.promoters}</p>
+                        </div>
+                        <div className="text-center p-2 rounded bg-warning/10">
+                          <p className="text-xs text-muted-foreground">Neutros</p>
+                          <p className="text-lg font-semibold text-warning">{campaign.passives}</p>
+                        </div>
+                        <div className="text-center p-2 rounded bg-destructive/10">
+                          <p className="text-xs text-muted-foreground">Detratores</p>
+                          <p className="text-lg font-semibold text-destructive">{campaign.detractors}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           )
         ) : (
