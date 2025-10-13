@@ -35,6 +35,7 @@ const Contacts = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [displayCount, setDisplayCount] = useState(15);
   const [formData, setFormData] = useState({ 
     name: "", 
     email: "", 
@@ -426,7 +427,7 @@ const Contacts = () => {
 
             <TabsContent value={activeTab} className="mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredContacts.map((contact) => (
+                {filteredContacts.slice(0, displayCount).map((contact) => (
                   <Card key={contact.id} className="p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -466,6 +467,17 @@ const Contacts = () => {
                   </Card>
                 ))}
               </div>
+              
+              {displayCount < filteredContacts.length && (
+                <div className="flex justify-center mt-6">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setDisplayCount(prev => prev + 15)}
+                  >
+                    Carregar mais
+                  </Button>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         )}
