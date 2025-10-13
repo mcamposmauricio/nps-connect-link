@@ -25,6 +25,8 @@ interface Stats {
   totalContacts: number;
   totalCampaigns: number;
   totalResponses: number;
+  responses24h: number;
+  responses7d: number;
   npsScore: number;
   promoters: number;
   passives: number;
@@ -93,6 +95,8 @@ const Dashboard = () => {
     totalContacts: 0,
     totalCampaigns: 0,
     totalResponses: 0,
+    responses24h: 0,
+    responses7d: 0,
     npsScore: 0,
     promoters: 0,
     passives: 0,
@@ -121,14 +125,23 @@ const Dashboard = () => {
 
         const [contactsRes, campaignsRes, responsesRes] = await Promise.all([
           supabase.from("contacts").select("id", { count: "exact" }).eq("user_id", user.id),
-          supabase.from("campaigns").select("id", { count: "exact" }).eq("user_id", user.id),
+          supabase.from("campaigns").select("id", { count: "exact" }).eq("user_id", user.id).in("status", ["active", "sent"]),
           supabase
             .from("responses")
-            .select("score, campaigns!inner(user_id)")
+            .select("score, responded_at, campaigns!inner(user_id)")
             .eq("campaigns.user_id", user.id),
         ]);
 
         const responses = responsesRes.data || [];
+        
+        // Calculate time-based responses
+        const now = new Date();
+        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const responses24h = responses.filter((r) => new Date(r.responded_at) >= last24h).length;
+        const responses7d = responses.filter((r) => new Date(r.responded_at) >= last7d).length;
+        
         const promoters = responses.filter((r) => r.score >= 9).length;
         const passives = responses.filter((r) => r.score >= 7 && r.score <= 8).length;
         const detractors = responses.filter((r) => r.score <= 6).length;
@@ -139,6 +152,8 @@ const Dashboard = () => {
           totalContacts: contactsRes.count || 0,
           totalCampaigns: campaignsRes.count || 0,
           totalResponses: total,
+          responses24h,
+          responses7d,
           npsScore,
           promoters,
           passives,
@@ -194,7 +209,8 @@ const Dashboard = () => {
         const { data: campaigns } = await supabase
           .from("campaigns")
           .select("id, name")
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .in("status", ["active", "sent"]);
 
         if (!campaigns) return;
 
@@ -272,6 +288,14 @@ const Dashboard = () => {
         const responsesData = responses || [];
         setFilteredResponses(responsesData);
 
+        // Calculate time-based responses
+        const now = new Date();
+        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const responses24h = responsesData.filter((r) => new Date(r.responded_at) >= last24h).length;
+        const responses7d = responsesData.filter((r) => new Date(r.responded_at) >= last7d).length;
+
         // Calculate filtered stats
         const promoters = responsesData.filter((r) => r.score >= 9).length;
         const passives = responsesData.filter((r) => r.score >= 7 && r.score <= 8).length;
@@ -289,6 +313,8 @@ const Dashboard = () => {
           totalContacts: contactsCount || 0,
           totalCampaigns: 1,
           totalResponses: total,
+          responses24h,
+          responses7d,
           npsScore,
           promoters,
           passives,
@@ -397,8 +423,10 @@ const Dashboard = () => {
   
   const statCards = [
     { title: "Contatos", value: displayStats.totalContacts, icon: Users, color: "text-blue-600" },
-    { title: "Campanhas", value: displayStats.totalCampaigns, icon: Send, color: "text-purple-600" },
-    { title: "Respostas", value: displayStats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
+    { title: "Campanhas Ativas", value: displayStats.totalCampaigns, icon: Send, color: "text-purple-600" },
+    { title: "Respostas (Total)", value: displayStats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
+    { title: "Respostas (24h)", value: displayStats.responses24h, icon: MessageSquare, color: "text-green-600" },
+    { title: "Respostas (7d)", value: displayStats.responses7d, icon: MessageSquare, color: "text-cyan-600" },
     { title: "NPS Score", value: displayStats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
   ];
 
@@ -512,7 +540,7 @@ const Dashboard = () => {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
