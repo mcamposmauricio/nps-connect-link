@@ -424,10 +424,10 @@ const Dashboard = () => {
   const statCards = [
     { title: "Contatos", value: displayStats.totalContacts, icon: Users, color: "text-blue-600" },
     { title: "Campanhas Ativas", value: displayStats.totalCampaigns, icon: Send, color: "text-purple-600" },
+    { title: "NPS Score", value: displayStats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
     { title: "Respostas (Total)", value: displayStats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
     { title: "Respostas (24h)", value: displayStats.responses24h, icon: MessageSquare, color: "text-green-600" },
     { title: "Respostas (7d)", value: displayStats.responses7d, icon: MessageSquare, color: "text-cyan-600" },
-    { title: "NPS Score", value: displayStats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
   ];
 
   const pendingCampaigns = contactCampaigns.filter(cc => !cc.email_sent);
