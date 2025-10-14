@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Contact {
   id: string;
@@ -52,6 +53,7 @@ const Contacts = () => {
   const [activeTab, setActiveTab] = useState<"all" | "companies" | "individuals">("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchContacts();
@@ -75,7 +77,7 @@ const Contacts = () => {
       })));
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -90,7 +92,7 @@ const Contacts = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      if (!user) throw new Error(t("auth.error"));
 
       const { error } = await supabase.from("contacts").insert({
         user_id: user.id,
@@ -106,8 +108,8 @@ const Contacts = () => {
       if (error) throw error;
 
       toast({
-        title: "Sucesso!",
-        description: "Contato adicionado com sucesso.",
+        title: t("common.success"),
+        description: t("contacts.addSuccess"),
       });
 
       setFormData({ name: "", email: "", phone: "", is_company: false, company_document: "", company_sector: "", custom_fields: {} });
@@ -117,7 +119,7 @@ const Contacts = () => {
       fetchContacts();
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -132,14 +134,14 @@ const Contacts = () => {
       if (error) throw error;
 
       toast({
-        title: "Sucesso!",
-        description: "Contato removido.",
+        title: t("common.success"),
+        description: t("contacts.deleteSuccess"),
       });
 
       fetchContacts();
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -158,7 +160,7 @@ const Contacts = () => {
       complete: async (results) => {
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error("Usuário não autenticado");
+          if (!user) throw new Error(t("auth.error"));
 
           const contactsToInsert = results.data.map((row: any) => {
             const isCompany = row.is_company === "true" || row.is_company === "TRUE" || row["Empresa"] === "Sim" || false;
@@ -179,14 +181,14 @@ const Contacts = () => {
           if (error) throw error;
 
           toast({
-            title: "Sucesso!",
-            description: `${contactsToInsert.length} contatos importados com sucesso.`,
+            title: t("common.success"),
+            description: t("contacts.importSuccess"),
           });
 
           fetchContacts();
         } catch (error: any) {
           toast({
-            title: "Erro",
+            title: t("common.error"),
             description: error.message,
             variant: "destructive",
           });
@@ -197,8 +199,8 @@ const Contacts = () => {
       },
       error: (error) => {
         toast({
-          title: "Erro",
-          description: "Erro ao processar arquivo CSV.",
+          title: t("common.error"),
+          description: t("contacts.importError"),
           variant: "destructive",
         });
         setImporting(false);
@@ -214,18 +216,18 @@ const Contacts = () => {
 
   const handleExportCSV = () => {
     const csvData = filteredContacts.map((contact) => ({
-      "Tipo": contact.is_company ? "Empresa" : "Pessoa",
-      "Nome": contact.name,
+      "Type": contact.is_company ? t("contacts.company") : t("contacts.individual"),
+      "Name": contact.name,
       "Email": contact.email,
-      "Telefone": contact.phone || "",
-      "CNPJ": contact.company_document || "",
-      "Setor": contact.company_sector || "",
+      "Phone": contact.phone || "",
+      "Document": contact.company_document || "",
+      "Sector": contact.company_sector || "",
       ...contact.custom_fields,
     }));
-    exportToCSV(csvData, `contatos_${activeTab}`);
+    exportToCSV(csvData, `contacts_${activeTab}`);
     toast({
-      title: "CSV exportado!",
-      description: "Arquivo baixado com sucesso.",
+      title: t("contacts.exportSuccess"),
+      description: t("contacts.exportDescription"),
     });
   };
 
@@ -234,15 +236,15 @@ const Contacts = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Contatos</h1>
-            <p className="text-muted-foreground">Gerencie seus clientes e contatos</p>
+            <h1 className="text-4xl font-bold mb-2">{t("contacts.title")}</h1>
+            <p className="text-muted-foreground">{t("contacts.subtitle")}</p>
           </div>
 
           <div className="flex gap-2">
             {contacts.length > 0 && (
               <Button onClick={handleExportCSV} variant="outline">
                 <Download className="mr-2 h-4 w-4" />
-                Exportar CSV
+                {t("contacts.export")}
               </Button>
             )}
             <input
@@ -262,49 +264,49 @@ const Contacts = () => {
               ) : (
                 <Upload className="mr-2 h-4 w-4" />
               )}
-              Importar CSV
+              {t("contacts.bulkImport")}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Novo Contato
+                  {t("contacts.addContact")}
                 </Button>
               </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Adicionar Contato</DialogTitle>
+                <DialogTitle>{t("contacts.addContact")}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Nome</label>
+                  <label className="block text-sm font-medium mb-2">{t("contacts.name")}</label>
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Nome do contato"
+                    placeholder={t("contacts.namePlaceholder")}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <label className="block text-sm font-medium mb-2">{t("contacts.email")}</label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="email@exemplo.com"
+                    placeholder={t("contacts.emailPlaceholder")}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Telefone (opcional)</label>
+                  <label className="block text-sm font-medium mb-2">{t("contacts.phone")}</label>
                   <Input
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="(00) 00000-0000"
+                    placeholder={t("contacts.phonePlaceholder")}
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="is-company">Este contato é uma empresa?</Label>
+                  <Label htmlFor="is-company">{t("contacts.isCompany")}</Label>
                   <Switch
                     id="is-company"
                     checked={formData.is_company}
@@ -315,26 +317,26 @@ const Contacts = () => {
                 {formData.is_company && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium mb-2">CNPJ (opcional)</label>
+                      <label className="block text-sm font-medium mb-2">{t("contacts.document")}</label>
                       <Input
                         value={formData.company_document}
                         onChange={(e) => setFormData({ ...formData, company_document: e.target.value })}
-                        placeholder="00.000.000/0000-00"
+                        placeholder={t("contacts.documentPlaceholder")}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Setor (opcional)</label>
+                      <label className="block text-sm font-medium mb-2">{t("contacts.sector")}</label>
                       <Input
                         value={formData.company_sector}
                         onChange={(e) => setFormData({ ...formData, company_sector: e.target.value })}
-                        placeholder="Ex: Tecnologia, Varejo, Saúde"
+                        placeholder={t("contacts.sectorPlaceholder")}
                       />
                     </div>
                   </>
                 )}
 
                 <div className="border-t pt-4">
-                  <label className="block text-sm font-medium mb-2">Campos Personalizados</label>
+                  <label className="block text-sm font-medium mb-2">{t("contacts.customFields")}</label>
                   <div className="space-y-2">
                     {Object.entries(formData.custom_fields).map(([key, value]) => (
                       <div key={key} className="flex items-center gap-2 text-sm">
@@ -356,12 +358,12 @@ const Contacts = () => {
                     ))}
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Nome do campo"
+                        placeholder={t("contacts.fieldName")}
                         value={customFieldKey}
                         onChange={(e) => setCustomFieldKey(e.target.value)}
                       />
                       <Input
-                        placeholder="Valor"
+                        placeholder={t("contacts.fieldValue")}
                         value={customFieldValue}
                         onChange={(e) => setCustomFieldValue(e.target.value)}
                       />
@@ -390,7 +392,7 @@ const Contacts = () => {
                 </div>
                 <Button type="submit" className="w-full" disabled={saving}>
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar
+                  {t("common.save")}
                 </Button>
               </form>
             </DialogContent>
@@ -404,24 +406,24 @@ const Contacts = () => {
           </div>
         ) : contacts.length === 0 ? (
           <Card className="p-12 text-center">
-            <p className="text-muted-foreground">Nenhum contato cadastrado ainda.</p>
+            <p className="text-muted-foreground">{t("contacts.noContacts")}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Importe contatos via CSV (Google Sheets) ou adicione manualmente.
+              {t("contacts.importHelp")}
             </p>
           </Card>
         ) : (
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
             <TabsList className="grid w-full max-w-md grid-cols-3">
               <TabsTrigger value="all">
-                Todos ({contacts.length})
+                {t("contacts.all")} ({contacts.length})
               </TabsTrigger>
               <TabsTrigger value="companies">
                 <Building2 className="h-4 w-4 mr-1" />
-                Empresas ({contacts.filter(c => c.is_company).length})
+                {t("contacts.companies")} ({contacts.filter(c => c.is_company).length})
               </TabsTrigger>
               <TabsTrigger value="individuals">
                 <User className="h-4 w-4 mr-1" />
-                Pessoas ({contacts.filter(c => !c.is_company).length})
+                {t("contacts.individuals")} ({contacts.filter(c => !c.is_company).length})
               </TabsTrigger>
             </TabsList>
 
@@ -450,10 +452,10 @@ const Contacts = () => {
                     <p className="text-sm text-muted-foreground">{contact.email}</p>
                     {contact.phone && <p className="text-sm text-muted-foreground">{contact.phone}</p>}
                     {contact.company_document && (
-                      <p className="text-sm text-muted-foreground">CNPJ: {contact.company_document}</p>
+                      <p className="text-sm text-muted-foreground">{t("contacts.document")}: {contact.company_document}</p>
                     )}
                     {contact.company_sector && (
-                      <p className="text-sm text-muted-foreground">Setor: {contact.company_sector}</p>
+                      <p className="text-sm text-muted-foreground">{t("contacts.sector")}: {contact.company_sector}</p>
                     )}
                     {Object.keys(contact.custom_fields || {}).length > 0 && (
                       <div className="mt-2 pt-2 border-t">
@@ -474,7 +476,7 @@ const Contacts = () => {
                     variant="outline" 
                     onClick={() => setDisplayCount(prev => prev + 15)}
                   >
-                    Carregar mais
+                    {t("contacts.loadMore")}
                   </Button>
                 </div>
               )}
