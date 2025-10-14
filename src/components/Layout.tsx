@@ -2,8 +2,15 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Users, Send, TrendingUp, LogOut, Settings } from "lucide-react";
+import { BarChart3, Users, Send, TrendingUp, LogOut, Settings, Languages } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,6 +20,7 @@ const Layout = ({ children }: LayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { t, language, setLanguage } = useLanguage();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,8 +46,8 @@ const Layout = ({ children }: LayoutProps) => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast({
-      title: "Logout realizado",
-      description: "Até breve!",
+      title: t("nav.logoutSuccess"),
+      description: t("nav.logoutMessage"),
     });
     navigate("/auth");
   };
@@ -53,10 +61,10 @@ const Layout = ({ children }: LayoutProps) => {
   }
 
   const navItems = [
-    { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
-    { path: "/contacts", icon: Users, label: "Contatos" },
-    { path: "/campaigns", icon: Send, label: "Campanhas" },
-    { path: "/settings", icon: Settings, label: "Configurações" },
+    { path: "/dashboard", icon: BarChart3, label: t("nav.dashboard") },
+    { path: "/contacts", icon: Users, label: t("nav.contacts") },
+    { path: "/campaigns", icon: Send, label: t("nav.campaigns") },
+    { path: "/settings", icon: Settings, label: t("nav.settings") },
   ];
 
   return (
@@ -88,6 +96,23 @@ const Layout = ({ children }: LayoutProps) => {
                   </Button>
                 );
               })}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="ml-2">
+                    <Languages className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setLanguage("en")}>
+                    {language === "en" && "✓ "}English
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>
+                    {language === "pt-BR" && "✓ "}Português (BR)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button variant="ghost" size="sm" onClick={handleLogout} className="ml-2">
                 <LogOut className="h-4 w-4" />
               </Button>

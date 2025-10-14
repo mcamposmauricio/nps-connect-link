@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Stats {
   totalContacts: number;
@@ -116,6 +117,7 @@ const Dashboard = () => {
   const [filteredStats, setFilteredStats] = useState<Stats | null>(null);
   const [filteredResponses, setFilteredResponses] = useState<RecentResponse[]>([]);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -414,20 +416,20 @@ const Dashboard = () => {
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 9) return "Promotor";
-    if (score >= 7) return "Neutro";
-    return "Detrator";
+    if (score >= 9) return t("dashboard.promoters");
+    if (score >= 7) return t("dashboard.neutrals");
+    return t("dashboard.detractors");
   };
 
   const displayStats = viewMode === "campaign" && selectedCampaignId && filteredStats ? filteredStats : stats;
   
   const statCards = [
-    { title: "Contatos", value: displayStats.totalContacts, icon: Users, color: "text-blue-600" },
-    { title: "Campanhas Ativas", value: displayStats.totalCampaigns, icon: Send, color: "text-purple-600" },
-    { title: "NPS Score", value: displayStats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
-    { title: "Respostas (Total)", value: displayStats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
-    { title: "Respostas (24h)", value: displayStats.responses24h, icon: MessageSquare, color: "text-green-600" },
-    { title: "Respostas (7d)", value: displayStats.responses7d, icon: MessageSquare, color: "text-cyan-600" },
+    { title: t("dashboard.contacts"), value: displayStats.totalContacts, icon: Users, color: "text-blue-600" },
+    { title: t("dashboard.activeCampaigns"), value: displayStats.totalCampaigns, icon: Send, color: "text-purple-600" },
+    { title: t("dashboard.npsScore"), value: displayStats.npsScore, icon: TrendingUp, color: "text-primary", suffix: "" },
+    { title: t("dashboard.responsesTotal"), value: displayStats.totalResponses, icon: MessageSquare, color: "text-indigo-600" },
+    { title: t("dashboard.responses24h"), value: displayStats.responses24h, icon: MessageSquare, color: "text-green-600" },
+    { title: t("dashboard.responses7d"), value: displayStats.responses7d, icon: MessageSquare, color: "text-cyan-600" },
   ];
 
   const pendingCampaigns = contactCampaigns.filter(cc => !cc.email_sent);
@@ -446,8 +448,8 @@ const Dashboard = () => {
     <Layout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do seu sistema de NPS</p>
+          <h1 className="text-4xl font-bold mb-2">{t("dashboard.title")}</h1>
+          <p className="text-muted-foreground">{t("dashboard.npsHistory")}</p>
         </div>
 
         {/* View Mode Filter */}
@@ -562,7 +564,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-6 bg-gradient-to-br from-success/10 to-success/5 border-success/20">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">Promotores</h3>
+                <h3 className="text-lg font-semibold">{t("dashboard.promoters")}</h3>
                 <span className="text-2xl">😊</span>
               </div>
               <p className="text-4xl font-bold text-success">{displayStats.promoters}</p>
@@ -571,7 +573,7 @@ const Dashboard = () => {
 
             <Card className="p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">Neutros</h3>
+                <h3 className="text-lg font-semibold">{t("dashboard.neutrals")}</h3>
                 <span className="text-2xl">😐</span>
               </div>
               <p className="text-4xl font-bold text-warning">{displayStats.passives}</p>
@@ -580,7 +582,7 @@ const Dashboard = () => {
 
             <Card className="p-6 bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">Detratores</h3>
+                <h3 className="text-lg font-semibold">{t("dashboard.detractors")}</h3>
                 <span className="text-2xl">😞</span>
               </div>
               <p className="text-4xl font-bold text-destructive">{displayStats.detractors}</p>
@@ -590,17 +592,17 @@ const Dashboard = () => {
 
           {displayStats.totalResponses > 0 && (
             <Card className="p-6 bg-gradient-to-br from-background via-card to-muted/20 shadow-lg border-primary/10">
-              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
-                Distribuição NPS
+                {t("dashboard.responseDistribution")}
               </h3>
               <div className="h-80">
-                <ChartContainer config={{
-                  promoters: { label: "Promotores", color: "hsl(var(--promoter))" },
-                  passives: { label: "Neutros", color: "hsl(var(--passive))" },
-                  detractors: { label: "Detratores", color: "hsl(var(--detractor))" },
+                  <ChartContainer config={{
+                  promoters: { label: t("dashboard.promoters"), color: "hsl(var(--promoter))" },
+                  passives: { label: t("dashboard.neutrals"), color: "hsl(var(--passive))" },
+                  detractors: { label: t("dashboard.detractors"), color: "hsl(var(--detractor))" },
                 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -611,9 +613,9 @@ const Dashboard = () => {
                       </defs>
                       <Pie
                         data={[
-                          { name: 'Promotores', value: displayStats.promoters, label: '😊' },
-                          { name: 'Neutros', value: displayStats.passives, label: '😐' },
-                          { name: 'Detratores', value: displayStats.detractors, label: '😞' },
+                          { name: t("dashboard.promoters"), value: displayStats.promoters, label: '😊' },
+                          { name: t("dashboard.neutrals"), value: displayStats.passives, label: '😐' },
+                          { name: t("dashboard.detractors"), value: displayStats.detractors, label: '😞' },
                         ]}
                         cx="50%"
                         cy="45%"

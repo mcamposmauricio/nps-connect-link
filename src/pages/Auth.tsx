@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, BarChart3 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,6 +15,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -47,14 +49,14 @@ const Auth = () => {
         });
         if (error) throw error;
         toast({
-          title: "Conta criada!",
-          description: "Você já pode fazer login.",
+          title: t("auth.signupSuccess"),
+          description: t("auth.checkEmail"),
         });
         setIsLogin(true);
       }
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("auth.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -69,28 +71,28 @@ const Auth = () => {
         <div className="flex items-center justify-center mb-8">
           <BarChart3 className="h-12 w-12 text-primary mr-3" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            NPS System
+            {t("auth.title")}
           </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-2">
-              Email
+              {t("auth.email")}
             </label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              placeholder={t("auth.email")}
               required
             />
           </div>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-2">
-              Senha
+              {t("auth.password")}
             </label>
             <Input
               id="password"
@@ -105,7 +107,7 @@ const Auth = () => {
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLogin ? "Entrar" : "Criar Conta"}
+            {isLogin ? t("auth.login") : t("auth.createAccount")}
           </Button>
         </form>
 
@@ -115,7 +117,7 @@ const Auth = () => {
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            {isLogin ? "Não tem conta? Criar conta" : "Já tem conta? Fazer login"}
+            {isLogin ? t("auth.toggleLogin") : t("auth.toggleSignup")}
           </button>
         </div>
       </Card>
