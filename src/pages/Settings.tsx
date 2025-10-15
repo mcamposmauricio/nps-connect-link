@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Palette } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import NPSForm from "@/components/NPSForm";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BrandSettings {
   id?: string;
@@ -31,6 +32,7 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchSettings();
@@ -63,7 +65,7 @@ const Settings = () => {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      if (!user) throw new Error(t("settings.userNotAuthenticated"));
 
       const settingsData = {
         user_id: user.id,
@@ -81,14 +83,14 @@ const Settings = () => {
       if (error) throw error;
 
       toast({
-        title: "Sucesso!",
-        description: "Configurações salvas com sucesso.",
+        title: t("common.success"),
+        description: t("settings.updateSuccess"),
       });
 
       fetchSettings();
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -104,7 +106,7 @@ const Settings = () => {
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      if (!user) throw new Error(t("settings.userNotAuthenticated"));
 
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -122,12 +124,12 @@ const Settings = () => {
       setSettings({ ...settings, logo_url: publicUrl });
 
       toast({
-        title: "Sucesso!",
-        description: "Logo enviado com sucesso.",
+        title: t("common.success"),
+        description: t("settings.uploadSuccess"),
       });
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -151,26 +153,26 @@ const Settings = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Configurações de Marca</h1>
+            <h1 className="text-4xl font-bold mb-2">{t("settings.brandSettings")}</h1>
             <p className="text-muted-foreground">
-              Personalize a aparência das suas pesquisas
+              {t("settings.subtitle")}
             </p>
           </div>
 
           <Card className="p-6 space-y-6">
             <div>
-              <Label htmlFor="company-name">Nome da Empresa</Label>
+              <Label htmlFor="company-name">{t("settings.companyName")}</Label>
               <Input
                 id="company-name"
                 value={settings.company_name}
                 onChange={(e) => setSettings({ ...settings, company_name: e.target.value })}
-                placeholder="Digite o nome da sua empresa"
+                placeholder={t("settings.companyNamePlaceholder")}
                 className="mt-2"
               />
             </div>
 
             <div>
-              <Label>Logo da Empresa</Label>
+              <Label>{t("settings.companyLogo")}</Label>
               <div className="mt-2 space-y-4">
                 {settings.logo_url && (
                   <div className="flex items-center justify-center p-4 border rounded-lg bg-muted">
@@ -199,7 +201,7 @@ const Settings = () => {
                   ) : (
                     <Upload className="mr-2 h-4 w-4" />
                   )}
-                  {settings.logo_url ? "Alterar Logo" : "Enviar Logo"}
+                  {settings.logo_url ? t("settings.changeLogo") : t("settings.uploadLogo")}
                 </Button>
               </div>
             </div>
@@ -207,11 +209,11 @@ const Settings = () => {
             <div className="space-y-4">
               <Label>
                 <Palette className="inline mr-2 h-4 w-4" />
-                Cores da Marca
+                {t("settings.brandColors")}
               </Label>
               
               <div>
-                <Label htmlFor="primary-color" className="text-sm">Cor Primária</Label>
+                <Label htmlFor="primary-color" className="text-sm">{t("settings.primaryColor")}</Label>
                 <div className="flex gap-2 mt-2">
                   <Input
                     id="primary-color"
@@ -229,7 +231,7 @@ const Settings = () => {
               </div>
 
               <div>
-                <Label htmlFor="secondary-color" className="text-sm">Cor Secundária</Label>
+                <Label htmlFor="secondary-color" className="text-sm">{t("settings.secondaryColor")}</Label>
                 <div className="flex gap-2 mt-2">
                   <Input
                     id="secondary-color"
@@ -247,7 +249,7 @@ const Settings = () => {
               </div>
 
               <div>
-                <Label htmlFor="accent-color" className="text-sm">Cor de Destaque</Label>
+                <Label htmlFor="accent-color" className="text-sm">{t("settings.accentColor")}</Label>
                 <div className="flex gap-2 mt-2">
                   <Input
                     id="accent-color"
@@ -267,16 +269,16 @@ const Settings = () => {
 
             <Button onClick={handleSave} className="w-full" disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar Configurações
+              {t("settings.saveChanges")}
             </Button>
           </Card>
         </div>
 
         <div className="lg:sticky lg:top-6 h-fit">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Preview em Tempo Real</h2>
+            <h2 className="text-xl font-semibold mb-4">{t("settings.livePreview")}</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Visualização exata de como a pesquisa aparecerá para seus contatos
+              {t("settings.livePreviewDescription")}
             </p>
             <div 
               className="rounded-lg overflow-hidden"

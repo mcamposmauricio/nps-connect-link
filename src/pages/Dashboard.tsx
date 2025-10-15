@@ -400,7 +400,7 @@ const Dashboard = () => {
       setContactCampaigns(campaignsData || []);
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -457,13 +457,13 @@ const Dashboard = () => {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4 flex-wrap flex-1">
               <div>
-                <h2 className="text-lg font-semibold">Visualização</h2>
-                <p className="text-sm text-muted-foreground">Escolha como visualizar os dados</p>
+                <h2 className="text-lg font-semibold">{t("dashboard.viewModeTitle")}</h2>
+                <p className="text-sm text-muted-foreground">{t("dashboard.viewModeDescription")}</p>
               </div>
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "campaign" | "contact")}>
                 <TabsList>
-                  <TabsTrigger value="campaign">Por Campanha</TabsTrigger>
-                  <TabsTrigger value="contact">Por Contato</TabsTrigger>
+                  <TabsTrigger value="campaign">{t("dashboard.byCampaign")}</TabsTrigger>
+                  <TabsTrigger value="contact">{t("dashboard.byContact")}</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -476,17 +476,17 @@ const Dashboard = () => {
                     size="sm"
                     onClick={() => setSelectedCampaignId(null)}
                   >
-                    Limpar Filtro
+                    {t("dashboard.clearFilter")}
                   </Button>
                 ) : (
                   <>
-                    <label className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por campanha:</label>
+                    <label className="text-sm text-muted-foreground whitespace-nowrap">{t("dashboard.filterByCampaign")}</label>
                     <select
                       className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       value={selectedCampaignId || ""}
                       onChange={(e) => setSelectedCampaignId(e.target.value || null)}
                     >
-                      <option value="">Todas as campanhas</option>
+                      <option value="">{t("dashboard.allCampaigns")}</option>
                       {campaignStats.map((campaign) => (
                         <option key={campaign.id} value={campaign.id}>
                           {campaign.name}
@@ -505,7 +505,7 @@ const Dashboard = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar contato por nome ou email..."
+                placeholder={t("dashboard.searchContact")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -534,7 +534,7 @@ const Dashboard = () => {
                         <p className="text-sm text-muted-foreground">{contact.email}</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">Ver Detalhes</Button>
+                    <Button variant="outline" size="sm">{t("dashboard.viewDetails")}</Button>
                   </div>
                 ))}
               </div>
@@ -678,7 +678,7 @@ const Dashboard = () => {
           <Card className="p-6">
             <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
               <Send className="h-6 w-6" />
-              Respostas da Campanha
+              {t("dashboard.campaignResponses")}
             </h2>
             <div className="space-y-2">
               {filteredResponses.map((response) => (
@@ -729,11 +729,11 @@ const Dashboard = () => {
           <Card className="p-6">
             <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
               <MessageSquare className="h-6 w-6" />
-              Últimas Respostas NPS
+              {t("dashboard.latestResponses")}
             </h2>
             {recentResponses.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Nenhuma resposta ainda.
+                {t("dashboard.noResponses")}
               </p>
             ) : (
               <div className="space-y-3">
@@ -756,7 +756,7 @@ const Dashboard = () => {
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-xs text-muted-foreground">
-                            Campanha: {response.campaigns.name}
+                            {t("dashboard.campaign")} {response.campaigns.name}
                           </span>
                           <span className="text-xs text-muted-foreground">•</span>
                           <span className="text-xs text-muted-foreground">
@@ -817,19 +817,19 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 gap-4">
                 {selectedContact?.phone && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Telefone</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("dashboard.phone")}</label>
                     <p className="text-sm">{selectedContact.phone}</p>
                   </div>
                 )}
                 {selectedContact?.is_company && selectedContact?.company_document && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">CNPJ</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("dashboard.document")}</label>
                     <p className="text-sm">{selectedContact.company_document}</p>
                   </div>
                 )}
                 {selectedContact?.is_company && selectedContact?.company_sector && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Setor</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("dashboard.sector")}</label>
                     <p className="text-sm">{selectedContact.company_sector}</p>
                   </div>
                 )}
@@ -840,14 +840,14 @@ const Dashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                     <Mail className="h-5 w-5" />
-                    Campanhas Pendentes ({pendingCampaigns.length})
+                    {t("dashboard.pendingCampaigns")} ({pendingCampaigns.length})
                   </h3>
                   <div className="space-y-2">
                     {pendingCampaigns.map((cc) => (
                       <div key={cc.campaign_id} className="p-3 border rounded-lg bg-orange-50">
                         <p className="font-medium">{cc.campaigns.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          Status: {cc.campaigns.status === "sent" ? "Enviada" : "Rascunho"}
+                          {t("dashboard.status")} {cc.campaigns.status === "sent" ? t("dashboard.sent") : t("dashboard.draft")}
                         </p>
                       </div>
                     ))}
@@ -859,11 +859,11 @@ const Dashboard = () => {
               <div>
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
-                  Últimas Respostas ({contactResponses.length})
+                  {t("dashboard.latestResponses")} ({contactResponses.length})
                 </h3>
                 {contactResponses.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma resposta ainda.
+                    {t("dashboard.noResponses")}
                   </p>
                 ) : (
                   <div className="space-y-3">
