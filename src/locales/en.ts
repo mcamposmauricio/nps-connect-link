@@ -110,6 +110,9 @@ export default {
   "campaigns.sent.status": "Sent",
   "campaigns.active": "Active",
   "campaigns.completed": "Completed",
+  "campaigns.automatic": "Automatic",
+  "campaigns.manual": "Manual",
+  "campaigns.nextSend": "Next send",
 
   // Campaign Form
   "campaignForm.title": "Create Campaign",

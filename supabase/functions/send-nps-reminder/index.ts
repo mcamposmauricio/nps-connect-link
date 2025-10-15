@@ -93,7 +93,37 @@ interface NPSReminderRequest {
   campaignMessage: string;
   npsLink: string;
   companyName?: string;
+  language?: "en" | "pt-BR";
 }
+
+const translations = {
+  en: {
+    greeting: "Hello",
+    wave: "👋",
+    importantFeedback: "Your opinion is very important!",
+    takesOneMinute: "It takes only 1 minute to respond and helps us improve.",
+    respondSurvey: "Respond to Survey →",
+    copyLink: "Or copy and paste this link in your browser:",
+    autoEmail: "This is an automated email sent by",
+    questions: "If you have questions, contact us.",
+    allRightsReserved: "All rights reserved",
+    surveyTitle: "Satisfaction Survey",
+    reminder: "Reminder:",
+  },
+  "pt-BR": {
+    greeting: "Olá",
+    wave: "👋",
+    importantFeedback: "💡 Sua opinião é muito importante!",
+    takesOneMinute: "Leva apenas 1 minuto para responder e nos ajuda a melhorar cada vez mais.",
+    respondSurvey: "Responder Pesquisa →",
+    copyLink: "Ou copie e cole este link no seu navegador:",
+    autoEmail: "Este é um e-mail automático enviado por",
+    questions: "Se você tiver dúvidas, entre em contato conosco.",
+    allRightsReserved: "Todos os direitos reservados",
+    surveyTitle: "Pesquisa de Satisfação",
+    reminder: "Lembrete:",
+  },
+};
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -101,13 +131,24 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { contactName, contactEmail, campaignName, campaignMessage, npsLink, companyName }: NPSReminderRequest = await req.json();
+    const { 
+      contactName, 
+      contactEmail, 
+      campaignName, 
+      campaignMessage, 
+      npsLink, 
+      companyName,
+      language = "en"
+    }: NPSReminderRequest = await req.json();
 
-    console.log("Sending NPS reminder to:", contactEmail);
+    console.log("Sending NPS reminder to:", contactEmail, "in language:", language);
+
+    const t = translations[language] || translations.en;
+    const lang = language === "pt-BR" ? "pt-BR" : "en";
 
     const htmlBody = `
       <!DOCTYPE html>
-      <html lang="pt-BR">
+      <html lang="${lang}">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -122,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <tr>
                   <td style="background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); padding: 40px 40px 30px;">
                     <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; text-align: center;">
-                      ${companyName || 'Pesquisa de Satisfação'}
+                      ${companyName || t.surveyTitle}
                     </h1>
                   </td>
                 </tr>
@@ -131,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <tr>
                   <td style="padding: 40px;">
                     <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 22px; font-weight: 600;">
-                      Olá, ${contactName}! 👋
+                      ${t.greeting}, ${contactName}! ${t.wave}
                     </h2>
                     
                     <p style="margin: 0 0 20px; color: #4a5568; font-size: 16px; line-height: 1.6;">
@@ -140,8 +181,8 @@ const handler = async (req: Request): Promise<Response> => {
                     
                     <div style="background-color: #f8fafc; border-left: 4px solid #8B5CF6; padding: 16px; margin: 24px 0; border-radius: 4px;">
                       <p style="margin: 0; color: #1a1a1a; font-size: 15px; line-height: 1.5;">
-                        <strong>💡 Sua opinião é muito importante!</strong><br/>
-                        Leva apenas 1 minuto para responder e nos ajuda a melhorar cada vez mais.
+                        <strong>${t.importantFeedback}</strong><br/>
+                        ${t.takesOneMinute}
                       </p>
                     </div>
                     
@@ -150,14 +191,14 @@ const handler = async (req: Request): Promise<Response> => {
                       <tr>
                         <td align="center">
                           <a href="${npsLink}" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); color: white; padding: 16px 48px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
-                            Responder Pesquisa →
+                            ${t.respondSurvey}
                           </a>
                         </td>
                       </tr>
                     </table>
                     
                     <p style="margin: 24px 0 0; color: #718096; font-size: 14px; line-height: 1.5; text-align: center;">
-                      Ou copie e cole este link no seu navegador:<br/>
+                      ${t.copyLink}<br/>
                       <a href="${npsLink}" style="color: #8B5CF6; text-decoration: none; word-break: break-all;">${npsLink}</a>
                     </p>
                   </td>
@@ -167,8 +208,8 @@ const handler = async (req: Request): Promise<Response> => {
                 <tr>
                   <td style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e2e8f0;">
                     <p style="margin: 0; color: #a0aec0; font-size: 13px; line-height: 1.6; text-align: center;">
-                      Este é um e-mail automático enviado por <strong>${companyName || 'nossa equipe'}</strong>.<br/>
-                      Se você tiver dúvidas, entre em contato conosco.
+                      ${t.autoEmail} <strong>${companyName || t.surveyTitle}</strong>.<br/>
+                      ${t.questions}
                     </p>
                   </td>
                 </tr>
@@ -179,7 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <tr>
                   <td style="text-align: center; padding: 20px;">
                     <p style="margin: 0; color: #a0aec0; font-size: 12px;">
-                      © ${new Date().getFullYear()} ${companyName || 'Todos os direitos reservados'}
+                      © ${new Date().getFullYear()} ${companyName || t.allRightsReserved}
                     </p>
                   </td>
                 </tr>
@@ -193,7 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const messageId = await sendGmailEmail(
       contactEmail,
-      `Lembrete: ${campaignName}`,
+      `${t.reminder} ${campaignName}`,
       htmlBody
     );
 

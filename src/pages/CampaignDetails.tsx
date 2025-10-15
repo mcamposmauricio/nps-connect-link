@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -128,6 +129,7 @@ const CampaignDetails = () => {
   const [cancellingCampaign, setCancellingCampaign] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
+  const { language } = useLanguage();
 
   useEffect(() => {
     fetchCampaignDetails();
@@ -300,6 +302,7 @@ const CampaignDetails = () => {
           campaignMessage: campaign.message,
           npsLink: generateLink(campaignContact.link_token),
           companyName: brandSettings?.company_name || undefined,
+          language: language,
         },
       });
 
@@ -360,6 +363,7 @@ const CampaignDetails = () => {
               campaignMessage: campaign.message,
               npsLink: generateLink(campaignContact.link_token),
               companyName: brandSettings?.company_name || undefined,
+              language: language,
             },
           });
 

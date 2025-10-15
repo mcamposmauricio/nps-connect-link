@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Download, Calendar, Clock, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { getStatusLabel, getStatusColor, getCycleLabel, formatDate } from "@/utils/campaignUtils";
 
 import { exportToCSV } from "@/lib/utils";
@@ -41,6 +42,7 @@ const Campaigns = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [displayCount, setDisplayCount] = useState(5);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchCampaigns();
@@ -61,7 +63,7 @@ const Campaigns = () => {
       setCampaigns((data || []) as Campaign[]);
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -72,16 +74,16 @@ const Campaigns = () => {
 
   const handleExportCSV = () => {
     const csvData = campaigns.map((campaign) => ({
-      "Nome": campaign.name,
-      "Mensagem": campaign.message,
-      "Status": campaign.status === "sent" ? "Enviada" : "Rascunho",
-      "Data de Criação": new Date(campaign.created_at).toLocaleDateString("pt-BR"),
-      "Data de Envio": campaign.sent_at ? new Date(campaign.sent_at).toLocaleDateString("pt-BR") : "",
+      [t("campaigns.name")]: campaign.name,
+      [t("campaignForm.messageLabel")]: campaign.message,
+      [t("campaigns.status")]: getStatusLabel(campaign.status),
+      [t("campaigns.created")]: new Date(campaign.created_at).toLocaleDateString(),
+      [t("campaigns.scheduledFor")]: campaign.sent_at ? new Date(campaign.sent_at).toLocaleDateString() : "",
     }));
-    exportToCSV(csvData, "campanhas");
+    exportToCSV(csvData, "campaigns");
     toast({
-      title: "CSV exportado!",
-      description: "Arquivo baixado com sucesso.",
+      title: t("contacts.exportSuccess"),
+      description: t("contacts.exportDescription"),
     });
   };
 
@@ -90,27 +92,27 @@ const Campaigns = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Campanhas</h1>
-            <p className="text-muted-foreground">Crie e gerencie suas pesquisas de NPS</p>
+            <h1 className="text-4xl font-bold mb-2">{t("campaigns.title")}</h1>
+            <p className="text-muted-foreground">{t("contacts.subtitle")}</p>
           </div>
 
           <div className="flex gap-2">
             {campaigns.length > 0 && (
               <Button onClick={handleExportCSV} variant="outline">
                 <Download className="mr-2 h-4 w-4" />
-                Exportar CSV
+                {t("contacts.export")}
               </Button>
             )}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Nova Campanha
+                  {t("campaigns.createCampaign")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Criar Nova Campanha</DialogTitle>
+                  <DialogTitle>{t("campaignForm.title")}</DialogTitle>
                 </DialogHeader>
                 <CampaignForm
                   onSuccess={() => {
@@ -131,7 +133,7 @@ const Campaigns = () => {
           </div>
         ) : campaigns.length === 0 ? (
           <Card className="p-12 text-center">
-            <p className="text-muted-foreground">Nenhuma campanha criada ainda.</p>
+            <p className="text-muted-foreground">{t("campaigns.noCampaigns")}</p>
           </Card>
         ) : (
           <>
@@ -152,7 +154,7 @@ const Campaigns = () => {
                               {getStatusLabel(campaign.status)}
                             </span>
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-muted">
-                              {campaign.campaign_type === 'automatic' ? 'Automática' : 'Manual'}
+                              {campaign.campaign_type === 'automatic' ? t("campaigns.automatic") : t("campaigns.manual")}
                             </span>
                           </div>
                         </div>
@@ -160,13 +162,13 @@ const Campaigns = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5" />
-                            <span>Criada: {new Date(campaign.created_at).toLocaleDateString("pt-BR")}</span>
+                            <span>{t("campaigns.created")}: {new Date(campaign.created_at).toLocaleDateString()}</span>
                           </div>
                           
                           {campaign.campaign_type === 'automatic' && campaign.next_send && campaign.status !== 'completed' && campaign.status !== 'cancelled' && (
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-3.5 w-3.5" />
-                              <span>Próximo envio: {formatDate(campaign.next_send)}</span>
+                              <span>{t("campaigns.nextSend")}: {formatDate(campaign.next_send)}</span>
                             </div>
                           )}
                         </div>
@@ -183,7 +185,7 @@ const Campaigns = () => {
                   variant="outline" 
                   onClick={() => setDisplayCount(prev => prev + 5)}
                 >
-                  Carregar mais
+                  {t("contacts.loadMore")}
                 </Button>
               </div>
             )}
