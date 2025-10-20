@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CampaignFormProps {
   onSuccess: () => void;
@@ -14,8 +15,37 @@ interface CampaignFormProps {
 export const CampaignForm = ({ onSuccess, onCancel }: CampaignFormProps) => {
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
+  const [brandSettingsId, setBrandSettingsId] = useState<string>('');
+  const [brands, setBrands] = useState<Array<{ id: string; brand_name: string; company_name: string }>>([]);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { t } = useLanguage();
+
+  useEffect(() => {
+    fetchBrands();
+  }, []);
+
+  const fetchBrands = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("brand_settings")
+        .select("id, brand_name, company_name")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setBrands(data);
+        setBrandSettingsId(data[0].id);
+      }
+    } catch (error: any) {
+      console.error("Error fetching brands:", error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +59,7 @@ export const CampaignForm = ({ onSuccess, onCancel }: CampaignFormProps) => {
         user_id: user.id,
         name,
         message,
+        brand_settings_id: brandSettingsId || null,
         campaign_type: 'manual',
         status: 'draft',
       };
@@ -58,34 +89,52 @@ export const CampaignForm = ({ onSuccess, onCancel }: CampaignFormProps) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         <div>
-          <Label>Nome da Campanha</Label>
+          <Label>{t("campaigns.campaignName")}</Label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Ex: Pesquisa Q1 2024"
+            placeholder={t("campaigns.campaignNamePlaceholder")}
             required
           />
         </div>
 
         <div>
-          <Label>Mensagem</Label>
+          <Label>{t("campaigns.message")}</Label>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Como você avaliaria nosso serviço?"
+            placeholder={t("campaigns.messagePlaceholder")}
             rows={4}
             required
           />
         </div>
 
+        {brands.length > 0 && (
+          <div>
+            <Label>{t("campaigns.selectBrand")}</Label>
+            <select
+              value={brandSettingsId}
+              onChange={(e) => setBrandSettingsId(e.target.value)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              required
+            >
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.brand_name || brand.company_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
       </div>
 
       <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-          Cancelar
+          {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={saving} className="flex-1">
-          {saving ? "Salvando..." : "Criar Campanha"}
+          {saving ? t("campaigns.saving") : t("campaigns.createCampaign")}
         </Button>
       </div>
     </form>

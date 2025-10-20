@@ -131,6 +131,12 @@ export default {
   "campaigns.automatic": "Automática",
   "campaigns.manual": "Manual",
   "campaigns.nextSend": "Próximo envio",
+  "campaigns.selectBrand": "Selecionar Marca",
+  "campaigns.campaignName": "Nome da Campanha",
+  "campaigns.campaignNamePlaceholder": "Ex: Pesquisa Q1 2024",
+  "campaigns.message": "Mensagem",
+  "campaigns.messagePlaceholder": "Como você avaliaria nosso serviço?",
+  "campaigns.saving": "Salvando...",
 
   // Campaign Form
   "campaignForm.title": "Criar Campanha",
@@ -203,6 +209,13 @@ export default {
   "settings.livePreview": "Preview em Tempo Real",
   "settings.livePreviewDescription": "Visualização exata de como a pesquisa aparecerá para seus contatos",
   "settings.userNotAuthenticated": "Usuário não autenticado",
+  "settings.brandName": "Nome da Marca",
+  "settings.brandNamePlaceholder": "Ex: Marca Principal, Marca Secundária",
+  "settings.addNewBrand": "Adicionar Nova Marca",
+  "settings.selectBrand": "Selecione uma marca para editar",
+  "settings.deleteBrand": "Excluir Marca",
+  "settings.confirmDelete": "Tem certeza que deseja excluir esta marca?",
+  "settings.deleteSuccess": "Marca excluída com sucesso!",
 
   // NPS Form
   "npsForm.title": "Qual a probabilidade de você nos recomendar?",

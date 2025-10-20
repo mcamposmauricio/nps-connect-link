@@ -12,6 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BrandSettings {
   id?: string;
+  brand_name: string;
   company_name: string;
   logo_url: string | null;
   primary_color: string;
@@ -20,7 +21,10 @@ interface BrandSettings {
 }
 
 const Settings = () => {
+  const [brands, setBrands] = useState<BrandSettings[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [settings, setSettings] = useState<BrandSettings>({
+    brand_name: "",
     company_name: "",
     logo_url: null,
     primary_color: "#8B5CF6",
@@ -47,12 +51,14 @@ const Settings = () => {
         .from("brand_settings")
         .select("*")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      if (data) {
-        setSettings(data);
+      if (data && data.length > 0) {
+        setBrands(data);
+        setSelectedBrandId(data[0].id!);
+        setSettings(data[0]);
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -69,6 +75,7 @@ const Settings = () => {
 
       const settingsData = {
         user_id: user.id,
+        brand_name: settings.brand_name,
         company_name: settings.company_name,
         logo_url: settings.logo_url,
         primary_color: settings.primary_color,
@@ -138,6 +145,55 @@ const Settings = () => {
     }
   };
 
+  const handleAddNewBrand = () => {
+    const newBrand: BrandSettings = {
+      brand_name: "",
+      company_name: "",
+      logo_url: null,
+      primary_color: "#8B5CF6",
+      secondary_color: "#EC4899",
+      accent_color: "#10B981",
+    };
+    setSettings(newBrand);
+    setSelectedBrandId(null);
+  };
+
+  const handleSelectBrand = (brandId: string) => {
+    const brand = brands.find(b => b.id === brandId);
+    if (brand) {
+      setSettings(brand);
+      setSelectedBrandId(brandId);
+    }
+  };
+
+  const handleDeleteBrand = async () => {
+    if (!selectedBrandId) return;
+    
+    if (!confirm(t("settings.confirmDelete"))) return;
+
+    try {
+      const { error } = await supabase
+        .from("brand_settings")
+        .delete()
+        .eq("id", selectedBrandId);
+
+      if (error) throw error;
+
+      toast({
+        title: t("common.success"),
+        description: t("settings.deleteSuccess"),
+      });
+
+      await fetchSettings();
+    } catch (error: any) {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -160,6 +216,40 @@ const Settings = () => {
           </div>
 
           <Card className="p-6 space-y-6">
+            <div className="flex gap-2 mb-4">
+              <select
+                value={selectedBrandId || ""}
+                onChange={(e) => handleSelectBrand(e.target.value)}
+                className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">{t("settings.selectBrand")}</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.brand_name || brand.company_name}
+                  </option>
+                ))}
+              </select>
+              <Button variant="outline" onClick={handleAddNewBrand}>
+                {t("settings.addNewBrand")}
+              </Button>
+              {selectedBrandId && brands.length > 1 && (
+                <Button variant="destructive" onClick={handleDeleteBrand}>
+                  {t("settings.deleteBrand")}
+                </Button>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="brand-name">{t("settings.brandName")}</Label>
+              <Input
+                id="brand-name"
+                value={settings.brand_name}
+                onChange={(e) => setSettings({ ...settings, brand_name: e.target.value })}
+                placeholder={t("settings.brandNamePlaceholder")}
+                className="mt-2"
+              />
+            </div>
+
             <div>
               <Label htmlFor="company-name">{t("settings.companyName")}</Label>
               <Input

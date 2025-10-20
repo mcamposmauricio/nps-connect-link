@@ -42,7 +42,8 @@ const NPSResponse = () => {
           campaign_id,
           contact_id,
           campaigns (
-            user_id
+            user_id,
+            brand_settings_id
           )
         `)
         .eq("link_token", token)
@@ -60,12 +61,19 @@ const NPSResponse = () => {
 
       setCampaignData(campaignContact);
 
-      // Fetch brand settings
-      const { data: settings } = await supabase
-        .from("brand_settings")
-        .select("*")
-        .eq("user_id", (campaignContact.campaigns as any).user_id)
-        .maybeSingle();
+      // Fetch brand settings based on campaign's brand_settings_id
+      const campaigns = campaignContact.campaigns as any;
+      const brandSettingsId = campaigns.brand_settings_id;
+      
+      let settingsQuery = supabase.from("brand_settings").select("*");
+      
+      if (brandSettingsId) {
+        settingsQuery = settingsQuery.eq("id", brandSettingsId);
+      } else {
+        settingsQuery = settingsQuery.eq("user_id", campaigns.user_id);
+      }
+      
+      const { data: settings } = await settingsQuery.maybeSingle();
 
       if (settings) {
         setBrandSettings(settings);

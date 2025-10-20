@@ -100,6 +100,7 @@ interface Campaign {
   cycle_type: string | null;
   attempts_total: number | null;
   attempt_current: number | null;
+  brand_settings_id: string | null;
 }
 
 const CampaignDetails = () => {
@@ -286,13 +287,20 @@ const CampaignDetails = () => {
     setSendingEmail(contactId);
     
     try {
-      // Fetch brand settings for company name
+      // Fetch brand settings based on campaign's brand_settings_id
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: brandSettings } = await supabase
+      
+      let brandSettingsQuery = supabase
         .from("brand_settings")
-        .select("company_name")
-        .eq("user_id", user?.id)
-        .single();
+        .select("company_name");
+      
+      if (campaign.brand_settings_id) {
+        brandSettingsQuery = brandSettingsQuery.eq("id", campaign.brand_settings_id);
+      } else {
+        brandSettingsQuery = brandSettingsQuery.eq("user_id", user?.id);
+      }
+      
+      const { data: brandSettings } = await brandSettingsQuery.maybeSingle();
 
       const { error } = await supabase.functions.invoke("send-nps-reminder", {
         body: {
@@ -344,11 +352,18 @@ const CampaignDetails = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: brandSettings } = await supabase
+      
+      let brandSettingsQuery = supabase
         .from("brand_settings")
-        .select("company_name")
-        .eq("user_id", user?.id)
-        .single();
+        .select("company_name");
+      
+      if (campaign?.brand_settings_id) {
+        brandSettingsQuery = brandSettingsQuery.eq("id", campaign.brand_settings_id);
+      } else {
+        brandSettingsQuery = brandSettingsQuery.eq("user_id", user?.id);
+      }
+      
+      const { data: brandSettings } = await brandSettingsQuery.maybeSingle();
 
       for (const contactId of selectedContacts) {
         const campaignContact = campaignContacts.find(cc => cc.contact_id === contactId);

@@ -17,6 +17,7 @@ export type Database = {
       brand_settings: {
         Row: {
           accent_color: string | null
+          brand_name: string
           company_name: string | null
           created_at: string
           id: string
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          brand_name?: string
           company_name?: string | null
           created_at?: string
           id?: string
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          brand_name?: string
           company_name?: string | null
           created_at?: string
           id?: string
@@ -147,6 +150,7 @@ export type Database = {
         Row: {
           attempt_current: number | null
           attempts_total: number | null
+          brand_settings_id: string | null
           campaign_type: string
           created_at: string | null
           cycle_type: string | null
@@ -162,6 +166,7 @@ export type Database = {
         Insert: {
           attempt_current?: number | null
           attempts_total?: number | null
+          brand_settings_id?: string | null
           campaign_type?: string
           created_at?: string | null
           cycle_type?: string | null
@@ -177,6 +182,7 @@ export type Database = {
         Update: {
           attempt_current?: number | null
           attempts_total?: number | null
+          brand_settings_id?: string | null
           campaign_type?: string
           created_at?: string | null
           cycle_type?: string | null
@@ -189,7 +195,15 @@ export type Database = {
           status?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_brand_settings_id_fkey"
+            columns: ["brand_settings_id"]
+            isOneToOne: false
+            referencedRelation: "brand_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {

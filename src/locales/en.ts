@@ -131,6 +131,12 @@ export default {
   "campaigns.automatic": "Automatic",
   "campaigns.manual": "Manual",
   "campaigns.nextSend": "Next send",
+  "campaigns.selectBrand": "Select Brand",
+  "campaigns.campaignName": "Campaign Name",
+  "campaigns.campaignNamePlaceholder": "Ex: Q1 2024 Survey",
+  "campaigns.message": "Message",
+  "campaigns.messagePlaceholder": "How would you rate our service?",
+  "campaigns.saving": "Saving...",
 
   // Campaign Form
   "campaignForm.title": "Create Campaign",
@@ -203,6 +209,13 @@ export default {
   "settings.livePreview": "Live Preview",
   "settings.livePreviewDescription": "Exact visualization of how the survey will appear to your contacts",
   "settings.userNotAuthenticated": "User not authenticated",
+  "settings.brandName": "Brand Name",
+  "settings.brandNamePlaceholder": "Ex: Main Brand, Secondary Brand",
+  "settings.addNewBrand": "Add New Brand",
+  "settings.selectBrand": "Select a brand to edit",
+  "settings.deleteBrand": "Delete Brand",
+  "settings.confirmDelete": "Are you sure you want to delete this brand?",
+  "settings.deleteSuccess": "Brand deleted successfully!",
 
   // NPS Form
   "npsForm.title": "How likely are you to recommend us?",
