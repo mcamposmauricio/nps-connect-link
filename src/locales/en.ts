@@ -137,6 +137,13 @@ export default {
   "campaigns.message": "Message",
   "campaigns.messagePlaceholder": "How would you rate our service?",
   "campaigns.saving": "Saving...",
+  "campaigns.deleteCampaign": "Delete Campaign",
+  "campaigns.deleteConfirmTitle": "Delete Campaign?",
+  "campaigns.deleteConfirmDescription": "This action cannot be undone. All information and responses for this campaign will be permanently deleted.",
+  "campaigns.deleteSuccess": "Campaign deleted successfully",
+  "campaigns.deleteError": "Error deleting campaign",
+  "campaigns.totalCampaigns": "Total Campaigns",
+  "campaigns.totalContacts": "Total Contacts",
 
   // Campaign Form
   "campaignForm.title": "Create Campaign",

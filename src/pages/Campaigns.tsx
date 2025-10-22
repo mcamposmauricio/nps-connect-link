@@ -5,9 +5,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Download, Calendar, Clock, RefreshCw } from "lucide-react";
+import { Plus, Download, Calendar, Clock, Trash2, Users, BarChart3 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getStatusLabel, getStatusColor, getCycleLabel, formatDate } from "@/utils/campaignUtils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { exportToCSV } from "@/lib/utils";
 import {
@@ -41,11 +51,15 @@ const Campaigns = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [displayCount, setDisplayCount] = useState(5);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
+  const [totalContacts, setTotalContacts] = useState(0);
   const { toast } = useToast();
   const { t } = useLanguage();
 
   useEffect(() => {
     fetchCampaigns();
+    fetchContactsCount();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -72,6 +86,60 @@ const Campaigns = () => {
     }
   };
 
+  const fetchContactsCount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count, error } = await supabase
+        .from("contacts")
+        .select("*", { count: 'exact', head: true })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setTotalContacts(count || 0);
+    } catch (error: any) {
+      console.error("Error fetching contacts count:", error);
+    }
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete in correct order: responses -> campaign_sends -> campaign_contacts -> campaigns
+      await supabase.from("responses").delete().eq("campaign_id", campaignToDelete);
+      await supabase.from("campaign_sends").delete().eq("campaign_id", campaignToDelete);
+      await supabase.from("campaign_contacts").delete().eq("campaign_id", campaignToDelete);
+      
+      const { error } = await supabase
+        .from("campaigns")
+        .delete()
+        .eq("id", campaignToDelete)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: t("campaigns.deleteSuccess"),
+      });
+
+      fetchCampaigns();
+    } catch (error: any) {
+      toast({
+        title: t("campaigns.deleteError"),
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
+    }
+  };
+
   const handleExportCSV = () => {
     const csvData = campaigns.map((campaign) => ({
       [t("campaigns.name")]: campaign.name,
@@ -93,7 +161,16 @@ const Campaigns = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold mb-2">{t("campaigns.title")}</h1>
-            <p className="text-muted-foreground">{t("contacts.subtitle")}</p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="h-4 w-4" />
+                <span>{t("campaigns.totalCampaigns")}: {campaigns.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Users className="h-4 w-4" />
+                <span>{t("campaigns.totalContacts")}: {totalContacts}</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -141,12 +218,14 @@ const Campaigns = () => {
               {campaigns.slice(0, displayCount).map((campaign) => (
                 <Card 
                   key={campaign.id} 
-                  className="overflow-hidden hover:shadow-md transition-all hover:border-primary/20 cursor-pointer"
-                  onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                  className="overflow-hidden hover:shadow-md transition-all hover:border-primary/20"
                 >
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
+                      <div 
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                      >
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <h3 className="text-xl font-bold truncate">{campaign.name}</h3>
                           <div className="flex items-center gap-2">
@@ -173,6 +252,21 @@ const Campaigns = () => {
                           )}
                         </div>
                       </div>
+                      
+                      {campaign.status !== 'active' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCampaignToDelete(campaign.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -192,6 +286,28 @@ const Campaigns = () => {
           </>
         )}
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("campaigns.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("campaigns.deleteConfirmDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCampaignToDelete(null)}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCampaign}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("campaigns.deleteCampaign")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
