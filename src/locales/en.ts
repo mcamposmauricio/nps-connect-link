@@ -142,6 +142,7 @@ export default {
   "campaigns.deleteConfirmDescription": "This action cannot be undone. All information and responses for this campaign will be permanently deleted.",
   "campaigns.deleteSuccess": "Campaign deleted successfully",
   "campaigns.deleteError": "Error deleting campaign",
+  "campaigns.deleteBlockedActive": "Active campaigns cannot be deleted. Pause or complete it first.",
   "campaigns.totalCampaigns": "Total Campaigns",
   "campaigns.totalContacts": "Total Contacts",
 

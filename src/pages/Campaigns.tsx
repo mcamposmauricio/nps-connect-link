@@ -106,6 +106,19 @@ const Campaigns = () => {
   const handleDeleteCampaign = async () => {
     if (!campaignToDelete) return;
 
+    // Extra safety: block deletion for active (live) campaigns
+    const selected = campaigns.find((c) => c.id === campaignToDelete);
+    if (selected?.status === 'live') {
+      toast({
+        title: t("campaigns.deleteError"),
+        description: t("campaigns.deleteBlockedActive"),
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+      setCampaignToDelete(null);
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -253,7 +266,7 @@ const Campaigns = () => {
                         </div>
                       </div>
                       
-                      {campaign.status !== 'active' && (
+                      {campaign.status !== 'live' && (
                         <Button
                           variant="ghost"
                           size="icon"

@@ -142,6 +142,7 @@ export default {
   "campaigns.deleteConfirmDescription": "Esta ação não pode ser desfeita. Todas as informações e respostas desta campanha serão permanentemente excluídas.",
   "campaigns.deleteSuccess": "Campanha excluída com sucesso",
   "campaigns.deleteError": "Erro ao excluir campanha",
+  "campaigns.deleteBlockedActive": "Campanhas ativas não podem ser excluídas. Pause ou finalize antes.",
   "campaigns.totalCampaigns": "Total de Campanhas",
   "campaigns.totalContacts": "Total de Contatos",
 
