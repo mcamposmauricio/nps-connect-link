@@ -1253,20 +1253,20 @@ const CampaignDetails = () => {
                             onCheckedChange={() => handleNewContactToggle(contact.id)}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{contact.display_name}</p>
-                              {contact.primary_contact_name && (
-                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                                  Contato Principal
-                                </span>
+                            <p className="font-medium truncate">{contact.name}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              {contact.primary_contact_name ? (
+                                <>
+                                  <span className="truncate">{contact.primary_contact_name}</span>
+                                  <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">
+                                    Principal
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">Sem contato principal</span>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground truncate">{contact.display_email}</p>
-                            {contact.primary_contact_name && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                Empresa: {contact.name}
-                              </p>
-                            )}
+                            <p className="text-xs text-muted-foreground truncate">{contact.display_email}</p>
                           </div>
                           <span className="text-xs text-muted-foreground shrink-0">
                             {contact.is_company ? "Empresa" : "Pessoa"}
