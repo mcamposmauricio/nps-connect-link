@@ -1,67 +1,92 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { CompanySelector } from "@/components/CompanySelector";
 
 interface QuickContactFormProps {
   onSuccess: () => void;
   onCancel?: () => void;
+  preselectedCompanyId?: string;
 }
 
-export const QuickContactForm = ({ onSuccess, onCancel }: QuickContactFormProps) => {
+export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: QuickContactFormProps) => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
+    company_id: preselectedCompanyId || "",
     name: "",
     email: "",
     phone: "",
-    is_company: false,
-    company_document: "",
-    company_sector: "",
+    role: "",
+    department: "",
   });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (preselectedCompanyId) {
+      setFormData(prev => ({ ...prev, company_id: preselectedCompanyId }));
+    }
+  }, [preselectedCompanyId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.company_id) {
+      toast({
+        title: t("common.error"),
+        description: t("companyContacts.selectCompany"),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      if (!user) throw new Error(t("auth.error"));
 
-      const { error } = await supabase.from("contacts").insert({
+      // Check if this is the first contact for the company
+      const { count } = await supabase
+        .from("company_contacts")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", formData.company_id);
+
+      const { error } = await supabase.from("company_contacts").insert({
+        company_id: formData.company_id,
         user_id: user.id,
         name: formData.name,
         email: formData.email,
         phone: formData.phone || null,
-        is_company: formData.is_company,
-        company_document: formData.is_company ? formData.company_document || null : null,
-        company_sector: formData.is_company ? formData.company_sector || null : null,
-        custom_fields: {},
+        role: formData.role || null,
+        department: formData.department || null,
+        is_primary: count === 0, // First contact is automatically primary
       });
 
       if (error) throw error;
 
       toast({
-        title: "Sucesso!",
-        description: "Contato criado com sucesso.",
+        title: t("common.success"),
+        description: t("contacts.addSuccess"),
       });
 
       setFormData({
+        company_id: preselectedCompanyId || "",
         name: "",
         email: "",
         phone: "",
-        is_company: false,
-        company_document: "",
-        company_sector: "",
+        role: "",
+        department: "",
       });
       onSuccess();
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -72,94 +97,79 @@ export const QuickContactForm = ({ onSuccess, onCancel }: QuickContactFormProps)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="is_company">Tipo de Contato</Label>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {formData.is_company ? "Empresa" : "Pessoa"}
-            </span>
-            <Switch
-              id="is_company"
-              checked={formData.is_company}
-              onCheckedChange={(checked) =>
-                setFormData({ ...formData, is_company: checked })
-              }
-            />
-          </div>
+      {!preselectedCompanyId && (
+        <div className="space-y-2">
+          <Label>{t("companyContacts.selectCompany")} *</Label>
+          <CompanySelector
+            value={formData.company_id || null}
+            onChange={(id) => setFormData({ ...formData, company_id: id || "" })}
+          />
         </div>
-      </div>
+      )}
 
       <div className="space-y-2">
-        <Label htmlFor="name">Nome {formData.is_company ? "da Empresa" : "Completo"} *</Label>
+        <Label htmlFor="name">{t("contacts.name")} *</Label>
         <Input
           id="name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder={formData.is_company ? "Nome da empresa" : "Nome completo"}
+          placeholder={t("companyContacts.namePlaceholder")}
           required
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">E-mail *</Label>
+        <Label htmlFor="email">{t("contacts.email")} *</Label>
         <Input
           id="email"
           type="email"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          placeholder="email@exemplo.com"
+          placeholder={t("contacts.emailPlaceholder")}
           required
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="phone">Telefone</Label>
+        <Label htmlFor="phone">{t("contacts.phone")}</Label>
         <Input
           id="phone"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          placeholder="(00) 00000-0000"
+          placeholder={t("contacts.phonePlaceholder")}
         />
       </div>
 
-      {formData.is_company && (
-        <>
-          <div className="space-y-2">
-            <Label htmlFor="company_document">CNPJ</Label>
-            <Input
-              id="company_document"
-              value={formData.company_document}
-              onChange={(e) =>
-                setFormData({ ...formData, company_document: e.target.value })
-              }
-              placeholder="00.000.000/0000-00"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="company_sector">Setor</Label>
-            <Input
-              id="company_sector"
-              value={formData.company_sector}
-              onChange={(e) =>
-                setFormData({ ...formData, company_sector: e.target.value })
-              }
-              placeholder="Ex: Tecnologia, Varejo, etc."
-            />
-          </div>
-        </>
-      )}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="role">{t("companyContacts.role")}</Label>
+          <Input
+            id="role"
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            placeholder={t("companyContacts.rolePlaceholder")}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="department">{t("companyContacts.department")}</Label>
+          <Input
+            id="department"
+            value={formData.department}
+            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+            placeholder={t("companyContacts.departmentPlaceholder")}
+          />
+        </div>
+      </div>
 
       <div className="flex gap-2 pt-4">
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-            Cancelar
+            {t("common.cancel")}
           </Button>
         )}
         <Button type="submit" disabled={saving} className="flex-1">
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {saving ? "Salvando..." : "Criar Contato"}
+          {t("contacts.addContact")}
         </Button>
       </div>
     </form>
