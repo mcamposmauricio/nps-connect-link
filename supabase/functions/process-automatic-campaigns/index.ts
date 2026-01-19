@@ -26,6 +26,13 @@ interface Contact {
   email: string;
 }
 
+interface CompanyContact {
+  id: string;
+  name: string;
+  email: string;
+  is_primary: boolean;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -65,10 +72,10 @@ serve(async (req) => {
     for (const campaign of campaigns || []) {
       console.log(`Processing campaign: ${campaign.id}`);
 
-      // Get contacts that haven't responded yet
+      // Get contacts that haven't responded yet, including company_contact_id
       const { data: campaignContacts, error: contactsError } = await supabase
         .from('campaign_contacts')
-        .select('contact_id, contacts(*)')
+        .select('contact_id, company_contact_id, contacts(*)')
         .eq('campaign_id', campaign.id);
 
       if (contactsError) {
@@ -96,6 +103,38 @@ serve(async (req) => {
 
       console.log(`Found ${eligibleContacts.length} eligible contacts for campaign ${campaign.id}`);
 
+      // Get all company IDs to fetch primary contacts
+      const companyIds = [...new Set(eligibleContacts.map(cc => cc.contact_id))];
+      
+      // Fetch primary contacts for all companies
+      const { data: primaryContacts } = await supabase
+        .from('company_contacts')
+        .select('id, company_id, name, email, is_primary')
+        .in('company_id', companyIds)
+        .eq('is_primary', true);
+
+      const primaryContactsMap = new Map(
+        (primaryContacts || []).map(pc => [pc.company_id, pc])
+      );
+
+      // Also fetch specific company contacts that are linked
+      const linkedCompanyContactIds = eligibleContacts
+        .filter(cc => cc.company_contact_id)
+        .map(cc => cc.company_contact_id);
+      
+      let linkedCompanyContacts: CompanyContact[] = [];
+      if (linkedCompanyContactIds.length > 0) {
+        const { data } = await supabase
+          .from('company_contacts')
+          .select('id, name, email, is_primary')
+          .in('id', linkedCompanyContactIds);
+        linkedCompanyContacts = data || [];
+      }
+      
+      const linkedContactsMap = new Map(
+        linkedCompanyContacts.map(lc => [lc.id, lc])
+      );
+
       // Send emails to eligible contacts
       for (const cc of eligibleContacts) {
         try {
@@ -112,6 +151,26 @@ serve(async (req) => {
             continue;
           }
 
+          // Determine which contact to use for email
+          let targetName = contact.name;
+          let targetEmail = contact.email;
+
+          // First check if there's a specific company contact linked
+          if (cc.company_contact_id && linkedContactsMap.has(cc.company_contact_id)) {
+            const linkedContact = linkedContactsMap.get(cc.company_contact_id)!;
+            targetName = linkedContact.name;
+            targetEmail = linkedContact.email;
+          } 
+          // Otherwise, check for primary contact
+          else if (primaryContactsMap.has(cc.contact_id)) {
+            const primaryContact = primaryContactsMap.get(cc.contact_id)!;
+            targetName = primaryContact.name;
+            targetEmail = primaryContact.email;
+          }
+          // Fallback: use company email
+
+          console.log(`Using email: ${targetEmail} for contact ${cc.contact_id}`);
+
           // Get brand settings for the user
           const { data: brandSettings } = await supabase
             .from('brand_settings')
@@ -124,8 +183,8 @@ serve(async (req) => {
           // Send NPS reminder email
           const { error: sendError } = await supabase.functions.invoke('send-nps-reminder', {
             body: {
-              contactName: contact.name,
-              contactEmail: contact.email,
+              contactName: targetName,
+              contactEmail: targetEmail,
               campaignName: campaign.name,
               campaignMessage: campaign.message,
               npsLink,
@@ -134,7 +193,7 @@ serve(async (req) => {
           });
 
           if (sendError) {
-            console.error(`Error sending email to ${contact.email}:`, sendError);
+            console.error(`Error sending email to ${targetEmail}:`, sendError);
             
             // Record failed send
             await supabase.from('campaign_sends').insert({
@@ -144,7 +203,7 @@ serve(async (req) => {
               status: 'failed'
             });
           } else {
-            console.log(`Email sent successfully to ${contact.email}`);
+            console.log(`Email sent successfully to ${targetEmail}`);
             
             // Record successful send
             await supabase.from('campaign_sends').insert({
