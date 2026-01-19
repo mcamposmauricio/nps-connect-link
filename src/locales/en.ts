@@ -100,6 +100,20 @@ export default {
   "contacts.customFields": "Custom Fields",
   "contacts.fieldName": "Field name",
   "contacts.fieldValue": "Value",
+  "contacts.companyDocument": "CNPJ",
+
+  // CNPJ
+  "cnpj.searching": "Searching CNPJ data...",
+  "cnpj.found": "CNPJ Found",
+  "cnpj.notFound": "CNPJ not found in Federal Revenue database",
+  "cnpj.invalid": "Invalid CNPJ. Check the digits.",
+  "cnpj.error": "Error fetching CNPJ data",
+  "cnpj.useData": "Use this data",
+  "cnpj.fillManually": "Fill manually",
+  "cnpj.tradeName": "Trade Name",
+  "cnpj.activity": "Main Activity",
+  "cnpj.status": "Status",
+  "cnpj.address": "Address",
 
   // Quick Contact Form
   "quickContact.title": "Add Contact",
