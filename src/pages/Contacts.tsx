@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2 } from "lucide-react";
+import { Plus, Loader2, Building2, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +68,7 @@ const Contacts = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [addCompanyDialogOpen, setAddCompanyDialogOpen] = useState(false);
+  const [editCompanyData, setEditCompanyData] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [companyContacts, setCompanyContacts] = useState<CompanyContact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -203,6 +204,52 @@ const Contacts = () => {
 
       setAddCompanyDialogOpen(false);
       fetchCompanies();
+    } catch (error: any) {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditCompany = async (data: any) => {
+    if (!editCompanyData) return;
+
+    try {
+      const { error } = await supabase
+        .from("contacts")
+        .update({
+          name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          company_document: data.company_document || null,
+          company_sector: data.company_sector || null,
+          trade_name: data.trade_name || null,
+          street: data.street || null,
+          street_number: data.street_number || null,
+          complement: data.complement || null,
+          neighborhood: data.neighborhood || null,
+          city: data.city || null,
+          state: data.state || null,
+          zip_code: data.zip_code || null,
+        })
+        .eq("id", editCompanyData.id);
+
+      if (error) throw error;
+
+      toast({
+        title: t("common.success"),
+        description: t("companies.updateSuccess"),
+      });
+
+      setEditCompanyData(null);
+      fetchCompanies();
+      
+      // Update selectedCompany if editing the currently viewed company
+      if (selectedCompany?.id === editCompanyData.id) {
+        setSelectedCompany(null);
+      }
     } catch (error: any) {
       toast({
         title: t("common.error"),
@@ -458,6 +505,17 @@ const Contacts = () => {
             
             {selectedCompany && (
               <div className="mt-6 space-y-6">
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditCompanyData(selectedCompany)}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {t("companies.editCompany")}
+                  </Button>
+                </div>
+
                 <div className="space-y-2 text-sm">
                   {selectedCompany.name !== selectedCompany.trade_name && selectedCompany.trade_name && (
                     <p><span className="text-muted-foreground">{t("companies.companyName")}:</span> {selectedCompany.name}</p>
@@ -472,7 +530,7 @@ const Contacts = () => {
                     <p><span className="text-muted-foreground">{t("contacts.email")}:</span> {selectedCompany.email}</p>
                   )}
                   {selectedCompany.phone && (
-                    <p><span className="text-muted-foreground">{t("contacts.phone")}:</span> {selectedCompany.phone}</p>
+                    <p><span className="text-muted-foreground">{t("companyContacts.phone")}:</span> {selectedCompany.phone}</p>
                   )}
                   {(selectedCompany.street || selectedCompany.city) && (
                     <div>
@@ -542,6 +600,36 @@ const Contacts = () => {
                 }}
                 onSubmit={handleEditContact}
                 onCancel={() => setEditContactData(null)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Company Dialog */}
+        <Dialog open={!!editCompanyData} onOpenChange={(open) => !open && setEditCompanyData(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("companies.editCompany")}</DialogTitle>
+            </DialogHeader>
+            {editCompanyData && (
+              <CompanyForm
+                initialData={{
+                  name: editCompanyData.name,
+                  email: editCompanyData.email,
+                  phone: editCompanyData.phone || "",
+                  trade_name: editCompanyData.trade_name || "",
+                  company_document: editCompanyData.company_document || "",
+                  company_sector: editCompanyData.company_sector || "",
+                  street: editCompanyData.street || "",
+                  street_number: editCompanyData.street_number || "",
+                  complement: editCompanyData.complement || "",
+                  neighborhood: editCompanyData.neighborhood || "",
+                  city: editCompanyData.city || "",
+                  state: editCompanyData.state || "",
+                  zip_code: editCompanyData.zip_code || "",
+                }}
+                onSubmit={handleEditCompany}
+                onCancel={() => setEditCompanyData(null)}
               />
             )}
           </DialogContent>
