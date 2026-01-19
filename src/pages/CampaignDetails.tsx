@@ -60,6 +60,13 @@ interface Contact {
   company_sector: string | null;
 }
 
+interface ContactWithPrimary extends Contact {
+  primary_contact_name?: string;
+  primary_contact_email?: string;
+  display_name: string;
+  display_email: string;
+}
+
 interface CompanyContact {
   id: string;
   name: string;
@@ -121,7 +128,7 @@ const CampaignDetails = () => {
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [campaignContacts, setCampaignContacts] = useState<CampaignContact[]>([]);
-  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [allContacts, setAllContacts] = useState<ContactWithPrimary[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [copiedEmbedToken, setCopiedEmbedToken] = useState<string | null>(null);
@@ -526,14 +533,40 @@ const CampaignDetails = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      // Fetch all contacts (companies)
+      const { data: contactsData, error } = await supabase
         .from("contacts")
         .select("id, name, email, phone, is_company, company_document, company_sector")
         .eq("user_id", user.id)
         .order("name", { ascending: true });
 
       if (error) throw error;
-      setAllContacts(data || []);
+
+      // Fetch primary contacts for all companies
+      const contactIds = (contactsData || []).map(c => c.id);
+      const { data: primaryContacts } = await supabase
+        .from("company_contacts")
+        .select("company_id, name, email")
+        .in("company_id", contactIds)
+        .eq("is_primary", true);
+
+      const primaryContactsMap = new Map(
+        (primaryContacts || []).map(pc => [pc.company_id, pc])
+      );
+
+      // Enrich contacts with primary contact info
+      const enrichedContacts: ContactWithPrimary[] = (contactsData || []).map(contact => {
+        const primaryContact = primaryContactsMap.get(contact.id);
+        return {
+          ...contact,
+          primary_contact_name: primaryContact?.name,
+          primary_contact_email: primaryContact?.email,
+          display_name: primaryContact?.name || contact.name,
+          display_email: primaryContact?.email || contact.email,
+        };
+      });
+
+      setAllContacts(enrichedContacts);
     } catch (error: any) {
       console.error("Error fetching contacts:", error);
     }
@@ -1220,8 +1253,20 @@ const CampaignDetails = () => {
                             onCheckedChange={() => handleNewContactToggle(contact.id)}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{contact.name}</p>
-                            <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{contact.display_name}</p>
+                              {contact.primary_contact_name && (
+                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                  Contato Principal
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">{contact.display_email}</p>
+                            {contact.primary_contact_name && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                Empresa: {contact.name}
+                              </p>
+                            )}
                           </div>
                           <span className="text-xs text-muted-foreground shrink-0">
                             {contact.is_company ? "Empresa" : "Pessoa"}
