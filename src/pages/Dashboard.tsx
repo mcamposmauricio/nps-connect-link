@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { NPSHeatMap } from "@/components/NPSHeatMap";
 
 interface Stats {
   totalContacts: number;
@@ -788,6 +789,9 @@ const Dashboard = () => {
             )}
           </Card>
         )}
+
+        {/* NPS Heatmap by Region */}
+        <NPSHeatMap campaignId={viewMode === "campaign" ? selectedCampaignId : null} />
       </div>
 
       {/* Contact Details Dialog */}

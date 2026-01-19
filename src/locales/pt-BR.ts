@@ -173,6 +173,7 @@ export default {
   "companyContacts.deleteTitle": "Excluir Contato?",
   "companyContacts.deleteDescription": "Esta ação não pode ser desfeita.",
   "companyContacts.namePlaceholder": "Nome completo da pessoa",
+  "companyContacts.phone": "Telefone",
 
   // Quick Contact Form
   "quickContact.title": "Adicionar Contato",
@@ -333,4 +334,16 @@ export default {
   "common.confirm": "Confirmar",
   "common.yes": "Sim",
   "common.no": "Não",
+
+  // Heatmap
+  "heatmap.title": "NPS por Região",
+  "heatmap.noData": "Sem dados de respostas com localização",
+  "heatmap.responses": "respostas",
+  "heatmap.legend": "Legenda",
+  "heatmap.legendHigh": "NPS Alto (70+)",
+  "heatmap.legendMediumHigh": "NPS Médio (30-69)",
+  "heatmap.legendNeutral": "NPS Neutro (0-29)",
+  "heatmap.legendLow": "NPS Baixo (-30 a -1)",
+  "heatmap.legendVeryLow": "NPS Muito Baixo (-100 a -31)",
+  "heatmap.ranking": "Ranking por Estado",
 };

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { PhoneInput } from "@/components/PhoneInput";
 
 interface CompanyContactFormData {
   name: string;
@@ -81,12 +82,13 @@ export function CompanyContactForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="phone">{t("contacts.phone")}</Label>
-        <Input
+        <Label htmlFor="phone">{t("companyContacts.phone")} *</Label>
+        <PhoneInput
           id="phone"
           value={formData.phone}
           onChange={(e) => updateField("phone", e.target.value)}
           placeholder={t("contacts.phonePlaceholder")}
+          required
         />
       </div>
 
