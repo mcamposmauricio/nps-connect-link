@@ -56,6 +56,7 @@ export type Database = {
       campaign_contacts: {
         Row: {
           campaign_id: string
+          company_contact_id: string | null
           contact_id: string
           created_at: string
           email_sent: boolean | null
@@ -65,6 +66,7 @@ export type Database = {
         }
         Insert: {
           campaign_id: string
+          company_contact_id?: string | null
           contact_id: string
           created_at?: string
           email_sent?: boolean | null
@@ -74,6 +76,7 @@ export type Database = {
         }
         Update: {
           campaign_id?: string
+          company_contact_id?: string | null
           contact_id?: string
           created_at?: string
           email_sent?: boolean | null
@@ -87,6 +90,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contacts_company_contact_id_fkey"
+            columns: ["company_contact_id"]
+            isOneToOne: false
+            referencedRelation: "company_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -205,45 +215,125 @@ export type Database = {
           },
         ]
       }
+      company_contacts: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          custom_fields: Json | null
+          department: string | null
+          email: string
+          id: string
+          is_primary: boolean | null
+          name: string
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          custom_fields?: Json | null
+          department?: string | null
+          email: string
+          id?: string
+          is_primary?: boolean | null
+          name: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          custom_fields?: Json | null
+          department?: string | null
+          email?: string
+          id?: string
+          is_primary?: boolean | null
+          name?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
+          city: string | null
           company_document: string | null
           company_sector: string | null
+          complement: string | null
+          country: string | null
           created_at: string | null
           custom_fields: Json | null
           email: string
           id: string
           is_company: boolean
           name: string
+          neighborhood: string | null
           phone: string | null
+          state: string | null
+          street: string | null
+          street_number: string | null
+          trade_name: string | null
           updated_at: string | null
           user_id: string
+          zip_code: string | null
         }
         Insert: {
+          city?: string | null
           company_document?: string | null
           company_sector?: string | null
+          complement?: string | null
+          country?: string | null
           created_at?: string | null
           custom_fields?: Json | null
           email: string
           id?: string
           is_company?: boolean
           name: string
+          neighborhood?: string | null
           phone?: string | null
+          state?: string | null
+          street?: string | null
+          street_number?: string | null
+          trade_name?: string | null
           updated_at?: string | null
           user_id: string
+          zip_code?: string | null
         }
         Update: {
+          city?: string | null
           company_document?: string | null
           company_sector?: string | null
+          complement?: string | null
+          country?: string | null
           created_at?: string | null
           custom_fields?: Json | null
           email?: string
           id?: string
           is_company?: boolean
           name?: string
+          neighborhood?: string | null
           phone?: string | null
+          state?: string | null
+          street?: string | null
+          street_number?: string | null
+          trade_name?: string | null
           updated_at?: string | null
           user_id?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
