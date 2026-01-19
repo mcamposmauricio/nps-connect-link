@@ -100,6 +100,20 @@ export default {
   "contacts.customFields": "Campos Personalizados",
   "contacts.fieldName": "Nome do campo",
   "contacts.fieldValue": "Valor",
+  "contacts.companyDocument": "CNPJ",
+
+  // CNPJ
+  "cnpj.searching": "Buscando dados do CNPJ...",
+  "cnpj.found": "CNPJ Encontrado",
+  "cnpj.notFound": "CNPJ não encontrado na base da Receita Federal",
+  "cnpj.invalid": "CNPJ inválido. Verifique os dígitos.",
+  "cnpj.error": "Erro ao buscar dados do CNPJ",
+  "cnpj.useData": "Usar esses dados",
+  "cnpj.fillManually": "Preencher manualmente",
+  "cnpj.tradeName": "Nome Fantasia",
+  "cnpj.activity": "Atividade Principal",
+  "cnpj.status": "Situação",
+  "cnpj.address": "Endereço",
 
   // Quick Contact Form
   "quickContact.title": "Adicionar Contato",

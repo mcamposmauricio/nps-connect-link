@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CNPJInput, type CNPJData } from "@/components/CNPJInput";
+import { CNPJPreview } from "@/components/CNPJPreview";
 
 interface Contact {
   id: string;
@@ -51,9 +53,29 @@ const Contacts = () => {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "companies" | "individuals">("all");
+  const [cnpjData, setCnpjData] = useState<CNPJData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { t } = useLanguage();
+
+  const handleCNPJDataFetched = useCallback((data: CNPJData | null) => {
+    setCnpjData(data);
+  }, []);
+
+  const handleUseCNPJData = useCallback(() => {
+    if (cnpjData) {
+      setFormData(prev => ({
+        ...prev,
+        name: cnpjData.razao_social || prev.name,
+        company_sector: cnpjData.cnae_fiscal_descricao || prev.company_sector,
+      }));
+      setCnpjData(null);
+    }
+  }, [cnpjData]);
+
+  const handleFillManually = useCallback(() => {
+    setCnpjData(null);
+  }, []);
 
   useEffect(() => {
     fetchContacts();
@@ -115,6 +137,7 @@ const Contacts = () => {
       setFormData({ name: "", email: "", phone: "", is_company: false, company_document: "", company_sector: "", custom_fields: {} });
       setCustomFieldKey("");
       setCustomFieldValue("");
+      setCnpjData(null);
       setDialogOpen(false);
       fetchContacts();
     } catch (error: any) {
@@ -316,14 +339,20 @@ const Contacts = () => {
                 
                 {formData.is_company && (
                   <>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t("contacts.document")}</label>
-                      <Input
-                        value={formData.company_document}
-                        onChange={(e) => setFormData({ ...formData, company_document: e.target.value })}
-                        placeholder={t("contacts.documentPlaceholder")}
+                    <CNPJInput
+                      value={formData.company_document}
+                      onChange={(value) => setFormData({ ...formData, company_document: value })}
+                      onDataFetched={handleCNPJDataFetched}
+                    />
+                    
+                    {cnpjData && (
+                      <CNPJPreview
+                        data={cnpjData}
+                        onUseData={handleUseCNPJData}
+                        onFillManually={handleFillManually}
                       />
-                    </div>
+                    )}
+                    
                     <div>
                       <label className="block text-sm font-medium mb-2">{t("contacts.sector")}</label>
                       <Input
