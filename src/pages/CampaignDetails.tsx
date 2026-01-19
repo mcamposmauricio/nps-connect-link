@@ -60,14 +60,27 @@ interface Contact {
   company_sector: string | null;
 }
 
+interface CompanyContact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  is_primary: boolean;
+}
+
 interface CampaignContact {
   id: string;
   link_token: string;
   contact_id: string;
+  company_contact_id: string | null;
   email_sent: boolean;
   email_sent_at: string | null;
   contacts: Contact;
+  company_contacts: CompanyContact | null;
   nps_score?: number | null;
+  // Computed fields for display
+  display_name: string;
+  display_email: string;
 }
 
 interface CampaignStats {
@@ -157,13 +170,14 @@ const CampaignDetails = () => {
       if (campaignError) throw campaignError;
       setCampaign(campaignData);
 
-      // Fetch campaign contacts with contact details
+      // Fetch campaign contacts with contact details and company contacts
       const { data: contactsData, error: contactsError } = await supabase
         .from("campaign_contacts")
         .select(`
           id,
           link_token,
           contact_id,
+          company_contact_id,
           email_sent,
           email_sent_at,
           contacts (
@@ -174,11 +188,32 @@ const CampaignDetails = () => {
             is_company,
             company_document,
             company_sector
+          ),
+          company_contacts (
+            id,
+            name,
+            email,
+            phone,
+            is_primary
           )
         `)
         .eq("campaign_id", id);
 
       if (contactsError) throw contactsError;
+
+      // For each contact, if no company_contact is linked, try to find the primary contact
+      const contactIds = [...new Set((contactsData || []).map(cc => cc.contact_id))];
+      
+      // Fetch primary company contacts for all companies
+      const { data: primaryContacts } = await supabase
+        .from("company_contacts")
+        .select("id, company_id, name, email, phone, is_primary")
+        .in("company_id", contactIds)
+        .eq("is_primary", true);
+
+      const primaryContactsMap = new Map(
+        (primaryContacts || []).map(pc => [pc.company_id, pc])
+      );
       
       // Fetch responses to get NPS scores and stats
       const { data: responsesData } = await supabase
@@ -189,11 +224,31 @@ const CampaignDetails = () => {
       // Create a map of contact_id to score
       const scoresMap = new Map(responsesData?.map(r => [r.contact_id, r.score]) || []);
       
-      // Add NPS scores to contacts
-      const contactsWithScores = (contactsData || []).map(cc => ({
-        ...cc,
-        nps_score: scoresMap.get(cc.contact_id) || null
-      }));
+      // Add NPS scores and determine display email/name
+      const contactsWithScores = (contactsData || []).map(cc => {
+        // Determine which contact to use for email
+        let companyContact = cc.company_contacts;
+        
+        // If no specific company contact linked, use primary contact
+        if (!companyContact) {
+          const primaryContact = primaryContactsMap.get(cc.contact_id);
+          if (primaryContact) {
+            companyContact = primaryContact;
+          }
+        }
+        
+        // Display name and email: use company contact if available, otherwise company
+        const display_name = companyContact ? companyContact.name : cc.contacts.name;
+        const display_email = companyContact ? companyContact.email : cc.contacts.email;
+        
+        return {
+          ...cc,
+          company_contacts: companyContact || null,
+          nps_score: scoresMap.get(cc.contact_id) || null,
+          display_name,
+          display_email,
+        };
+      });
       
       setCampaignContacts(contactsWithScores);
 
@@ -265,8 +320,10 @@ const CampaignDetails = () => {
   const handleExportCSV = () => {
     const csvData = campaignContacts.map((cc) => ({
       "Tipo": cc.contacts.is_company ? "Empresa" : "Pessoa",
-      "Nome": cc.contacts.name,
-      "Email": cc.contacts.email,
+      "Empresa": cc.contacts.name,
+      "Contato": cc.display_name,
+      "Email Campanha": cc.display_email,
+      "Email Empresa": cc.contacts.email,
       "Telefone": cc.contacts.phone || "",
       "Documento": cc.contacts.company_document || "",
       "Setor": cc.contacts.company_sector || "",
@@ -304,8 +361,8 @@ const CampaignDetails = () => {
 
       const { error } = await supabase.functions.invoke("send-nps-reminder", {
         body: {
-          contactName: campaignContact.contacts.name,
-          contactEmail: campaignContact.contacts.email,
+          contactName: campaignContact.display_name,
+          contactEmail: campaignContact.display_email,
           campaignName: campaign.name,
           campaignMessage: campaign.message,
           npsLink: generateLink(campaignContact.link_token),
@@ -327,7 +384,7 @@ const CampaignDetails = () => {
 
       toast({
         title: "E-mail enviado!",
-        description: `Lembrete enviado para ${campaignContact.contacts.name}`,
+        description: `Lembrete enviado para ${campaignContact.display_name} (${campaignContact.display_email})`,
       });
 
       // Refresh data
@@ -372,8 +429,8 @@ const CampaignDetails = () => {
         try {
           const { error } = await supabase.functions.invoke("send-nps-reminder", {
             body: {
-              contactName: campaignContact.contacts.name,
-              contactEmail: campaignContact.contacts.email,
+              contactName: campaignContact.display_name,
+              contactEmail: campaignContact.display_email,
               campaignName: campaign.name,
               campaignMessage: campaign.message,
               npsLink: generateLink(campaignContact.link_token),
@@ -396,7 +453,7 @@ const CampaignDetails = () => {
           successCount++;
         } catch (error) {
           errorCount++;
-          console.error(`Error sending to ${campaignContact.contacts.email}:`, error);
+          console.error(`Error sending to ${campaignContact.display_email}:`, error);
         }
       }
 
@@ -974,9 +1031,18 @@ const CampaignDetails = () => {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="font-medium">{cc.contacts.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{cc.display_name}</span>
+                          {cc.contacts.is_company && cc.company_contacts && (
+                            <span className="text-xs text-muted-foreground">
+                              {cc.contacts.name}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        <span className="text-sm">{cc.contacts.email}</span>
+                        <span className="text-sm">{cc.display_email}</span>
                       </TableCell>
                       <TableCell>
                         <span className={`text-xs px-2 py-1 rounded-full ${
