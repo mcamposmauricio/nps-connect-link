@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.send-response-notification]
 verify_jwt = false
+
+[functions.test-email-config]
+verify_jwt = false
