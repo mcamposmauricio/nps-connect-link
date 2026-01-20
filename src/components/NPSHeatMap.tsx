@@ -29,14 +29,16 @@ export function NPSHeatMap({ campaignId }: NPSHeatMapProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Build the query to get responses with state info
-      // Path: responses -> campaign_contacts (via campaign_id + contact_id) -> company_contacts -> contacts (state)
+      // Get responses with contact state directly - simplified query
+      // The state is stored directly on the contact record
       let query = supabase
         .from("responses")
         .select(`
           score,
-          campaign_id,
           contact_id,
+          contacts!inner (
+            state
+          ),
           campaigns!inner (
             user_id
           )
@@ -55,74 +57,11 @@ export function NPSHeatMap({ campaignId }: NPSHeatMapProps) {
         return;
       }
 
-      // Get campaign_contacts to link responses to company_contacts
-      const campaignIds = [...new Set(responses.map(r => r.campaign_id))];
-      const { data: campaignContacts, error: ccError } = await supabase
-        .from("campaign_contacts")
-        .select("campaign_id, contact_id, company_contact_id")
-        .in("campaign_id", campaignIds);
-
-      if (ccError) throw ccError;
-
-      // Get company_contacts to get company_id
-      const companyContactIds = (campaignContacts || [])
-        .map(cc => cc.company_contact_id)
-        .filter(Boolean) as string[];
-
-      let companyContacts: any[] = [];
-      if (companyContactIds.length > 0) {
-        const { data, error } = await supabase
-          .from("company_contacts")
-          .select("id, company_id")
-          .in("id", companyContactIds);
-        if (error) throw error;
-        companyContacts = data || [];
-      }
-
-      // Get companies (contacts with is_company=true) to get state
-      const companyIds = [...new Set(companyContacts.map(cc => cc.company_id))];
-      let companies: any[] = [];
-      if (companyIds.length > 0) {
-        const { data, error } = await supabase
-          .from("contacts")
-          .select("id, state")
-          .in("id", companyIds)
-          .eq("is_company", true);
-        if (error) throw error;
-        companies = data || [];
-      }
-
-      // Create lookup maps
-      const companyContactToCompany: Record<string, string> = {};
-      companyContacts.forEach(cc => {
-        companyContactToCompany[cc.id] = cc.company_id;
-      });
-
-      const companyToState: Record<string, string> = {};
-      companies.forEach(c => {
-        if (c.state) {
-          companyToState[c.id] = c.state;
-        }
-      });
-
-      const campaignContactLookup: Record<string, string | null> = {};
-      (campaignContacts || []).forEach(cc => {
-        const key = `${cc.campaign_id}_${cc.contact_id}`;
-        campaignContactLookup[key] = cc.company_contact_id;
-      });
-
-      // Aggregate responses by state
+      // Aggregate responses by state directly from contacts
       const stateAggregation: Record<string, { promoters: number; passives: number; detractors: number }> = {};
 
-      responses.forEach(response => {
-        const key = `${response.campaign_id}_${response.contact_id}`;
-        const companyContactId = campaignContactLookup[key];
-        if (!companyContactId) return;
-
-        const companyId = companyContactToCompany[companyContactId];
-        if (!companyId) return;
-
-        const state = companyToState[companyId];
+      responses.forEach((response: any) => {
+        const state = response.contacts?.state;
         if (!state) return;
 
         if (!stateAggregation[state]) {
