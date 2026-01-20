@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
@@ -19,6 +19,12 @@ import CSChurnPage from "./pages/CSChurnPage";
 import CSFinancialPage from "./pages/CSFinancialPage";
 
 const queryClient = new QueryClient();
+
+// Helper component for dynamic campaign redirect
+const CampaignRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/nps/campaigns/${id}`} replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -47,7 +53,7 @@ const App = () => (
           <Route path="/dashboard" element={<Navigate to="/nps/dashboard" replace />} />
           <Route path="/contacts" element={<Navigate to="/nps/contacts" replace />} />
           <Route path="/campaigns" element={<Navigate to="/nps/campaigns" replace />} />
-          <Route path="/campaigns/:id" element={<Navigate to="/nps/campaigns/:id" replace />} />
+          <Route path="/campaigns/:id" element={<CampaignRedirect />} />
           <Route path="/settings" element={<Navigate to="/nps/settings" replace />} />
           
           {/* Auth & NPS Response */}
