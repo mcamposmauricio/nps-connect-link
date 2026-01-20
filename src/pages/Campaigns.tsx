@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
+import SidebarLayout from "@/components/SidebarLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -169,12 +169,12 @@ const Campaigns = () => {
   };
 
   return (
-    <Layout>
+    <SidebarLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">{t("campaigns.title")}</h1>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <h1 className="text-2xl font-semibold">{t("campaigns.title")}</h1>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
               <div className="flex items-center gap-1.5">
                 <BarChart3 className="h-4 w-4" />
                 <span>{t("campaigns.totalCampaigns")}: {campaigns.length}</span>
@@ -321,7 +321,7 @@ const Campaigns = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
+    </SidebarLayout>
   );
 };
 

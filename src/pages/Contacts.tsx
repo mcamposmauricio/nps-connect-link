@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import Layout from "@/components/Layout";
+import SidebarLayout from "@/components/SidebarLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -434,12 +434,12 @@ const Contacts = () => {
   };
 
   return (
-    <Layout>
+    <SidebarLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">{t("companies.title")}</h1>
-            <p className="text-muted-foreground">{t("companies.subtitle")}</p>
+            <h1 className="text-2xl font-semibold">{t("companies.title")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{t("companies.subtitle")}</p>
           </div>
 
           <Button onClick={() => setAddCompanyDialogOpen(true)}>
@@ -656,7 +656,7 @@ const Contacts = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </Layout>
+    </SidebarLayout>
   );
 };
 

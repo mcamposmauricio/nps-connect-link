@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Layout from "@/components/Layout";
+import SidebarLayout from "@/components/SidebarLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -437,20 +437,20 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <SidebarLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-      </Layout>
+      </SidebarLayout>
     );
   }
 
   return (
-    <Layout>
-      <div className="space-y-8">
+    <SidebarLayout>
+      <div className="space-y-6">
         <div>
-          <h1 className="text-4xl font-bold mb-2">{t("dashboard.title")}</h1>
-          <p className="text-muted-foreground">{t("dashboard.npsHistory")}</p>
+          <h1 className="text-2xl font-semibold">{t("dashboard.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("dashboard.npsHistory")}</p>
         </div>
 
         {/* View Mode Filter */}
@@ -903,7 +903,7 @@ const Dashboard = () => {
           )}
         </DialogContent>
       </Dialog>
-    </Layout>
+    </SidebarLayout>
   );
 };
 

@@ -1,4 +1,4 @@
-import Layout from "@/components/Layout";
+import SidebarLayout from "@/components/SidebarLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Palette, Mail, Bell } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -10,11 +10,11 @@ const Settings = () => {
   const { t } = useLanguage();
 
   return (
-    <Layout>
+    <SidebarLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-4xl font-bold mb-2">{t("settings.title")}</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {t("settings.pageSubtitle")}
           </p>
         </div>
@@ -46,9 +46,9 @@ const Settings = () => {
           <TabsContent value="notifications">
             <NotificationSettingsTab />
           </TabsContent>
-        </Tabs>
+      </Tabs>
       </div>
-    </Layout>
+    </SidebarLayout>
   );
 };
 

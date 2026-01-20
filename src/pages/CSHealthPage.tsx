@@ -52,10 +52,10 @@ export default function CSHealthPage() {
 
   return (
     <SidebarLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("cs.health.title")}</h1>
-          <p className="text-muted-foreground">{t("cs.health.subtitle")}</p>
+          <h1 className="text-2xl font-semibold">{t("cs.health.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("cs.health.subtitle")}</p>
         </div>
 
         {/* Summary Cards */}
