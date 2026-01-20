@@ -274,15 +274,23 @@ export type Database = {
           company_document: string | null
           company_sector: string | null
           complement: string | null
+          contract_value: number | null
           country: string | null
           created_at: string | null
+          cs_status: string | null
+          csm_id: string | null
           custom_fields: Json | null
           email: string
+          health_score: number | null
           id: string
           is_company: boolean
+          last_nps_date: string | null
+          last_nps_score: number | null
+          mrr: number | null
           name: string
           neighborhood: string | null
           phone: string | null
+          renewal_date: string | null
           state: string | null
           street: string | null
           street_number: string | null
@@ -296,15 +304,23 @@ export type Database = {
           company_document?: string | null
           company_sector?: string | null
           complement?: string | null
+          contract_value?: number | null
           country?: string | null
           created_at?: string | null
+          cs_status?: string | null
+          csm_id?: string | null
           custom_fields?: Json | null
           email: string
+          health_score?: number | null
           id?: string
           is_company?: boolean
+          last_nps_date?: string | null
+          last_nps_score?: number | null
+          mrr?: number | null
           name: string
           neighborhood?: string | null
           phone?: string | null
+          renewal_date?: string | null
           state?: string | null
           street?: string | null
           street_number?: string | null
@@ -318,15 +334,23 @@ export type Database = {
           company_document?: string | null
           company_sector?: string | null
           complement?: string | null
+          contract_value?: number | null
           country?: string | null
           created_at?: string | null
+          cs_status?: string | null
+          csm_id?: string | null
           custom_fields?: Json | null
           email?: string
+          health_score?: number | null
           id?: string
           is_company?: boolean
+          last_nps_date?: string | null
+          last_nps_score?: number | null
+          mrr?: number | null
           name?: string
           neighborhood?: string | null
           phone?: string | null
+          renewal_date?: string | null
           state?: string | null
           street?: string | null
           street_number?: string | null
@@ -334,6 +358,56 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_csm_id_fkey"
+            columns: ["csm_id"]
+            isOneToOne: false
+            referencedRelation: "csms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      csms: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          email: string
+          hire_date: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          specialty: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          email: string
+          hire_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          specialty?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          email?: string
+          hire_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          specialty?: string[] | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -381,6 +455,248 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timeline_events: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          title: string
+          type: Database["public"]["Enums"]["timeline_event_type"]
+          updated_at: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          title: string
+          type: Database["public"]["Enums"]["timeline_event_type"]
+          updated_at?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          title?: string
+          type?: Database["public"]["Enums"]["timeline_event_type"]
+          updated_at?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trail_activity_logs: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          contact_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          trail_id: string
+          trail_template_activity_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          trail_id: string
+          trail_template_activity_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          trail_id?: string
+          trail_template_activity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trail_activity_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trail_activity_logs_trail_id_fkey"
+            columns: ["trail_id"]
+            isOneToOne: false
+            referencedRelation: "trails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trail_activity_logs_trail_template_activity_id_fkey"
+            columns: ["trail_template_activity_id"]
+            isOneToOne: false
+            referencedRelation: "trail_template_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trail_template_activities: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          estimated_days: number | null
+          id: string
+          is_required: boolean | null
+          name: string
+          order_index: number | null
+          trail_template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          estimated_days?: number | null
+          id?: string
+          is_required?: boolean | null
+          name: string
+          order_index?: number | null
+          trail_template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          estimated_days?: number | null
+          id?: string
+          is_required?: boolean | null
+          name?: string
+          order_index?: number | null
+          trail_template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trail_template_activities_trail_template_id_fkey"
+            columns: ["trail_template_id"]
+            isOneToOne: false
+            referencedRelation: "trail_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trail_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          type: Database["public"]["Enums"]["trail_type"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          type?: Database["public"]["Enums"]["trail_type"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          type?: Database["public"]["Enums"]["trail_type"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trails: {
+        Row: {
+          completed_at: string | null
+          contact_id: string
+          created_at: string | null
+          id: string
+          name: string
+          progress_percentage: number | null
+          started_at: string | null
+          status: string | null
+          trail_template_id: string | null
+          type: Database["public"]["Enums"]["trail_type"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          name: string
+          progress_percentage?: number | null
+          started_at?: string | null
+          status?: string | null
+          trail_template_id?: string | null
+          type?: Database["public"]["Enums"]["trail_type"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          progress_percentage?: number | null
+          started_at?: string | null
+          status?: string | null
+          trail_template_id?: string | null
+          type?: Database["public"]["Enums"]["trail_type"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trails_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trails_trail_template_id_fkey"
+            columns: ["trail_template_id"]
+            isOneToOne: false
+            referencedRelation: "trail_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -486,7 +802,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      timeline_event_type:
+        | "meeting"
+        | "email"
+        | "call"
+        | "contract"
+        | "payment"
+        | "activity"
+        | "nps_response"
+      trail_type: "default" | "overdue" | "attention"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -613,6 +937,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      timeline_event_type: [
+        "meeting",
+        "email",
+        "call",
+        "contract",
+        "payment",
+        "activity",
+        "nps_response",
+      ],
+      trail_type: ["default", "overdue", "attention"],
+    },
   },
 } as const
