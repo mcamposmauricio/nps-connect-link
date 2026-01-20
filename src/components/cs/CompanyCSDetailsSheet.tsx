@@ -20,10 +20,12 @@ import {
   TrendingUp,
   Route as RouteIcon,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
 import { TimelineComponent } from "./TimelineComponent";
+import { NPSTrailCard } from "./NPSTrailCard";
 
 interface CSCompany {
   id: string;
@@ -47,6 +49,18 @@ interface CompanyCSDetailsSheetProps {
   onClose: () => void;
 }
 
+interface Trail {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  progress_percentage: number | null;
+  started_at: string | null;
+  completed_at: string | null;
+  campaign_id: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
 export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsSheetProps) {
   const { t, language } = useLanguage();
   const dateLocale = language === "pt-BR" ? ptBR : enUS;
@@ -60,6 +74,31 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
         .select("*")
         .eq("contact_id", company.id)
         .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return (data || []) as Trail[];
+    },
+    enabled: !!company,
+  });
+
+  const { data: npsHistory = [] } = useQuery({
+    queryKey: ["company-nps-history", company?.id],
+    queryFn: async () => {
+      if (!company) return [];
+      const { data, error } = await supabase
+        .from("responses")
+        .select(`
+          id,
+          score,
+          comment,
+          responded_at,
+          campaign_id,
+          campaigns (
+            name
+          )
+        `)
+        .eq("contact_id", company.id)
+        .order("responded_at", { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -87,6 +126,8 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
   if (!company) return null;
 
   const healthScore = company.health_score ?? 50;
+  const npsTrails = trails.filter((t) => t.type === "nps");
+  const otherTrails = trails.filter((t) => t.type !== "nps");
   
   const getHealthColor = (score: number) => {
     if (score >= 70) return "bg-primary";
@@ -100,6 +141,12 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
       style: "currency",
       currency: "BRL",
     }).format(value);
+  };
+
+  const getNPSClassification = (score: number) => {
+    if (score >= 9) return { label: t("cs.npsTrail.promoter"), color: "bg-primary text-primary-foreground" };
+    if (score >= 7) return { label: t("cs.npsTrail.passive"), color: "bg-warning text-warning-foreground" };
+    return { label: t("cs.npsTrail.detractor"), color: "bg-destructive text-destructive-foreground" };
   };
 
   return (
@@ -126,8 +173,12 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
         </SheetHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="overview">{t("cs.details.overview")}</TabsTrigger>
+            <TabsTrigger value="nps" className="flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              NPS
+            </TabsTrigger>
             <TabsTrigger value="trails">{t("cs.details.trails")}</TabsTrigger>
             <TabsTrigger value="timeline">{t("cs.details.timeline")}</TabsTrigger>
           </TabsList>
@@ -185,6 +236,23 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
               </CardContent>
             </Card>
 
+            {/* Active NPS Trails Summary */}
+            {npsTrails.filter(t => t.status === "active").length > 0 && (
+              <Card className="border-primary/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    {t("cs.npsTrail.pendingNPS")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {npsTrails.filter(t => t.status === "active").length} {t("cs.npsTrail.activeSurveys")}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* NPS Info */}
             {company.last_nps_score !== null && (
               <Card>
@@ -196,6 +264,9 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-5 w-5" />
                       <span className="text-2xl font-bold">{company.last_nps_score}</span>
+                      <Badge className={getNPSClassification(company.last_nps_score).color}>
+                        {getNPSClassification(company.last_nps_score).label}
+                      </Badge>
                     </div>
                     {company.last_nps_date && (
                       <span className="text-sm text-muted-foreground">
@@ -208,26 +279,89 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
             )}
           </TabsContent>
 
+          {/* NPS Tab */}
+          <TabsContent value="nps" className="mt-4">
+            <ScrollArea className="h-[500px]">
+              <div className="space-y-4">
+                {/* NPS Trails */}
+                {npsTrails.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium">{t("cs.npsTrail.activeTrails")}</h3>
+                    {npsTrails.map((trail) => (
+                      <NPSTrailCard key={trail.id} trail={trail as any} />
+                    ))}
+                  </div>
+                )}
+
+                {/* NPS History */}
+                {npsHistory.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium">{t("cs.npsTrail.responseHistory")}</h3>
+                    {npsHistory.map((response: any) => {
+                      const classification = getNPSClassification(response.score);
+                      return (
+                        <Card key={response.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium">
+                                  {response.campaigns?.name || t("cs.npsTrail.unknownCampaign")}
+                                </p>
+                                <Badge className={classification.color}>
+                                  {response.score} - {classification.label}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {response.responded_at && format(new Date(response.responded_at), "PPP", { locale: dateLocale })}
+                              </span>
+                            </div>
+                            {response.comment && (
+                              <p className="text-sm text-muted-foreground mt-2 italic">
+                                "{response.comment}"
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {npsTrails.length === 0 && npsHistory.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>{t("cs.npsTrail.noNPSData")}</p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
           <TabsContent value="trails" className="mt-4">
             <ScrollArea className="h-[400px]">
-              {trails.length === 0 ? (
+              {otherTrails.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <RouteIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p>{t("cs.noTrails")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {trails.map((trail) => (
+                  {otherTrails.map((trail) => (
                     <Card key={trail.id}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <p className="font-medium">{trail.name}</p>
-                            <Badge 
-                              variant={trail.status === "active" ? "default" : "secondary"}
-                            >
-                              {t(`cs.trailStatus.${trail.status}`)}
-                            </Badge>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge 
+                                variant={trail.status === "active" ? "default" : "secondary"}
+                              >
+                                {t(`cs.trailStatus.${trail.status}`)}
+                              </Badge>
+                              <Badge variant="outline">
+                                {t(`cs.trails.type${trail.type?.charAt(0).toUpperCase()}${trail.type?.slice(1)}`) || trail.type}
+                              </Badge>
+                            </div>
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold">

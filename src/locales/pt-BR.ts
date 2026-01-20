@@ -66,6 +66,23 @@ export default {
   "cs.trailStatus.active": "Ativa",
   "cs.trailStatus.completed": "Concluída",
   "cs.trailStatus.paused": "Pausada",
+  
+  // CS NPS Trail
+  "cs.npsTrail.addedToCampaign": "Incluído na Campanha",
+  "cs.npsTrail.emailSent": "Email Enviado",
+  "cs.npsTrail.awaitingResponse": "Aguardando Resposta",
+  "cs.npsTrail.responseReceived": "Resposta Recebida",
+  "cs.npsTrail.promoter": "Promotor",
+  "cs.npsTrail.passive": "Neutro",
+  "cs.npsTrail.detractor": "Detrator",
+  "cs.npsTrail.pendingNPS": "NPS Pendente",
+  "cs.npsTrail.activeSurveys": "pesquisa(s) ativa(s)",
+  "cs.npsTrail.activeTrails": "Acompanhamentos NPS",
+  "cs.npsTrail.responseHistory": "Histórico de Respostas",
+  "cs.npsTrail.noNPSData": "Nenhum dado de NPS disponível",
+  "cs.npsTrail.unknownCampaign": "Campanha desconhecida",
+  "cs.npsTrail.detractorAlert": "Cliente detrator - ação de recuperação recomendada",
+  "cs.trails.typeNps": "Acompanhamento NPS",
 
   // CS Trails
   "cs.trails.title": "Trilhas",

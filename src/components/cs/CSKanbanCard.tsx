@@ -1,7 +1,9 @@
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, DollarSign } from "lucide-react";
+import { Heart, DollarSign, MessageSquare } from "lucide-react";
 
 export interface KanbanCompany {
   id: string;
@@ -38,6 +40,24 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick }: CSKanbanCa
   const healthScore = company.health_score ?? 50;
   const csm = csms.find((c) => c.id === company.csm_id);
 
+  // Check for active NPS trails
+  const { data: activeNPSTrail } = useQuery({
+    queryKey: ["active-nps-trail", company.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trails")
+        .select("id, progress_percentage, metadata")
+        .eq("contact_id", company.id)
+        .eq("type", "nps")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) return null;
+      return data;
+    },
+  });
+
   const getHealthColor = (score: number) => {
     if (score >= 70) return "text-green-600 bg-green-100 dark:bg-green-900/30";
     if (score >= 40) return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30";
@@ -46,9 +66,9 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick }: CSKanbanCa
 
   const getNPSBadge = (score: number | null) => {
     if (score === null) return null;
-    if (score >= 9) return <Badge className="bg-primary text-primary-foreground">Promotor</Badge>;
-    if (score >= 7) return <Badge className="bg-warning text-warning-foreground">Neutro</Badge>;
-    return <Badge variant="destructive">Detrator</Badge>;
+    if (score >= 9) return <Badge className="bg-primary text-primary-foreground text-xs">Promotor</Badge>;
+    if (score >= 7) return <Badge className="bg-warning text-warning-foreground text-xs">Neutro</Badge>;
+    return <Badge variant="destructive" className="text-xs">Detrator</Badge>;
   };
 
   const formatCurrency = (value: number | null) => {
@@ -88,6 +108,15 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick }: CSKanbanCa
               </p>
             )}
           </div>
+          {/* Active NPS Trail Indicator */}
+          {activeNPSTrail && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10" title={t("cs.npsTrail.pendingNPS")}>
+              <MessageSquare className="h-3 w-3 text-primary" />
+              <span className="text-xs text-primary font-medium">
+                {activeNPSTrail.progress_percentage || 0}%
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">

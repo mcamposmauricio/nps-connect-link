@@ -643,10 +643,12 @@ export type Database = {
       }
       trails: {
         Row: {
+          campaign_id: string | null
           completed_at: string | null
           contact_id: string
           created_at: string | null
           id: string
+          metadata: Json | null
           name: string
           progress_percentage: number | null
           started_at: string | null
@@ -657,10 +659,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          campaign_id?: string | null
           completed_at?: string | null
           contact_id: string
           created_at?: string | null
           id?: string
+          metadata?: Json | null
           name: string
           progress_percentage?: number | null
           started_at?: string | null
@@ -671,10 +675,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          campaign_id?: string | null
           completed_at?: string | null
           contact_id?: string
           created_at?: string | null
           id?: string
+          metadata?: Json | null
           name?: string
           progress_percentage?: number | null
           started_at?: string | null
@@ -685,6 +691,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "trails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trails_contact_id_fkey"
             columns: ["contact_id"]
@@ -810,7 +823,7 @@ export type Database = {
         | "payment"
         | "activity"
         | "nps_response"
-      trail_type: "default" | "overdue" | "attention"
+      trail_type: "default" | "overdue" | "attention" | "nps"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -947,7 +960,7 @@ export const Constants = {
         "activity",
         "nps_response",
       ],
-      trail_type: ["default", "overdue", "attention"],
+      trail_type: ["default", "overdue", "attention", "nps"],
     },
   },
 } as const
