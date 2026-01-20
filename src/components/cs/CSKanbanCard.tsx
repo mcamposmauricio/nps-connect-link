@@ -1,0 +1,117 @@
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Heart, DollarSign } from "lucide-react";
+
+export interface KanbanCompany {
+  id: string;
+  name: string;
+  trade_name: string | null;
+  email: string;
+  phone: string | null;
+  cs_status: string | null;
+  health_score: number | null;
+  mrr: number | null;
+  contract_value: number | null;
+  renewal_date: string | null;
+  city: string | null;
+  state: string | null;
+  csm_id: string | null;
+  last_nps_score: number | null;
+  last_nps_date: string | null;
+}
+
+interface CSM {
+  id: string;
+  name: string;
+}
+
+interface CSKanbanCardProps {
+  company: KanbanCompany;
+  csms: CSM[];
+  onDragStart: () => void;
+  onClick: () => void;
+}
+
+export function CSKanbanCard({ company, csms, onDragStart, onClick }: CSKanbanCardProps) {
+  const { t } = useLanguage();
+  const healthScore = company.health_score ?? 50;
+  const csm = csms.find((c) => c.id === company.csm_id);
+
+  const getHealthColor = (score: number) => {
+    if (score >= 70) return "text-green-600 bg-green-100 dark:bg-green-900/30";
+    if (score >= 40) return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30";
+    return "text-destructive bg-destructive/10";
+  };
+
+  const getNPSBadge = (score: number | null) => {
+    if (score === null) return null;
+    if (score >= 9) return <Badge className="bg-primary text-primary-foreground">Promotor</Badge>;
+    if (score >= 7) return <Badge className="bg-warning text-warning-foreground">Neutro</Badge>;
+    return <Badge variant="destructive">Detrator</Badge>;
+  };
+
+  const formatCurrency = (value: number | null) => {
+    if (value === null || value === 0) return "-";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      notation: "compact",
+    }).format(value);
+  };
+
+  const getBorderColor = (score: number) => {
+    if (score >= 70) return "hsl(var(--success))";
+    if (score >= 40) return "hsl(var(--warning))";
+    return "hsl(var(--destructive))";
+  };
+
+  return (
+    <Card
+      draggable
+      onDragStart={onDragStart}
+      onClick={onClick}
+      className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+      style={{
+        borderLeftColor: getBorderColor(healthScore),
+      }}
+    >
+      <CardContent className="p-3 space-y-2">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm truncate">
+              {company.trade_name || company.name}
+            </p>
+            {company.trade_name && (
+              <p className="text-xs text-muted-foreground truncate">
+                {company.name}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getHealthColor(healthScore)}`}>
+            <Heart className="h-3 w-3" />
+            {healthScore}%
+          </div>
+          
+          {company.mrr && company.mrr > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <DollarSign className="h-3 w-3" />
+              {formatCurrency(company.mrr)}
+            </div>
+          )}
+          
+          {getNPSBadge(company.last_nps_score)}
+        </div>
+
+        {csm && (
+          <p className="text-xs text-muted-foreground">
+            CSM: {csm.name}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
