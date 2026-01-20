@@ -66,6 +66,23 @@ export default {
   "cs.trailStatus.active": "Active",
   "cs.trailStatus.completed": "Completed",
   "cs.trailStatus.paused": "Paused",
+  
+  // CS NPS Trail
+  "cs.npsTrail.addedToCampaign": "Added to Campaign",
+  "cs.npsTrail.emailSent": "Email Sent",
+  "cs.npsTrail.awaitingResponse": "Awaiting Response",
+  "cs.npsTrail.responseReceived": "Response Received",
+  "cs.npsTrail.promoter": "Promoter",
+  "cs.npsTrail.passive": "Passive",
+  "cs.npsTrail.detractor": "Detractor",
+  "cs.npsTrail.pendingNPS": "Pending NPS",
+  "cs.npsTrail.activeSurveys": "active survey(s)",
+  "cs.npsTrail.activeTrails": "NPS Tracking",
+  "cs.npsTrail.responseHistory": "Response History",
+  "cs.npsTrail.noNPSData": "No NPS data available",
+  "cs.npsTrail.unknownCampaign": "Unknown campaign",
+  "cs.npsTrail.detractorAlert": "Detractor customer - recovery action recommended",
+  "cs.trails.typeNps": "NPS Tracking",
 
   // CS Trails
   "cs.trails.title": "Trails",
