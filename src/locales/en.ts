@@ -268,6 +268,7 @@ export default {
 
   // Settings
   "settings.title": "Settings",
+  "settings.pageSubtitle": "Manage your brand, email, and notification preferences",
   "settings.brandSettings": "Brand Settings",
   "settings.companyName": "Company Name",
   "settings.companyNamePlaceholder": "Your Company",
@@ -298,6 +299,49 @@ export default {
   "settings.deleteBrand": "Delete Brand",
   "settings.confirmDelete": "Are you sure you want to delete this brand?",
   "settings.deleteSuccess": "Brand deleted successfully!",
+
+  // Settings Tabs
+  "settings.tabs.brand": "Brand",
+  "settings.tabs.email": "Email",
+  "settings.tabs.notifications": "Notifications",
+
+  // Settings - Email Tab
+  "settings.email.title": "Email Settings",
+  "settings.email.subtitle": "Configure the email for sending NPS surveys",
+  "settings.email.provider": "Email Provider",
+  "settings.email.providerDefault": "System Default",
+  "settings.email.providerGmail": "Personal Gmail (OAuth)",
+  "settings.email.providerSmtp": "Custom SMTP",
+  "settings.email.defaultDescription": "Emails will be sent using the system's default email server.",
+  "settings.email.gmailInstructions": "Configure OAuth credentials from Google Cloud Console:",
+  "settings.email.gmailConsoleLink": "Open Google Cloud Console →",
+  "settings.email.gmailClientId": "Client ID",
+  "settings.email.gmailClientSecret": "Client Secret",
+  "settings.email.gmailRefreshToken": "Refresh Token",
+  "settings.email.smtpHost": "SMTP Server",
+  "settings.email.smtpPort": "Port",
+  "settings.email.smtpUser": "Username",
+  "settings.email.smtpPassword": "Password",
+  "settings.email.smtpFromEmail": "From Email",
+  "settings.email.smtpFromName": "From Name",
+  "settings.email.smtpSecure": "Secure Connection (TLS)",
+  "settings.email.testConfig": "Test Configuration",
+  "settings.email.testSuccess": "Test email sent successfully!",
+  "settings.email.testError": "Failed to send test email",
+  "settings.email.saveSuccess": "Email settings saved successfully!",
+
+  // Settings - Notifications Tab
+  "settings.notifications.title": "Notification Settings",
+  "settings.notifications.subtitle": "Get alerts when your contacts respond to surveys",
+  "settings.notifications.enableNotifications": "Notify on new responses",
+  "settings.notifications.enableDescription": "Receive an email whenever a contact responds to an NPS survey",
+  "settings.notifications.email": "Notification email",
+  "settings.notifications.emailDescription": "Leave blank to use your account email",
+  "settings.notifications.filterByType": "Filter by response type",
+  "settings.notifications.promoters": "Promoters (9-10)",
+  "settings.notifications.neutrals": "Neutrals (7-8)",
+  "settings.notifications.detractors": "Detractors (0-6)",
+  "settings.notifications.saveSuccess": "Notification preferences saved successfully!",
 
   // NPS Form
   "npsForm.title": "How likely are you to recommend us?",

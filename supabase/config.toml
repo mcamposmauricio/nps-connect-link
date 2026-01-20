@@ -2,3 +2,6 @@ project_id = "mfmkxpdufcbwydixbbbe"
 
 [functions.process-automatic-campaigns]
 verify_jwt = false
+
+[functions.send-response-notification]
+verify_jwt = false

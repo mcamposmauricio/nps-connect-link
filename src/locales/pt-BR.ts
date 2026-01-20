@@ -268,6 +268,7 @@ export default {
 
   // Settings
   "settings.title": "Configurações",
+  "settings.pageSubtitle": "Gerencie suas preferências de marca, e-mail e notificações",
   "settings.brandSettings": "Configurações da Marca",
   "settings.companyName": "Nome da Empresa",
   "settings.companyNamePlaceholder": "Sua Empresa",
@@ -298,6 +299,49 @@ export default {
   "settings.deleteBrand": "Excluir Marca",
   "settings.confirmDelete": "Tem certeza que deseja excluir esta marca?",
   "settings.deleteSuccess": "Marca excluída com sucesso!",
+
+  // Settings Tabs
+  "settings.tabs.brand": "Marca",
+  "settings.tabs.email": "E-mail",
+  "settings.tabs.notifications": "Notificações",
+
+  // Settings - Email Tab
+  "settings.email.title": "Configurações de E-mail",
+  "settings.email.subtitle": "Configure o e-mail para envio das pesquisas NPS",
+  "settings.email.provider": "Provedor de E-mail",
+  "settings.email.providerDefault": "Padrão do Sistema",
+  "settings.email.providerGmail": "Gmail Pessoal (OAuth)",
+  "settings.email.providerSmtp": "SMTP Personalizado",
+  "settings.email.defaultDescription": "Os e-mails serão enviados usando o servidor de e-mail padrão do sistema.",
+  "settings.email.gmailInstructions": "Configure as credenciais OAuth do Google Cloud Console:",
+  "settings.email.gmailConsoleLink": "Acessar Google Cloud Console →",
+  "settings.email.gmailClientId": "Client ID",
+  "settings.email.gmailClientSecret": "Client Secret",
+  "settings.email.gmailRefreshToken": "Refresh Token",
+  "settings.email.smtpHost": "Servidor SMTP",
+  "settings.email.smtpPort": "Porta",
+  "settings.email.smtpUser": "Usuário",
+  "settings.email.smtpPassword": "Senha",
+  "settings.email.smtpFromEmail": "E-mail de Envio",
+  "settings.email.smtpFromName": "Nome de Exibição",
+  "settings.email.smtpSecure": "Conexão Segura (TLS)",
+  "settings.email.testConfig": "Testar Configuração",
+  "settings.email.testSuccess": "E-mail de teste enviado com sucesso!",
+  "settings.email.testError": "Falha ao enviar e-mail de teste",
+  "settings.email.saveSuccess": "Configurações de e-mail salvas com sucesso!",
+
+  // Settings - Notifications Tab
+  "settings.notifications.title": "Configurações de Notificações",
+  "settings.notifications.subtitle": "Receba alertas quando seus contatos responderem às pesquisas",
+  "settings.notifications.enableNotifications": "Notificar novas respostas",
+  "settings.notifications.enableDescription": "Receba um e-mail sempre que um contato responder uma pesquisa NPS",
+  "settings.notifications.email": "E-mail para notificações",
+  "settings.notifications.emailDescription": "Deixe em branco para usar o e-mail da sua conta",
+  "settings.notifications.filterByType": "Filtrar por tipo de resposta",
+  "settings.notifications.promoters": "Promotores (9-10)",
+  "settings.notifications.neutrals": "Neutros (7-8)",
+  "settings.notifications.detractors": "Detratores (0-6)",
+  "settings.notifications.saveSuccess": "Preferências de notificação salvas com sucesso!",
 
   // NPS Form
   "npsForm.title": "Qual a probabilidade de você nos recomendar?",
