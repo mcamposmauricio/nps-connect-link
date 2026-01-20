@@ -25,17 +25,29 @@ import { format } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
 import { TimelineComponent } from "./TimelineComponent";
 
-import { KanbanCompany } from "./CSKanbanCard";
-
-export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsSheetProps) {
+interface CSCompany {
+  id: string;
+  name: string;
+  trade_name: string | null;
+  email: string;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  cs_status: string | null;
+  health_score: number | null;
+  mrr: number | null;
+  contract_value: number | null;
+  renewal_date: string | null;
+  last_nps_score: number | null;
+  last_nps_date: string | null;
+}
 
 interface CompanyCSDetailsSheetProps {
   company: CSCompany | null;
   onClose: () => void;
-  onRefresh: () => void;
 }
 
-export function CompanyCSDetailsSheet({ company, onClose, onRefresh }: CompanyCSDetailsSheetProps) {
+export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsSheetProps) {
   const { t, language } = useLanguage();
   const dateLocale = language === "pt-BR" ? ptBR : enUS;
 
@@ -223,10 +235,10 @@ export function CompanyCSDetailsSheet({ company, onClose, onRefresh }: CompanyCS
                             </span>
                           </div>
                         </div>
-                        <Progress value={trail.progress_percentage} className="h-2" />
+                        <Progress value={trail.progress_percentage ?? 0} className="h-2" />
                         <p className="text-xs text-muted-foreground mt-2">
                           <Clock className="h-3 w-3 inline mr-1" />
-                          {format(new Date(trail.started_at), "PPP", { locale: dateLocale })}
+                          {trail.started_at && format(new Date(trail.started_at), "PPP", { locale: dateLocale })}
                         </p>
                       </CardContent>
                     </Card>

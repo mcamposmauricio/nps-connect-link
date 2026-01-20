@@ -141,7 +141,6 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh }: CSKanba
       <CompanyCSDetailsSheet
         company={selectedCompany}
         onClose={() => setSelectedCompany(null)}
-        onRefresh={onRefresh}
       />
     </>
   );
