@@ -385,6 +385,99 @@ export type Database = {
           },
         ]
       }
+      user_email_settings: {
+        Row: {
+          created_at: string | null
+          gmail_client_id: string | null
+          gmail_client_secret: string | null
+          gmail_refresh_token: string | null
+          id: string
+          is_verified: boolean | null
+          provider: string
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_secure: boolean | null
+          smtp_user: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          gmail_client_id?: string | null
+          gmail_client_secret?: string | null
+          gmail_refresh_token?: string | null
+          id?: string
+          is_verified?: boolean | null
+          provider?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_user?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          gmail_client_id?: string | null
+          gmail_client_secret?: string | null
+          gmail_refresh_token?: string | null
+          id?: string
+          is_verified?: boolean | null
+          provider?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_user?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notification_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          notify_detractors: boolean | null
+          notify_email: string | null
+          notify_neutrals: boolean | null
+          notify_on_response: boolean | null
+          notify_promoters: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notify_detractors?: boolean | null
+          notify_email?: string | null
+          notify_neutrals?: boolean | null
+          notify_on_response?: boolean | null
+          notify_promoters?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notify_detractors?: boolean | null
+          notify_email?: string | null
+          notify_neutrals?: boolean | null
+          notify_on_response?: boolean | null
+          notify_promoters?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
