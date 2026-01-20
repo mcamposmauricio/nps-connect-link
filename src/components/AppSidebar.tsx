@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard,
   Route,
-  FileText,
   Heart,
   TrendingDown,
   DollarSign,
@@ -16,6 +15,7 @@ import {
   LogOut,
   Languages,
   Zap,
+  Building2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,7 +60,6 @@ export function AppSidebar() {
   );
 
   const isActive = (path: string) => location.pathname === path;
-  const isNpsActive = location.pathname.startsWith("/nps");
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -72,23 +71,22 @@ export function AppSidebar() {
   };
 
   const csItems = [
-    { path: "/", icon: LayoutDashboard, label: t("cs.dashboard") },
-    { path: "/cs-trails", icon: Route, label: t("cs.trails") },
-    { path: "/csms", icon: Users, label: t("cs.csms") },
+    { path: "/", icon: LayoutDashboard, label: t("nav.overview") },
+    { path: "/cs-trails", icon: Route, label: t("nav.journeys") },
+    { path: "/csms", icon: Users, label: t("nav.csTeam") },
   ];
 
   const csReportItems = [
-    { path: "/cs-trails-report", icon: FileText, label: t("cs.trailsReport") },
-    { path: "/cs-health", icon: Heart, label: t("cs.healthScore") },
-    { path: "/cs-churn", icon: TrendingDown, label: t("cs.churn") },
-    { path: "/cs-financial", icon: DollarSign, label: t("cs.financial") },
+    { path: "/cs-health", icon: Heart, label: t("nav.health") },
+    { path: "/cs-churn", icon: TrendingDown, label: t("nav.risk") },
+    { path: "/cs-financial", icon: DollarSign, label: t("nav.revenue") },
   ];
 
   const npsItems = [
-    { path: "/nps/dashboard", icon: BarChart3, label: t("nav.dashboard") },
-    { path: "/nps/contacts", icon: Users, label: t("nav.contacts") },
-    { path: "/nps/campaigns", icon: Send, label: t("nav.campaigns") },
-    { path: "/nps/settings", icon: Settings, label: t("nav.settings") },
+    { path: "/nps/dashboard", icon: BarChart3, label: t("nav.metrics") },
+    { path: "/nps/contacts", icon: Building2, label: t("nav.companies") },
+    { path: "/nps/campaigns", icon: Send, label: t("nav.surveys") },
+    { path: "/nps/settings", icon: Settings, label: t("nav.config") },
   ];
 
   return (

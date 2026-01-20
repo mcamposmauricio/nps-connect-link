@@ -15,6 +15,16 @@ export default {
   "nav.churn": "Churn",
   "nav.financial": "Financial",
   "nav.nps": "NPS",
+  // New navigation labels
+  "nav.overview": "Overview",
+  "nav.journeys": "Journeys",
+  "nav.csTeam": "CS Team",
+  "nav.risk": "Risk",
+  "nav.revenue": "Revenue",
+  "nav.metrics": "Metrics",
+  "nav.companies": "Companies",
+  "nav.surveys": "Surveys",
+  "nav.config": "Settings",
 
   // Auth
   "auth.title": "NPS System",

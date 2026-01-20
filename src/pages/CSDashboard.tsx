@@ -64,8 +64,8 @@ export default function CSDashboard() {
     <SidebarLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">{t("cs.dashboard")}</h1>
-          <p className="text-muted-foreground">{t("cs.dashboardSubtitle")}</p>
+          <h1 className="text-2xl font-semibold">{t("cs.dashboard.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("cs.dashboard.subtitle")}</p>
         </div>
 
         <CSMetricsHeader metrics={metrics} />

@@ -47,10 +47,10 @@ export default function CSFinancialPage() {
 
   return (
     <SidebarLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("cs.financial.title")}</h1>
-          <p className="text-muted-foreground">{t("cs.financial.subtitle")}</p>
+          <h1 className="text-2xl font-semibold">{t("cs.financial.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("cs.financial.subtitle")}</p>
         </div>
 
         {/* Summary Cards */}

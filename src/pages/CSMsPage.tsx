@@ -140,11 +140,11 @@ export default function CSMsPage() {
 
   return (
     <SidebarLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t("cs.csms.title")}</h1>
-            <p className="text-muted-foreground">{t("cs.csms.subtitle")}</p>
+            <h1 className="text-2xl font-semibold">{t("cs.csms.title")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{t("cs.csms.subtitle")}</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
