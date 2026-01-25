@@ -257,6 +257,9 @@ export default {
   "contacts.fieldName": "Nome do campo",
   "contacts.fieldValue": "Valor",
   "contacts.companyDocument": "CNPJ",
+  "contacts.externalId": "ID Externo",
+  "contacts.externalIdPlaceholder": "Ex: cust_12345",
+  "contacts.externalIdHelp": "ID usado em seu sistema para identificar esta empresa. Necessário para integração com widget NPS embedável.",
 
   // CNPJ
   "cnpj.searching": "Buscando dados do CNPJ...",
@@ -375,6 +378,13 @@ export default {
   "campaigns.deleteBlockedActive": "Campanhas ativas não podem ser excluídas. Pause ou finalize antes.",
   "campaigns.totalCampaigns": "Total de Campanhas",
   "campaigns.totalContacts": "Total de Contatos",
+  "campaigns.sendChannels": "Canais de Envio",
+  "campaigns.channelEmail": "E-mail",
+  "campaigns.channelEmailDescription": "Enviar pesquisa NPS por e-mail para os contatos",
+  "campaigns.channelEmbedded": "Widget Embedado",
+  "campaigns.channelEmbeddedDescription": "Exibir pesquisa NPS dentro do seu aplicativo via widget",
+  "campaigns.channelHelp": "Selecione um ou mais canais. O primeiro canal a receber resposta invalida automaticamente os demais para aquele contato.",
+  "campaigns.selectAtLeastOneChannel": "Selecione pelo menos um canal de envio",
 
   // Campaign Form
   "campaignForm.title": "Criar Campanha",
@@ -460,6 +470,29 @@ export default {
   "settings.tabs.brand": "Marca",
   "settings.tabs.email": "E-mail",
   "settings.tabs.notifications": "Notificações",
+  "settings.tabs.apiKeys": "API Keys",
+
+  // Settings - API Keys Tab
+  "settings.apiKeys.title": "Chaves de API",
+  "settings.apiKeys.description": "Gerencie chaves para integração do widget NPS embedável",
+  "settings.apiKeys.create": "Criar Nova Chave",
+  "settings.apiKeys.createTitle": "Criar Chave de API",
+  "settings.apiKeys.createDescription": "Crie uma nova chave para integração do widget NPS",
+  "settings.apiKeys.keyName": "Nome da Chave",
+  "settings.apiKeys.keyNamePlaceholder": "Ex: Meu App, Produção",
+  "settings.apiKeys.generate": "Gerar Chave",
+  "settings.apiKeys.keyCreated": "Chave Criada!",
+  "settings.apiKeys.copyWarning": "Copie agora! Esta chave não será exibida novamente.",
+  "settings.apiKeys.createSuccess": "Chave de API criada com sucesso!",
+  "settings.apiKeys.deleteSuccess": "Chave de API excluída com sucesso!",
+  "settings.apiKeys.deleteTitle": "Excluir Chave de API?",
+  "settings.apiKeys.deleteDescription": "Esta ação é irreversível. Qualquer integração usando esta chave deixará de funcionar.",
+  "settings.apiKeys.noKeys": "Nenhuma chave de API criada",
+  "settings.apiKeys.created": "Criada",
+  "settings.apiKeys.lastUsed": "Último uso",
+  "settings.apiKeys.nameRequired": "Nome da chave é obrigatório",
+  "settings.apiKeys.integrationCode": "Código de Integração",
+  "settings.apiKeys.integrationDescription": "Copie e cole este código no seu aplicativo para exibir o widget NPS",
 
   // Settings - Email Tab
   "settings.email.title": "Configurações de E-mail",
@@ -534,6 +567,7 @@ export default {
   "common.confirm": "Confirmar",
   "common.yes": "Sim",
   "common.no": "Não",
+  "common.done": "Concluído",
 
   // Heatmap
   "heatmap.title": "NPS por Região",
