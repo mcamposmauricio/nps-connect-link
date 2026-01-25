@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.test-email-config]
 verify_jwt = false
+
+[functions.check-nps-pending]
+verify_jwt = false
+
+[functions.submit-embedded-response]
+verify_jwt = false

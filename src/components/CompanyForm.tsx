@@ -15,6 +15,7 @@ interface CompanyFormData {
   phone: string;
   company_document: string;
   company_sector: string;
+  external_id: string;
   street: string;
   street_number: string;
   complement: string;
@@ -42,6 +43,7 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
     phone: initialData?.phone || "",
     company_document: initialData?.company_document || "",
     company_sector: initialData?.company_sector || "",
+    external_id: initialData?.external_id || "",
     street: initialData?.street || "",
     street_number: initialData?.street_number || "",
     complement: initialData?.complement || "",
@@ -163,6 +165,19 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
           onChange={(e) => updateField("company_sector", e.target.value)}
           placeholder={t("contacts.sectorPlaceholder")}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="external_id">{t("contacts.externalId")}</Label>
+        <Input
+          id="external_id"
+          value={formData.external_id}
+          onChange={(e) => updateField("external_id", e.target.value)}
+          placeholder={t("contacts.externalIdPlaceholder")}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("contacts.externalIdHelp")}
+        </p>
       </div>
 
       <Separator className="my-4" />

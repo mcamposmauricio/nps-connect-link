@@ -10,6 +10,7 @@ import Campaigns from "./pages/Campaigns";
 import CampaignDetails from "./pages/CampaignDetails";
 import Settings from "./pages/Settings";
 import NPSResponse from "./pages/NPSResponse";
+import NPSEmbed from "./pages/NPSEmbed";
 import NotFound from "./pages/NotFound";
 import CSDashboard from "./pages/CSDashboard";
 import CSTrailsPage from "./pages/CSTrailsPage";
@@ -59,6 +60,9 @@ const App = () => (
           {/* Auth & NPS Response */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/nps/:token" element={<NPSResponse />} />
+          
+          {/* Embedded NPS Widget */}
+          <Route path="/embed" element={<NPSEmbed />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

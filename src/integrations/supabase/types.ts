@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       brand_settings: {
         Row: {
           accent_color: string | null
@@ -61,8 +97,11 @@ export type Database = {
           created_at: string
           email_sent: boolean | null
           email_sent_at: string | null
+          embedded_viewed: boolean | null
+          embedded_viewed_at: string | null
           id: string
           link_token: string
+          response_channel: string | null
         }
         Insert: {
           campaign_id: string
@@ -71,8 +110,11 @@ export type Database = {
           created_at?: string
           email_sent?: boolean | null
           email_sent_at?: string | null
+          embedded_viewed?: boolean | null
+          embedded_viewed_at?: string | null
           id?: string
           link_token?: string
+          response_channel?: string | null
         }
         Update: {
           campaign_id?: string
@@ -81,8 +123,11 @@ export type Database = {
           created_at?: string
           email_sent?: boolean | null
           email_sent_at?: string | null
+          embedded_viewed?: boolean | null
+          embedded_viewed_at?: string | null
           id?: string
           link_token?: string
+          response_channel?: string | null
         }
         Relationships: [
           {
@@ -168,6 +213,7 @@ export type Database = {
           message: string
           name: string
           next_send: string | null
+          send_channels: string[] | null
           sent_at: string | null
           start_date: string | null
           status: string | null
@@ -184,6 +230,7 @@ export type Database = {
           message: string
           name: string
           next_send?: string | null
+          send_channels?: string[] | null
           sent_at?: string | null
           start_date?: string | null
           status?: string | null
@@ -200,6 +247,7 @@ export type Database = {
           message?: string
           name?: string
           next_send?: string | null
+          send_channels?: string[] | null
           sent_at?: string | null
           start_date?: string | null
           status?: string | null
@@ -281,6 +329,7 @@ export type Database = {
           csm_id: string | null
           custom_fields: Json | null
           email: string
+          external_id: string | null
           health_score: number | null
           id: string
           is_company: boolean
@@ -311,6 +360,7 @@ export type Database = {
           csm_id?: string | null
           custom_fields?: Json | null
           email: string
+          external_id?: string | null
           health_score?: number | null
           id?: string
           is_company?: boolean
@@ -341,6 +391,7 @@ export type Database = {
           csm_id?: string | null
           custom_fields?: Json | null
           email?: string
+          external_id?: string | null
           health_score?: number | null
           id?: string
           is_company?: boolean

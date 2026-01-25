@@ -1,10 +1,11 @@
 import SidebarLayout from "@/components/SidebarLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Mail, Bell } from "lucide-react";
+import { Palette, Mail, Bell, Key } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import BrandSettingsTab from "@/components/BrandSettingsTab";
 import EmailSettingsTab from "@/components/EmailSettingsTab";
 import NotificationSettingsTab from "@/components/NotificationSettingsTab";
+import ApiKeysTab from "@/components/ApiKeysTab";
 
 const Settings = () => {
   const { t } = useLanguage();
@@ -20,7 +21,7 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="brand" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="brand" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.brand")}</span>
@@ -32,6 +33,10 @@ const Settings = () => {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.notifications")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="apikeys" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("settings.tabs.apiKeys")}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -46,7 +51,11 @@ const Settings = () => {
           <TabsContent value="notifications">
             <NotificationSettingsTab />
           </TabsContent>
-      </Tabs>
+
+          <TabsContent value="apikeys">
+            <ApiKeysTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </SidebarLayout>
   );
