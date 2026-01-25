@@ -24,7 +24,8 @@ export default {
   "nav.metrics": "Métricas",
   "nav.companies": "Empresas",
   "nav.surveys": "Pesquisas",
-  "nav.config": "Config",
+  "nav.config": "Configurações",
+  "nav.registry": "Cadastros",
 
   // Auth
   "auth.title": "Sistema NPS",

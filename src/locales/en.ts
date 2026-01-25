@@ -25,6 +25,7 @@ export default {
   "nav.companies": "Companies",
   "nav.surveys": "Surveys",
   "nav.config": "Settings",
+  "nav.registry": "Registry",
 
   // Auth
   "auth.title": "NPS System",
