@@ -84,9 +84,7 @@ export function AppSidebar() {
 
   const npsItems = [
     { path: "/nps/dashboard", icon: BarChart3, label: t("nav.metrics") },
-    { path: "/nps/contacts", icon: Building2, label: t("nav.companies") },
     { path: "/nps/campaigns", icon: Send, label: t("nav.surveys") },
-    { path: "/nps/settings", icon: Settings, label: t("nav.config") },
   ];
 
   return (
@@ -145,6 +143,25 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Cadastros */}
+        <SidebarGroup>
+          <SidebarGroupLabel>{t("nav.registry")}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate("/nps/contacts")}
+                  isActive={isActive("/nps/contacts")}
+                  tooltip={t("nav.companies")}
+                >
+                  <Building2 className="h-4 w-4" />
+                  <span>{t("nav.companies")}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* NPS Submenu */}
         <SidebarGroup>
           <Collapsible open={npsOpen} onOpenChange={setNpsOpen}>
@@ -187,30 +204,44 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Languages className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top">
-              <DropdownMenuItem onClick={() => setLanguage("en")}>
-                {language === "en" && "✓ "}English
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>
-                {language === "pt-BR" && "✓ "}Português (BR)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="h-8 w-8"
+        <div className="flex flex-col gap-2">
+          {/* Settings button */}
+          <SidebarMenuButton
+            onClick={() => navigate("/nps/settings")}
+            isActive={isActive("/nps/settings")}
+            tooltip={t("nav.config")}
+            className="w-full justify-start"
           >
-            <LogOut className="h-4 w-4" />
-          </Button>
+            <Settings className="h-4 w-4" />
+            {!collapsed && <span>{t("nav.config")}</span>}
+          </SidebarMenuButton>
+          
+          {/* Language and logout buttons */}
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Languages className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top">
+                <DropdownMenuItem onClick={() => setLanguage("en")}>
+                  {language === "en" && "✓ "}English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>
+                  {language === "pt-BR" && "✓ "}Português (BR)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="h-8 w-8"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
