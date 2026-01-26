@@ -121,6 +121,7 @@ interface Campaign {
   attempts_total: number | null;
   attempt_current: number | null;
   brand_settings_id: string | null;
+  send_channels: string[] | null;
 }
 
 const CampaignDetails = () => {
@@ -389,9 +390,21 @@ const CampaignDetails = () => {
         })
         .eq("id", campaignContact.id);
 
+      // If campaign has embedded channel and is not live, activate it
+      let widgetActivated = false;
+      if (campaign.send_channels?.includes('embedded') && campaign.status !== 'live') {
+        await supabase
+          .from("campaigns")
+          .update({ status: 'live' })
+          .eq("id", campaign.id);
+        widgetActivated = true;
+      }
+
       toast({
-        title: "E-mail enviado!",
-        description: `Lembrete enviado para ${campaignContact.display_name} (${campaignContact.display_email})`,
+        title: widgetActivated ? "E-mail enviado e widget ativado!" : "E-mail enviado!",
+        description: widgetActivated 
+          ? `Lembrete enviado para ${campaignContact.display_name}. O widget NPS também foi ativado.`
+          : `Lembrete enviado para ${campaignContact.display_name} (${campaignContact.display_email})`,
       });
 
       // Refresh data
@@ -464,9 +477,21 @@ const CampaignDetails = () => {
         }
       }
 
+      // If campaign has embedded channel and is not live, activate it after first successful send
+      let widgetActivated = false;
+      if (successCount > 0 && campaign?.send_channels?.includes('embedded') && campaign?.status !== 'live') {
+        await supabase
+          .from("campaigns")
+          .update({ status: 'live' })
+          .eq("id", campaign.id);
+        widgetActivated = true;
+      }
+
       toast({
-        title: "Envio em massa concluído",
-        description: `${successCount} e-mails enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
+        title: widgetActivated ? "Envio concluído e widget ativado!" : "Envio em massa concluído",
+        description: widgetActivated 
+          ? `${successCount} e-mails enviados. O widget NPS também foi ativado para esta campanha.`
+          : `${successCount} e-mails enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
       });
 
       setSelectedContacts([]);
