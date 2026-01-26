@@ -333,6 +333,9 @@ export default {
   "companyContacts.deleteDescription": "Esta ação não pode ser desfeita.",
   "companyContacts.namePlaceholder": "Nome completo da pessoa",
   "companyContacts.phone": "Telefone",
+  "companyContacts.externalId": "ID Externo",
+  "companyContacts.externalIdPlaceholder": "Ex: user_12345",
+  "companyContacts.externalIdHelp": "ID do usuário no seu sistema para integração com widget NPS",
 
   // Quick Contact Form
   "quickContact.title": "Adicionar Contato",

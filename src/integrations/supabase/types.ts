@@ -270,6 +270,7 @@ export type Database = {
           custom_fields: Json | null
           department: string | null
           email: string
+          external_id: string | null
           id: string
           is_primary: boolean | null
           name: string
@@ -284,6 +285,7 @@ export type Database = {
           custom_fields?: Json | null
           department?: string | null
           email: string
+          external_id?: string | null
           id?: string
           is_primary?: boolean | null
           name: string
@@ -298,6 +300,7 @@ export type Database = {
           custom_fields?: Json | null
           department?: string | null
           email?: string
+          external_id?: string | null
           id?: string
           is_primary?: boolean | null
           name?: string
@@ -329,7 +332,6 @@ export type Database = {
           csm_id: string | null
           custom_fields: Json | null
           email: string
-          external_id: string | null
           health_score: number | null
           id: string
           is_company: boolean
@@ -360,7 +362,6 @@ export type Database = {
           csm_id?: string | null
           custom_fields?: Json | null
           email: string
-          external_id?: string | null
           health_score?: number | null
           id?: string
           is_company?: boolean
@@ -391,7 +392,6 @@ export type Database = {
           csm_id?: string | null
           custom_fields?: Json | null
           email?: string
-          external_id?: string | null
           health_score?: number | null
           id?: string
           is_company?: boolean

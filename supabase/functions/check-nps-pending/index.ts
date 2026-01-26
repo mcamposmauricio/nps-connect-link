@@ -65,29 +65,34 @@ serve(async (req) => {
       .update({ last_used_at: new Date().toISOString() })
       .eq('id', apiKeyData.id);
 
-    // Find contact by external_id for this user
-    const { data: contact, error: contactError } = await supabase
-      .from('contacts')
-      .select('id, name, email')
+    // Find company_contact (person) by external_id for this user
+    const { data: companyContact, error: contactError } = await supabase
+      .from('company_contacts')
+      .select('id, name, email, company_id')
       .eq('user_id', userId)
       .eq('external_id', external_id)
       .maybeSingle();
 
-    if (contactError || !contact) {
-      console.log('Contact not found for external_id:', external_id);
+    if (contactError || !companyContact) {
+      console.log('Company contact not found for external_id:', external_id);
       return new Response(
         JSON.stringify({ has_pending: false, reason: 'invalid_external_id' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
-    // Find pending campaign_contacts for embedded campaigns
+    // Get the company (contact) this person belongs to
+    const companyId = companyContact.company_id;
+
+    // Find pending campaign_contacts for embedded campaigns where the COMPANY is included
     const { data: pendingCampaigns, error: pendingError } = await supabase
       .from('campaign_contacts')
       .select(`
         id,
         link_token,
         campaign_id,
+        contact_id,
+        company_contact_id,
         campaigns!inner (
           id,
           name,
@@ -105,7 +110,7 @@ serve(async (req) => {
           )
         )
       `)
-      .eq('contact_id', contact.id)
+      .eq('contact_id', companyId)
       .is('response_channel', null);
 
     if (pendingError) {
@@ -122,11 +127,11 @@ serve(async (req) => {
     });
 
     if (!eligibleCampaign) {
-      // Check if already responded
+      // Check if company already responded
       const { data: existingResponse } = await supabase
         .from('responses')
         .select('id')
-        .eq('contact_id', contact.id)
+        .eq('contact_id', companyId)
         .limit(1);
 
       if (existingResponse && existingResponse.length > 0) {
@@ -142,24 +147,32 @@ serve(async (req) => {
       );
     }
 
-    // Mark as viewed
+    // Mark as viewed and update with company_contact_id if not set
+    const updateData: any = {
+      embedded_viewed: true,
+      embedded_viewed_at: new Date().toISOString()
+    };
+    
+    // Link the company_contact to this campaign_contact if not already linked
+    if (!eligibleCampaign.company_contact_id) {
+      updateData.company_contact_id = companyContact.id;
+    }
+
     await supabase
       .from('campaign_contacts')
-      .update({
-        embedded_viewed: true,
-        embedded_viewed_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', eligibleCampaign.id);
 
     const campaign = eligibleCampaign.campaigns as any;
     const brandSettings = campaign.brand_settings;
 
+    // Return the person's name (not company name) for personalized greeting
     return new Response(
       JSON.stringify({
         has_pending: true,
         campaign_id: campaign.id,
         token: eligibleCampaign.link_token,
-        contact_name: contact.name,
+        contact_name: companyContact.name, // Person's name for personalized greeting
         message: campaign.message,
         brand_settings: brandSettings ? {
           company_name: brandSettings.company_name || brandSettings.brand_name,
