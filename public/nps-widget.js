@@ -30,7 +30,7 @@
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
       background: transparent;
       width: 400px;
-      height: 400px;
+      height: 450px;
       max-width: calc(100vw - 32px);
       max-height: calc(100vh - 32px);
     }
