@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Palette } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import NPSForm from "@/components/NPSForm";
+import NPSWidgetPreview from "@/components/NPSWidgetPreview";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BrandSettings {
@@ -360,7 +361,7 @@ const BrandSettingsTab = () => {
         </Card>
       </div>
 
-      <div className="lg:sticky lg:top-6 h-fit">
+      <div className="lg:sticky lg:top-6 h-fit space-y-6">
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">{t("settings.livePreview")}</h2>
           <p className="text-sm text-muted-foreground mb-4">
@@ -385,6 +386,22 @@ const BrandSettingsTab = () => {
               />
             </div>
           </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">{t("settings.widgetPreview")}</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t("settings.widgetPreviewDescription")}
+          </p>
+          <NPSWidgetPreview
+            brandSettings={{
+              company_name: settings.company_name,
+              logo_url: settings.logo_url,
+              primary_color: settings.primary_color,
+              secondary_color: settings.secondary_color,
+              accent_color: settings.accent_color,
+            }}
+          />
         </Card>
       </div>
     </div>
