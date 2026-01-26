@@ -466,7 +466,22 @@ export default {
   "settings.confirmDelete": "Tem certeza que deseja excluir esta marca?",
   "settings.deleteSuccess": "Marca excluída com sucesso!",
 
-  // Settings Tabs
+  // Settings - Widget Preview
+  "settings.widgetPreview": "Preview do Widget Embedado",
+  "settings.widgetPreviewDescription": "Como o widget aparecerá no software do seu cliente",
+  "settings.widgetDefaultTitle": "Pesquisa NPS",
+  "settings.widgetGreeting": "Olá, Cliente!",
+  "settings.widgetQuestion": "Em uma escala de 0 a 10, o quanto você recomendaria nossa empresa?",
+  "settings.widgetUnlikely": "Nada provável",
+  "settings.widgetLikely": "Muito provável",
+  "settings.widgetDetractor": "Detrator",
+  "settings.widgetNeutral": "Neutro",
+  "settings.widgetPromoter": "Promotor",
+  "settings.widgetCommentPlaceholder": "Conte-nos mais sobre sua experiência (opcional)",
+  "settings.widgetSubmit": "Enviar Avaliação",
+  "settings.widgetThankYou": "Obrigado!",
+  "settings.widgetSuccessMessage": "Sua avaliação foi registrada com sucesso.",
+  "settings.widgetSimulationHint": "Simulação do software do seu cliente",
   "settings.tabs.brand": "Marca",
   "settings.tabs.email": "E-mail",
   "settings.tabs.notifications": "Notificações",
