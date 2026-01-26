@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, X, Loader2 } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 
 interface BrandSettings {
   company_name: string;
@@ -23,6 +23,43 @@ interface PendingData {
   brand_settings?: BrandSettings | null;
   reason?: string;
 }
+
+// Skeleton Loading Component
+const WidgetSkeleton = () => (
+  <div className="flex items-center justify-center p-4 min-h-[340px]">
+    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md animate-pulse">
+      {/* Close button skeleton */}
+      <div className="flex justify-end mb-4">
+        <div className="w-4 h-4 bg-gray-200 rounded"></div>
+      </div>
+      
+      {/* Greeting skeleton */}
+      <div className="h-3 bg-gray-100 rounded w-24 mb-2"></div>
+      
+      {/* Question skeleton */}
+      <div className="h-4 bg-gray-200 rounded w-3/4 mb-6"></div>
+      
+      {/* Score buttons skeleton */}
+      <div className="flex justify-between gap-1 mb-2">
+        {[...Array(11)].map((_, i) => (
+          <div key={i} className="w-7 h-7 bg-gray-200 rounded-full"></div>
+        ))}
+      </div>
+      
+      {/* Labels skeleton */}
+      <div className="flex justify-between mb-6">
+        <div className="h-3 bg-gray-100 rounded w-16"></div>
+        <div className="h-3 bg-gray-100 rounded w-20"></div>
+      </div>
+      
+      {/* Textarea skeleton - space reserved */}
+      <div className="h-16 bg-gray-100 rounded-lg mb-3"></div>
+      
+      {/* Button skeleton */}
+      <div className="h-10 bg-gray-200 rounded-full"></div>
+    </div>
+  </div>
+);
 
 const NPSEmbed = () => {
   const [searchParams] = useSearchParams();
@@ -97,157 +134,138 @@ const NPSEmbed = () => {
     window.parent?.postMessage({ type: "nps-dismiss" }, "*");
   };
 
-  const getScoreColor = (score: number) => {
-    if (score <= 6) return "bg-red-500 hover:bg-red-600";
-    if (score <= 8) return "bg-yellow-500 hover:bg-yellow-600";
-    return "bg-green-500 hover:bg-green-600";
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score <= 6) return "Detrator";
-    if (score <= 8) return "Neutro";
-    return "Promotor";
-  };
-
   // Apply brand colors
   const brandColors = pendingData?.brand_settings;
-  const primaryColor = brandColors?.primary_color || "#8B5CF6";
+  const primaryColor = brandColors?.primary_color || "#1E7345";
 
+  // Loading state with skeleton
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-transparent">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <WidgetSkeleton />;
   }
 
+  // Dismissed or no pending NPS
   if (dismissed || !pendingData?.has_pending) {
     return null;
   }
 
+  // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-transparent">
-        <div className="text-center text-muted-foreground">
-          <p>{error}</p>
+      <div className="flex items-center justify-center p-4 min-h-[340px]">
+        <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md text-center">
+          <p className="text-sm text-gray-500">{error}</p>
         </div>
       </div>
     );
   }
 
+  // Success state
   if (submitted) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: primaryColor }}>
-            <CheckCircle2 className="h-8 w-8 text-white" />
+      <div className="flex items-center justify-center p-4 min-h-[340px]">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center animate-scale-in">
+          <div 
+            className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: `${primaryColor}20` }}
+          >
+            <CheckCircle2 className="h-6 w-6" style={{ color: primaryColor }} />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Obrigado!</h2>
-          <p className="text-muted-foreground">
-            Sua avaliação foi registrada com sucesso.
-          </p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Obrigado!</h2>
+          <p className="text-sm text-gray-500">Sua avaliação foi registrada.</p>
         </div>
       </div>
     );
   }
 
+  // Main widget
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
-        {/* Header */}
-        <div 
-          className="p-4 text-white flex items-center justify-between"
-          style={{ backgroundColor: primaryColor }}
+    <div className="flex items-center justify-center p-4 min-h-[340px]">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative min-h-[300px] flex flex-col">
+        {/* Close button - discrete */}
+        <button 
+          onClick={handleDismiss}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Fechar"
         >
-          <div className="flex items-center gap-3">
-            {brandColors?.logo_url && (
-              <img 
-                src={brandColors.logo_url} 
-                alt="Logo" 
-                className="h-8 w-8 object-contain rounded"
-              />
-            )}
-            <span className="font-semibold">
-              {brandColors?.company_name || brandColors?.brand_name || "Pesquisa NPS"}
-            </span>
-          </div>
-          <button 
-            onClick={handleDismiss}
-            className="text-white/80 hover:text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          <X className="h-4 w-4" />
+        </button>
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Content area */}
+        <div className="flex-1">
+          {/* Greeting */}
           {pendingData.contact_name && (
-            <p className="text-sm text-muted-foreground mb-2">
-              Olá, {pendingData.contact_name.split(" ")[0]}!
+            <p className="text-sm text-gray-500 mb-1">
+              Olá, {pendingData.contact_name.split(" ")[0]}
             </p>
           )}
           
-          <h3 className="text-lg font-medium mb-4">
-            {pendingData.message || "Em uma escala de 0 a 10, o quanto você recomendaria nossa empresa?"}
+          {/* Question */}
+          <h3 className="text-base font-medium text-gray-900 mb-6 pr-8 leading-relaxed">
+            {pendingData.message || "Em uma escala de 0 a 10, o quanto você nos recomendaria?"}
           </h3>
 
           {/* Score buttons */}
-          <div className="grid grid-cols-11 gap-1 mb-4">
+          <div className="flex justify-between gap-1 mb-2">
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
               <button
                 key={score}
                 onClick={() => setSelectedScore(score)}
                 className={`
-                  h-10 rounded-lg font-medium text-sm transition-all
+                  w-7 h-7 rounded-full text-xs font-medium 
+                  transition-all duration-200 ease-out
                   ${selectedScore === score 
-                    ? `${getScoreColor(score)} text-white scale-110 shadow-lg` 
-                    : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    ? "text-white scale-110 shadow-md" 
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }
                 `}
+                style={selectedScore === score ? { backgroundColor: primaryColor } : {}}
               >
                 {score}
               </button>
             ))}
           </div>
 
-          <div className="flex justify-between text-xs text-muted-foreground mb-4">
-            <span>Nada provável</span>
+          {/* Labels */}
+          <div className="flex justify-between text-xs text-gray-400 mb-6">
+            <span>Improvável</span>
             <span>Muito provável</span>
           </div>
+        </div>
 
-          {selectedScore !== null && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="text-center">
-                <span 
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white ${getScoreColor(selectedScore)}`}
-                >
-                  {getScoreLabel(selectedScore)}
-                </span>
-              </div>
-
+        {/* Comment and submit area - fixed space */}
+        <div className="mt-auto">
+          {selectedScore !== null ? (
+            <div className="space-y-3 animate-fade-in">
               <Textarea
-                placeholder="Conte-nos mais sobre sua experiência (opcional)"
+                placeholder="Conte-nos mais (opcional)"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                rows={3}
+                rows={2}
+                className="resize-none border-gray-200 focus:border-gray-300 text-sm"
               />
 
               <Button 
                 onClick={handleSubmit} 
                 disabled={submitting}
-                className="w-full"
-                style={{ backgroundColor: primaryColor }}
+                className="w-full h-10 rounded-full font-medium transition-all"
+                style={{ 
+                  backgroundColor: submitting ? `${primaryColor}cc` : primaryColor,
+                  color: 'white'
+                }}
               >
                 {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Enviando...</span>
+                  </div>
                 ) : (
-                  "Enviar Avaliação"
+                  "Enviar"
                 )}
               </Button>
             </div>
+          ) : (
+            /* Reserved space for comment area */
+            <div className="h-[88px]"></div>
           )}
         </div>
       </div>

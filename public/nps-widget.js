@@ -26,13 +26,13 @@
     }
     .nps-widget-iframe {
       border: none;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-      background: white;
-      width: 420px;
-      height: 400px;
-      max-width: calc(100vw - 40px);
-      max-height: calc(100vh - 40px);
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+      background: transparent;
+      width: 400px;
+      height: 360px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
     }
     .nps-widget-overlay {
       position: fixed;
