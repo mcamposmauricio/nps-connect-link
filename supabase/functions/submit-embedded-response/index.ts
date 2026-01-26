@@ -74,7 +74,7 @@ serve(async (req) => {
     // Find campaign_contact by token
     const { data: campaignContact, error: ccError } = await supabase
       .from('campaign_contacts')
-      .select('id, campaign_id, contact_id, response_channel')
+      .select('id, campaign_id, contact_id, company_contact_id, response_channel')
       .eq('link_token', token)
       .maybeSingle();
 

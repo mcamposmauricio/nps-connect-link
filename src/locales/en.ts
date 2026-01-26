@@ -333,6 +333,9 @@ export default {
   "companyContacts.deleteDescription": "This action cannot be undone.",
   "companyContacts.namePlaceholder": "Person's full name",
   "companyContacts.phone": "Phone",
+  "companyContacts.externalId": "External ID",
+  "companyContacts.externalIdPlaceholder": "E.g., user_12345",
+  "companyContacts.externalIdHelp": "User ID in your system for NPS widget integration",
 
   // Quick Contact Form
   "quickContact.title": "Add Contact",

@@ -23,6 +23,7 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
     phone: "",
     role: "",
     department: "",
+    external_id: "",
   });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -65,6 +66,7 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
         phone: formData.phone || null,
         role: formData.role || null,
         department: formData.department || null,
+        external_id: formData.external_id || null,
         is_primary: count === 0, // First contact is automatically primary
       });
 
@@ -82,6 +84,7 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
         phone: "",
         role: "",
         department: "",
+        external_id: "",
       });
       onSuccess();
     } catch (error: any) {
@@ -159,6 +162,19 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
             placeholder={t("companyContacts.departmentPlaceholder")}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="external_id">{t("companyContacts.externalId")}</Label>
+        <Input
+          id="external_id"
+          value={formData.external_id}
+          onChange={(e) => setFormData({ ...formData, external_id: e.target.value })}
+          placeholder={t("companyContacts.externalIdPlaceholder")}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("companyContacts.externalIdHelp")}
+        </p>
       </div>
 
       <div className="flex gap-2 pt-4">

@@ -14,6 +14,7 @@ interface CompanyContactFormData {
   role: string;
   department: string;
   is_primary: boolean;
+  external_id: string;
 }
 
 interface CompanyContactFormProps {
@@ -40,6 +41,7 @@ export function CompanyContactForm({
     role: initialData?.role || "",
     department: initialData?.department || "",
     is_primary: initialData?.is_primary || false,
+    external_id: initialData?.external_id || "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,6 +113,19 @@ export function CompanyContactForm({
             placeholder={t("companyContacts.departmentPlaceholder")}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="external_id">{t("companyContacts.externalId")}</Label>
+        <Input
+          id="external_id"
+          value={formData.external_id}
+          onChange={(e) => updateField("external_id", e.target.value)}
+          placeholder={t("companyContacts.externalIdPlaceholder")}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("companyContacts.externalIdHelp")}
+        </p>
       </div>
 
       {showPrimaryOption && (
