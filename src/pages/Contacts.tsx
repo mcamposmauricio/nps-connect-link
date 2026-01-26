@@ -42,6 +42,7 @@ interface CompanyContact {
   department: string | null;
   is_primary: boolean;
   created_at: string;
+  external_id: string | null;
 }
 
 interface Company {
@@ -129,6 +130,7 @@ const Contacts = () => {
             department: primaryContact.department,
             is_primary: primaryContact.is_primary,
             created_at: primaryContact.created_at,
+            external_id: primaryContact.external_id,
           } : null,
         };
       });
@@ -312,7 +314,8 @@ const Contacts = () => {
         phone: data.phone || null,
         role: data.role || null,
         department: data.department || null,
-        is_primary: data.is_primary || companyContacts.length === 0, // First contact is primary
+        is_primary: data.is_primary || companyContacts.length === 0,
+        external_id: data.external_id || null,
       });
 
       if (error) throw error;
@@ -355,6 +358,7 @@ const Contacts = () => {
           role: data.role || null,
           department: data.department || null,
           is_primary: data.is_primary,
+          external_id: data.external_id || null,
         })
         .eq("id", editContactData.id);
 
@@ -597,6 +601,7 @@ const Contacts = () => {
                   role: editContactData.role || "",
                   department: editContactData.department || "",
                   is_primary: editContactData.is_primary,
+                  external_id: editContactData.external_id || "",
                 }}
                 onSubmit={handleEditContact}
                 onCancel={() => setEditContactData(null)}

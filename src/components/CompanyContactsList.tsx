@@ -24,6 +24,7 @@ interface CompanyContact {
   department: string | null;
   is_primary: boolean;
   created_at: string;
+  external_id: string | null;
 }
 
 interface CompanyContactsListProps {
