@@ -31,6 +31,7 @@ interface ApiKey {
   id: string;
   name: string;
   key_prefix: string;
+  encrypted_key: string | null;
   is_active: boolean;
   last_used_at: string | null;
   created_at: string;
@@ -61,7 +62,7 @@ const ApiKeysTab = () => {
 
       const { data, error } = await supabase
         .from("api_keys")
-        .select("id, name, key_prefix, is_active, last_used_at, created_at")
+        .select("id, name, key_prefix, encrypted_key, is_active, last_used_at, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -100,7 +101,7 @@ const ApiKeysTab = () => {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-      // Store the key
+      // Store the key with full encrypted_key for frontend use
       const { error } = await supabase
         .from("api_keys")
         .insert({
@@ -108,6 +109,7 @@ const ApiKeysTab = () => {
           name: newKeyName.trim(),
           key_hash: keyHash,
           key_prefix: rawKey.substring(0, 12),
+          encrypted_key: rawKey,
         });
 
       if (error) throw error;
@@ -165,12 +167,13 @@ const ApiKeysTab = () => {
 
   const getIntegrationCode = (apiKey: ApiKey) => {
     const baseUrl = window.location.origin;
+    const actualKey = apiKey.encrypted_key || 'YOUR_API_KEY';
     
     return {
       script: `<!-- NPS Widget - Auto-init -->
 <script 
   src="${baseUrl}/nps-widget.js"
-  data-api-key="YOUR_API_KEY"
+  data-api-key="${actualKey}"
   data-external-id="CUSTOMER_EXTERNAL_ID"
 ></script>`,
       programmatic: `<!-- NPS Widget - Programmatic -->
@@ -178,7 +181,7 @@ const ApiKeysTab = () => {
 <script>
   // Call this when your user logs in
   NPSWidget.init({
-    apiKey: "YOUR_API_KEY",
+    apiKey: "${actualKey}",
     externalId: loggedUser.id, // Your customer's ID
     position: "bottom-right", // or "bottom-left", "center-modal"
     onComplete: (data) => {
@@ -188,7 +191,7 @@ const ApiKeysTab = () => {
 </script>`,
       iframe: `<!-- NPS Widget - iFrame -->
 <iframe 
-  src="${baseUrl}/embed?api_key=YOUR_API_KEY&external_id=CUSTOMER_EXTERNAL_ID"
+  src="${baseUrl}/embed?api_key=${actualKey}&external_id=CUSTOMER_EXTERNAL_ID"
   style="position:fixed;bottom:20px;right:20px;width:420px;height:400px;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;"
 ></iframe>`,
     };
@@ -229,10 +232,10 @@ const ApiKeysTab = () => {
                 key={key.id}
                 className="flex items-center justify-between p-4 border rounded-lg"
               >
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1 min-w-0">
                   <div className="font-medium">{key.name}</div>
-                  <div className="text-sm text-muted-foreground font-mono">
-                    {key.key_prefix}...
+                  <div className="text-sm text-muted-foreground font-mono truncate">
+                    {key.encrypted_key || `${key.key_prefix}...`}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {t("settings.apiKeys.created")}: {new Date(key.created_at).toLocaleDateString()}
@@ -242,6 +245,20 @@ const ApiKeysTab = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {key.encrypted_key && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        copyToClipboard(key.encrypted_key!);
+                        toast({
+                          title: t("settings.apiKeys.keyCopied"),
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
