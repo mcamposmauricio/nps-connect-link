@@ -26,18 +26,18 @@ interface PendingData {
 
 // Skeleton Loading Component
 const WidgetSkeleton = () => (
-  <div className="flex items-center justify-center p-4 min-h-[340px]">
-    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md animate-pulse">
+  <div className="flex items-center justify-center p-3 h-full overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-md animate-pulse overflow-hidden">
       {/* Close button skeleton */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-3">
         <div className="w-4 h-4 bg-gray-200 rounded"></div>
       </div>
       
       {/* Greeting skeleton */}
-      <div className="h-3 bg-gray-100 rounded w-24 mb-2"></div>
+      <div className="h-3 bg-gray-100 rounded w-24 mb-1"></div>
       
       {/* Question skeleton */}
-      <div className="h-4 bg-gray-200 rounded w-3/4 mb-6"></div>
+      <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
       
       {/* Score buttons skeleton */}
       <div className="flex justify-between gap-1 mb-2">
@@ -47,16 +47,16 @@ const WidgetSkeleton = () => (
       </div>
       
       {/* Labels skeleton */}
-      <div className="flex justify-between mb-6">
+      <div className="flex justify-between mb-4">
         <div className="h-3 bg-gray-100 rounded w-16"></div>
         <div className="h-3 bg-gray-100 rounded w-20"></div>
       </div>
       
       {/* Textarea skeleton - space reserved */}
-      <div className="h-16 bg-gray-100 rounded-lg mb-3"></div>
+      <div className="h-14 bg-gray-100 rounded-lg mb-2"></div>
       
       {/* Button skeleton */}
-      <div className="h-10 bg-gray-200 rounded-full"></div>
+      <div className="h-9 bg-gray-200 rounded-full"></div>
     </div>
   </div>
 );
@@ -151,8 +151,8 @@ const NPSEmbed = () => {
   // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center p-4 min-h-[340px]">
-        <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md text-center">
+      <div className="flex items-center justify-center p-3 h-full overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-md text-center overflow-hidden">
           <p className="text-sm text-gray-500">{error}</p>
         </div>
       </div>
@@ -162,10 +162,10 @@ const NPSEmbed = () => {
   // Success state
   if (submitted) {
     return (
-      <div className="flex items-center justify-center p-4 min-h-[340px]">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center animate-scale-in">
+      <div className="flex items-center justify-center p-3 h-full overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md text-center animate-scale-in overflow-hidden">
           <div 
-            className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center"
+            className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center"
             style={{ backgroundColor: `${primaryColor}20` }}
           >
             <CheckCircle2 className="h-6 w-6" style={{ color: primaryColor }} />
@@ -179,8 +179,8 @@ const NPSEmbed = () => {
 
   // Main widget
   return (
-    <div className="flex items-center justify-center p-4 min-h-[340px]">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative min-h-[300px] flex flex-col">
+    <div className="flex items-center justify-center p-3 h-full overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-md relative flex flex-col overflow-hidden">
         {/* Close button - discrete */}
         <button 
           onClick={handleDismiss}
@@ -200,7 +200,7 @@ const NPSEmbed = () => {
           )}
           
           {/* Question */}
-          <h3 className="text-base font-medium text-gray-900 mb-6 pr-8 leading-relaxed">
+          <h3 className="text-base font-medium text-gray-900 mb-4 pr-8 leading-relaxed">
             {pendingData.message || "Em uma escala de 0 a 10, o quanto você nos recomendaria?"}
           </h3>
 
@@ -226,7 +226,7 @@ const NPSEmbed = () => {
           </div>
 
           {/* Labels */}
-          <div className="flex justify-between text-xs text-gray-400 mb-6">
+          <div className="flex justify-between text-xs text-gray-400 mb-4">
             <span>Improvável</span>
             <span>Muito provável</span>
           </div>
@@ -235,19 +235,19 @@ const NPSEmbed = () => {
         {/* Comment and submit area - fixed space */}
         <div className="mt-auto">
           {selectedScore !== null ? (
-            <div className="space-y-3 animate-fade-in">
+            <div className="space-y-2 animate-fade-in">
               <Textarea
                 placeholder="Conte-nos mais (opcional)"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
-                className="resize-none border-gray-200 focus:border-gray-300 text-sm"
+                className="resize-none border-gray-200 focus:border-gray-300 text-sm min-h-0"
               />
 
               <Button 
                 onClick={handleSubmit} 
                 disabled={submitting}
-                className="w-full h-10 rounded-full font-medium transition-all"
+                className="w-full h-9 rounded-full font-medium transition-all"
                 style={{ 
                   backgroundColor: submitting ? `${primaryColor}cc` : primaryColor,
                   color: 'white'
@@ -265,7 +265,7 @@ const NPSEmbed = () => {
             </div>
           ) : (
             /* Reserved space for comment area */
-            <div className="h-[88px]"></div>
+            <div className="h-[76px]"></div>
           )}
         </div>
       </div>
