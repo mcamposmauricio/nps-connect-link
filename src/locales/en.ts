@@ -466,22 +466,7 @@ export default {
   "settings.confirmDelete": "Are you sure you want to delete this brand?",
   "settings.deleteSuccess": "Brand deleted successfully!",
 
-  // Settings - Widget Preview
-  "settings.widgetPreview": "Embedded Widget Preview",
-  "settings.widgetPreviewDescription": "How the widget will appear in your client's software",
-  "settings.widgetDefaultTitle": "NPS Survey",
-  "settings.widgetGreeting": "Hello, Customer!",
-  "settings.widgetQuestion": "On a scale of 0 to 10, how likely are you to recommend our company?",
-  "settings.widgetUnlikely": "Not likely",
-  "settings.widgetLikely": "Very likely",
-  "settings.widgetDetractor": "Detractor",
-  "settings.widgetNeutral": "Passive",
-  "settings.widgetPromoter": "Promoter",
-  "settings.widgetCommentPlaceholder": "Tell us more about your experience (optional)",
-  "settings.widgetSubmit": "Submit Rating",
-  "settings.widgetThankYou": "Thank you!",
-  "settings.widgetSuccessMessage": "Your feedback has been recorded successfully.",
-  "settings.widgetSimulationHint": "Simulating your client's software",
+  // Settings Tabs
   "settings.tabs.brand": "Brand",
   "settings.tabs.email": "Email",
   "settings.tabs.notifications": "Notifications",
