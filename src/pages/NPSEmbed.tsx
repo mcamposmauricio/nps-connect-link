@@ -92,9 +92,30 @@ const NPSEmbed = () => {
 
       if (error) throw error;
       setPendingData(data);
+
+      // Notify parent window about survey availability
+      if (data?.has_pending) {
+        window.parent?.postMessage({
+          type: "nps-ready",
+          external_id: externalId
+        }, "*");
+      } else {
+        window.parent?.postMessage({
+          type: "nps-no-survey",
+          external_id: externalId,
+          reason: data?.reason || "unknown"
+        }, "*");
+      }
     } catch (err: any) {
       console.error("Error checking NPS:", err);
       setError(err.message);
+
+      // Notify parent about error
+      window.parent?.postMessage({
+        type: "nps-no-survey",
+        external_id: externalId,
+        reason: "error"
+      }, "*");
     } finally {
       setLoading(false);
     }
@@ -119,8 +140,12 @@ const NPSEmbed = () => {
 
       setSubmitted(true);
 
-      // Notify parent window
-      window.parent?.postMessage({ type: "nps-complete", score: selectedScore }, "*");
+      // Notify parent window with external_id
+      window.parent?.postMessage({
+        type: "nps-complete",
+        score: selectedScore,
+        external_id: externalId
+      }, "*");
     } catch (err: any) {
       console.error("Error submitting response:", err);
       setError(err.message);
@@ -131,7 +156,10 @@ const NPSEmbed = () => {
 
   const handleDismiss = () => {
     setDismissed(true);
-    window.parent?.postMessage({ type: "nps-dismiss" }, "*");
+    window.parent?.postMessage({
+      type: "nps-dismiss",
+      external_id: externalId
+    }, "*");
   };
 
   // Apply brand colors
