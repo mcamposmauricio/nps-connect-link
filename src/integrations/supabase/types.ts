@@ -313,6 +313,105 @@ export type Database = {
           },
         ]
       }
+      chat_auto_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          message_content: string | null
+          rule_type: string
+          trigger_minutes: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          message_content?: string | null
+          rule_type: string
+          trigger_minutes?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          message_content?: string | null
+          rule_type?: string
+          trigger_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_business_hours: {
+        Row: {
+          created_at: string | null
+          day_of_week: number
+          end_time: string | null
+          id: string
+          is_active: boolean | null
+          start_time: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: number
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          start_time?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: number
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          start_time?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_custom_fields: {
+        Row: {
+          created_at: string | null
+          field_type: string | null
+          id: string
+          is_required: boolean | null
+          label: string
+          name: string
+          placeholder: string | null
+          sort_order: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          field_type?: string | null
+          id?: string
+          is_required?: boolean | null
+          label: string
+          name: string
+          placeholder?: string | null
+          sort_order?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          field_type?: string | null
+          id?: string
+          is_required?: boolean | null
+          label?: string
+          name?: string
+          placeholder?: string | null
+          sort_order?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_macros: {
         Row: {
           category: string | null
@@ -437,6 +536,7 @@ export type Database = {
           metadata: Json | null
           owner_user_id: string
           priority: string | null
+          resolution_status: string | null
           started_at: string | null
           status: string | null
           updated_at: string | null
@@ -455,6 +555,7 @@ export type Database = {
           metadata?: Json | null
           owner_user_id: string
           priority?: string | null
+          resolution_status?: string | null
           started_at?: string | null
           status?: string | null
           updated_at?: string | null
@@ -473,6 +574,7 @@ export type Database = {
           metadata?: Json | null
           owner_user_id?: string
           priority?: string | null
+          resolution_status?: string | null
           started_at?: string | null
           status?: string | null
           updated_at?: string | null
@@ -648,6 +750,7 @@ export type Database = {
           is_primary: boolean | null
           name: string
           phone: string | null
+          public_token: string | null
           role: string | null
           updated_at: string | null
           user_id: string
@@ -667,6 +770,7 @@ export type Database = {
           is_primary?: boolean | null
           name: string
           phone?: string | null
+          public_token?: string | null
           role?: string | null
           updated_at?: string | null
           user_id: string
@@ -686,6 +790,7 @@ export type Database = {
           is_primary?: boolean | null
           name?: string
           phone?: string | null
+          public_token?: string | null
           role?: string | null
           updated_at?: string | null
           user_id?: string
