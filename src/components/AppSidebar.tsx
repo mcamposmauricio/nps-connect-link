@@ -16,10 +16,15 @@ import {
   Languages,
   Zap,
   Building2,
+  MessageSquare,
+  Headphones,
+  TrendingUp,
+  History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -51,12 +56,17 @@ export function AppSidebar() {
   const location = useLocation();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
+  const { isAdmin } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
   const [npsOpen, setNpsOpen] = useState(
     location.pathname.startsWith("/nps/") || 
     location.pathname === "/nps"
+  );
+
+  const [chatOpen, setChatOpen] = useState(
+    location.pathname.startsWith("/admin/")
   );
 
   const isActive = (path: string) => location.pathname === path;
@@ -196,6 +206,114 @@ export function AppSidebar() {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        {/* Chat Module Submenu */}
+        <SidebarGroup>
+          <Collapsible open={chatOpen} onOpenChange={setChatOpen}>
+            <CollapsibleTrigger asChild>
+              <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full">
+                <span className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>{t("chat.module")}</span>
+                </span>
+                {!collapsed && (
+                  chatOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )
+                )}
+              </SidebarGroupLabel>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => navigate("/admin/dashboard")}
+                      isActive={isActive("/admin/dashboard")}
+                      tooltip={t("chat.dashboard.title")}
+                      className="pl-6"
+                    >
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span>Dashboard</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => navigate("/admin/workspace")}
+                      isActive={isActive("/admin/workspace") || location.pathname.startsWith("/admin/workspace/")}
+                      tooltip={t("chat.workspace.title")}
+                      className="pl-6"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span>Workspace</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {isAdmin && (
+                    <>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => navigate("/admin/attendants")}
+                          isActive={isActive("/admin/attendants")}
+                          tooltip={t("chat.attendants.title")}
+                          className="pl-6"
+                        >
+                          <Headphones className="h-4 w-4" />
+                          <span>{t("chat.attendants.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => navigate("/admin/users")}
+                          isActive={isActive("/admin/users")}
+                          tooltip={t("chat.users.title")}
+                          className="pl-6"
+                        >
+                          <Users className="h-4 w-4" />
+                          <span>{t("chat.users.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => navigate("/admin/gerencial")}
+                          isActive={isActive("/admin/gerencial")}
+                          tooltip={t("chat.gerencial.title")}
+                          className="pl-6"
+                        >
+                          <TrendingUp className="h-4 w-4" />
+                          <span>{t("chat.gerencial.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => navigate("/admin/history")}
+                          isActive={isActive("/admin/history")}
+                          tooltip={t("chat.history.title")}
+                          className="pl-6"
+                        >
+                          <History className="h-4 w-4" />
+                          <span>{t("chat.history.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => navigate("/admin/settings")}
+                          isActive={isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")}
+                          tooltip={t("chat.settings.title")}
+                          className="pl-6"
+                        >
+                          <Settings className="h-4 w-4" />
+                          <span>{t("chat.settings.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </CollapsibleContent>

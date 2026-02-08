@@ -1,0 +1,307 @@
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { MessageSquare, Send, Star, Loader2 } from "lucide-react";
+
+type WidgetPhase = "form" | "waiting" | "chat" | "csat" | "closed";
+
+const ChatWidget = () => {
+  const [searchParams] = useSearchParams();
+  const isEmbed = searchParams.get("embed") === "true";
+  const companyName = searchParams.get("companyName") ?? "Suporte";
+
+  const [phase, setPhase] = useState<WidgetPhase>("form");
+  const [visitorToken, setVisitorToken] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Array<{ id: string; content: string; sender_type: string; sender_name: string | null; created_at: string }>>([]);
+  const [input, setInput] = useState("");
+  const [csatScore, setCsatScore] = useState(0);
+  const [csatComment, setCsatComment] = useState("");
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check localStorage for returning visitor
+  useEffect(() => {
+    const savedToken = localStorage.getItem("chat_visitor_token");
+    if (savedToken) {
+      setVisitorToken(savedToken);
+      checkExistingRoom(savedToken);
+    }
+  }, []);
+
+  // Realtime messages
+  useEffect(() => {
+    if (!roomId) return;
+
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from("chat_messages")
+        .select("id, content, sender_type, sender_name, created_at")
+        .eq("room_id", roomId)
+        .eq("is_internal", false)
+        .order("created_at", { ascending: true });
+      setMessages(data ?? []);
+    };
+
+    fetchMessages();
+
+    const channel = supabase
+      .channel(`widget-messages-${roomId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` }, (payload) => {
+        const msg = payload.new as any;
+        if (!msg.is_internal) {
+          setMessages((prev) => [...prev, msg]);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [roomId]);
+
+  // Realtime room status
+  useEffect(() => {
+    if (!roomId) return;
+
+    const channel = supabase
+      .channel(`widget-room-${roomId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_rooms", filter: `id=eq.${roomId}` }, (payload) => {
+        const room = payload.new as any;
+        if (room.status === "active" && phase === "waiting") {
+          setPhase("chat");
+          postMsg("chat-connected");
+        } else if (room.status === "closed") {
+          setPhase("csat");
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [roomId, phase]);
+
+  // Auto scroll
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const postMsg = (type: string) => {
+    if (isEmbed) window.parent.postMessage({ type }, "*");
+  };
+
+  const checkExistingRoom = async (token: string) => {
+    const { data: visitor } = await supabase
+      .from("chat_visitors")
+      .select("id")
+      .eq("visitor_token", token)
+      .maybeSingle();
+
+    if (visitor) {
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .select("id, status")
+        .eq("visitor_id", visitor.id)
+        .in("status", ["waiting", "active"])
+        .maybeSingle();
+
+      if (room) {
+        setRoomId(room.id);
+        setPhase(room.status === "active" ? "chat" : "waiting");
+        return;
+      }
+    }
+  };
+
+  const handleStartChat = async () => {
+    if (!formData.name.trim()) return;
+    setLoading(true);
+
+    // We need an owner_user_id — for the widget, we'll use a placeholder approach
+    // The visitor is created publicly
+    const { data: visitor, error: vError } = await supabase
+      .from("chat_visitors")
+      .insert({
+        name: formData.name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        owner_user_id: "00000000-0000-0000-0000-000000000000", // placeholder, will be matched by settings
+      })
+      .select("id, visitor_token")
+      .single();
+
+    if (vError || !visitor) {
+      setLoading(false);
+      return;
+    }
+
+    localStorage.setItem("chat_visitor_token", visitor.visitor_token);
+    setVisitorToken(visitor.visitor_token);
+
+    const { data: room } = await supabase
+      .from("chat_rooms")
+      .insert({
+        visitor_id: visitor.id,
+        owner_user_id: "00000000-0000-0000-0000-000000000000",
+        status: "waiting",
+      })
+      .select("id")
+      .single();
+
+    if (room) {
+      setRoomId(room.id);
+      setPhase("waiting");
+      postMsg("chat-ready");
+    }
+
+    setLoading(false);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || !roomId) return;
+    const content = input;
+    setInput("");
+
+    await supabase.from("chat_messages").insert({
+      room_id: roomId,
+      sender_type: "visitor",
+      sender_id: visitorToken,
+      sender_name: formData.name || "Visitante",
+      content,
+    });
+  };
+
+  const handleSubmitCsat = async () => {
+    if (!roomId || csatScore === 0) return;
+
+    await supabase
+      .from("chat_rooms")
+      .update({ csat_score: csatScore, csat_comment: csatComment || null })
+      .eq("id", roomId);
+
+    postMsg("chat-csat-submitted");
+    setPhase("closed");
+  };
+
+  return (
+    <div className={`${isEmbed ? "" : "min-h-screen flex items-center justify-center bg-muted p-4"}`}>
+      <Card className={`${isEmbed ? "h-full rounded-none border-0" : "w-full max-w-md"} flex flex-col overflow-hidden`}
+        style={isEmbed ? { height: "100vh" } : {}}>
+        {/* Header */}
+        <div className="bg-primary text-primary-foreground p-4 flex items-center gap-3">
+          <MessageSquare className="h-5 w-5" />
+          <div>
+            <p className="font-semibold text-sm">{companyName}</p>
+            <p className="text-xs opacity-80">
+              {phase === "chat" ? "Chat ativo" : phase === "waiting" ? "Aguardando..." : "Suporte"}
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto p-4" ref={scrollRef}>
+          {phase === "form" && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Seu nome" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" type="email" />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
+              </div>
+              <Button className="w-full" onClick={handleStartChat} disabled={loading || !formData.name.trim()}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Iniciar Conversa
+              </Button>
+            </div>
+          )}
+
+          {phase === "waiting" && (
+            <div className="flex flex-col items-center justify-center h-full space-y-4 py-12">
+              <div className="animate-pulse">
+                <MessageSquare className="h-12 w-12 text-primary opacity-50" />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">Aguardando atendimento...</p>
+              <p className="text-xs text-muted-foreground">Você será conectado em breve.</p>
+            </div>
+          )}
+
+          {(phase === "chat" || phase === "csat" || phase === "closed") && (
+            <div className="space-y-3">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.sender_type === "visitor" ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
+                    msg.sender_type === "visitor"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}>
+                    {msg.sender_type !== "visitor" && (
+                      <p className="text-xs font-medium mb-1 opacity-70">{msg.sender_name}</p>
+                    )}
+                    <p>{msg.content}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {phase === "csat" && (
+            <div className="mt-6 space-y-4 border-t pt-4">
+              <p className="text-sm font-medium text-center">Avalie o atendimento</p>
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <button key={v} onClick={() => setCsatScore(v)} className="focus:outline-none">
+                    <Star className={`h-8 w-8 ${v <= csatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />
+                  </button>
+                ))}
+              </div>
+              <Textarea
+                placeholder="Comentário (opcional)"
+                value={csatComment}
+                onChange={(e) => setCsatComment(e.target.value)}
+              />
+              <Button className="w-full" onClick={handleSubmitCsat} disabled={csatScore === 0}>
+                Enviar Avaliação
+              </Button>
+            </div>
+          )}
+
+          {phase === "closed" && (
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              <p>Obrigado pelo feedback! Esta conversa foi encerrada.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Input bar */}
+        {phase === "chat" && (
+          <div className="border-t p-3 flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Digite sua mensagem..."
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            />
+            <Button size="icon" onClick={handleSend} disabled={!input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+export default ChatWidget;

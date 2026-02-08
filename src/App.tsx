@@ -18,6 +18,15 @@ import CSMsPage from "./pages/CSMsPage";
 import CSHealthPage from "./pages/CSHealthPage";
 import CSChurnPage from "./pages/CSChurnPage";
 import CSFinancialPage from "./pages/CSFinancialPage";
+import ChatWidget from "./pages/ChatWidget";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminWorkspace from "./pages/AdminWorkspace";
+import AdminAttendants from "./pages/AdminAttendants";
+import AdminUsers from "./pages/AdminUsers";
+import AdminSettings from "./pages/AdminSettings";
+import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
+import AdminChatHistory from "./pages/AdminChatHistory";
+import PendingApproval from "./pages/PendingApproval";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +51,19 @@ const App = () => (
           <Route path="/cs-churn" element={<CSChurnPage />} />
           <Route path="/cs-financial" element={<CSFinancialPage />} />
           <Route path="/csms" element={<CSMsPage />} />
+          
+          {/* Chat Module Routes */}
+          <Route path="/widget" element={<ChatWidget />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/workspace" element={<AdminWorkspace />} />
+          <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
+          <Route path="/admin/attendants" element={<AdminAttendants />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/settings/:tab" element={<AdminSettings />} />
+          <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
+          <Route path="/admin/history" element={<AdminChatHistory />} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
           
           {/* NPS Module Routes */}
           <Route path="/nps/dashboard" element={<Dashboard />} />
