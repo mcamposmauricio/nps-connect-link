@@ -22,7 +22,7 @@ import ChatWidget from "./pages/ChatWidget";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminWorkspace from "./pages/AdminWorkspace";
 import AdminAttendants from "./pages/AdminAttendants";
-import AdminUsers from "./pages/AdminUsers";
+
 import AdminSettings from "./pages/AdminSettings";
 import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
 import AdminChatHistory from "./pages/AdminChatHistory";
@@ -60,7 +60,7 @@ const App = () => (
           <Route path="/admin/workspace" element={<AdminWorkspace />} />
           <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
           <Route path="/admin/attendants" element={<AdminAttendants />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
+          {/* /admin/users removed - managed via Settings > Team tab */}
           <Route path="/admin/settings" element={<AdminSettings />} />
           <Route path="/admin/settings/:tab" element={<AdminSettings />} />
           <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />

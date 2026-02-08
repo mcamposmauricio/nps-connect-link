@@ -1350,6 +1350,81 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_manage: boolean | null
+          can_view: boolean | null
+          created_at: string | null
+          granted_by: string | null
+          id: string
+          module: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_manage?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          granted_by?: string | null
+          id?: string
+          module: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_manage?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          granted_by?: string | null
+          id?: string
+          module?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          last_sign_in_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          last_sign_in_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          last_sign_in_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
