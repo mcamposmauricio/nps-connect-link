@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatMessages, useChatRooms } from "@/hooks/useChatRealtime";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -35,21 +36,86 @@ const AdminWorkspace = () => {
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
 
   const handleAssignRoom = async (roomId: string) => {
-    const { data: profile } = await supabase
+    if (!user) return;
+
+    // Try to find existing attendant profile
+    let { data: profile } = await supabase
       .from("attendant_profiles")
       .select("id")
-      .eq("user_id", user?.id ?? "")
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    if (profile) {
-      await supabase
-        .from("chat_rooms")
-        .update({
-          attendant_id: profile.id,
-          status: "active",
-          assigned_at: new Date().toISOString(),
+    // If no attendant profile exists, create one on-the-fly for admin users
+    if (!profile) {
+      const { data: newProfile, error: createError } = await supabase
+        .from("attendant_profiles")
+        .insert({
+          user_id: user.id,
+          csm_id: user.id, // fallback - will be overwritten if a real CSM exists
+          display_name: user.email?.split("@")[0] ?? "Admin",
+          status: "online",
         })
-        .eq("id", roomId);
+        .select("id")
+        .single();
+
+      if (createError) {
+        // csm_id FK constraint might fail — try to find/create a CSM first
+        const { data: csm } = await supabase
+          .from("csms")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        let csmId = csm?.id;
+        if (!csmId) {
+          const { data: newCsm } = await supabase
+            .from("csms")
+            .insert({
+              user_id: user.id,
+              name: user.email?.split("@")[0] ?? "Admin",
+              email: user.email ?? "",
+              is_chat_enabled: true,
+            })
+            .select("id")
+            .single();
+          csmId = newCsm?.id;
+        }
+
+        if (!csmId) {
+          toast.error("Não foi possível criar perfil de atendente");
+          return;
+        }
+
+        const { data: retryProfile } = await supabase
+          .from("attendant_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        profile = retryProfile;
+
+        if (!profile) {
+          toast.error("Não foi possível atribuir a conversa. Verifique seu perfil de atendente.");
+          return;
+        }
+      } else {
+        profile = newProfile;
+      }
+    }
+
+    const { error } = await supabase
+      .from("chat_rooms")
+      .update({
+        attendant_id: profile.id,
+        status: "active",
+        assigned_at: new Date().toISOString(),
+      })
+      .eq("id", roomId);
+
+    if (error) {
+      toast.error("Erro ao atribuir conversa");
+    } else {
+      toast.success("Conversa atribuída com sucesso!");
     }
   };
 
