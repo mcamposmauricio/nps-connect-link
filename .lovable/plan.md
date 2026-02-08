@@ -1,137 +1,275 @@
 
-# Plano: Chat ao Vivo no Portal do Cliente
 
-## Objetivo
+# Plano: Sistema Completo de Permissoes nas Configuracoes Gerais
 
-Permitir que o contato abra um novo chat diretamente pelo portal publico (`/portal/:token`), com experiencia completa de tempo real (mensagens, CSAT), e que todas as informacoes sejam replicadas automaticamente nos locais corretos: timeline da empresa, metricas do contato, workspace do admin, e historico.
+## Situacao Atual
 
----
+Hoje o sistema tem um modelo de permissoes muito basico:
+- Tabela `user_roles` com enum `app_role` que aceita apenas `admin` e `attendant`
+- A pagina `AdminUsers` (dentro do modulo Chat) lista roles mostrando apenas IDs truncados de usuarios, sem email nem controle granular
+- O `useAuth` retorna apenas `isAdmin` (boolean) e `isChatEnabled`
+- O sidebar esconde itens do Chat se nao for admin, mas **todas as outras areas ficam acessiveis a qualquer usuario logado** (CS, NPS, Cadastros, Configuracoes)
 
-## Como funciona hoje (base para o plano)
-
-### Triggers existentes que ja garantem a replicacao:
-
-1. **`create_chat_timeline_event`** (INSERT/UPDATE em `chat_rooms`): cria eventos na timeline da empresa quando um chat e aberto ou fechado -- **requer `contact_id` (company) preenchido na room**
-2. **`update_company_contact_chat_metrics`** (UPDATE em `chat_rooms`): atualiza `chat_total`, `chat_avg_csat`, `chat_last_at` no `company_contacts` quando a room e fechada -- **requer `company_contact_id` preenchido**
-3. **RLS publica**: ja permite INSERT publico em `chat_visitors`, `chat_rooms`, e `chat_messages`
-
-Ou seja, se criarmos o chat com os campos corretos (`contact_id`, `company_contact_id`, `owner_user_id`), **toda a replicacao ja acontece automaticamente**.
-
-### O widget atual (`ChatWidget.tsx`)
-
-Usa `owner_user_id = "00000000..."` (placeholder) e nao vincula a `company_contact_id` nem `contact_id`. No portal, temos essa informacao e podemos preencher corretamente.
+**Problemas:**
+1. Nao existe controle de acesso por modulo (CS, NPS, Chat, Cadastros)
+2. Nao existe diferenciacao entre "viewer" e "editor"
+3. A pagina de usuarios so mostra UUID, impossivel saber quem e quem
+4. A gestao de permissoes esta escondida dentro do modulo de Chat, quando deveria ser global
 
 ---
 
 ## O que sera feito
 
-### 1. Reescrever `UserPortal.tsx` para incluir chat ao vivo
+### 1. Nova tabela `user_permissions` para controle granular por modulo
 
-A pagina do portal tera dois modos:
+Criar uma tabela que armazena permissoes por usuario e por modulo:
 
-- **Modo Lista** (padrao): Mostra o historico de chats (como hoje) + botao "Novo Chat"
-- **Modo Chat**: Interface de conversa em tempo real (similar ao widget), com fases: `waiting` -> `chat` -> `csat` -> `closed`
+```sql
+CREATE TABLE public.user_permissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  module text NOT NULL,        -- 'cs', 'nps', 'chat', 'contacts', 'settings'
+  can_view boolean DEFAULT false,
+  can_edit boolean DEFAULT false,
+  can_delete boolean DEFAULT false,
+  can_manage boolean DEFAULT false,  -- permissao total do modulo
+  granted_by uuid,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, module)
+);
+```
 
-#### Fluxo ao clicar "Novo Chat":
+**Modulos disponiveis:**
+- `cs` -- Customer Success (Dashboard, Jornadas, Equipe CS, Relatorios)
+- `nps` -- NPS (Metricas, Pesquisas)
+- `chat` -- Chat de Atendimento (Dashboard, Workspace, Atendentes, Historico, Gerencial, Configuracoes Chat)
+- `contacts` -- Cadastros (Empresas, Pessoas)
+- `settings` -- Configuracoes Gerais (Marca, Email, Notificacoes, API Keys)
 
-1. Verificar se ja existe um chat ativo/esperando para este contato
-   - Se sim, retoma esse chat
-2. Se nao, criar um `chat_visitor` com:
-   - `name`: nome do contato
-   - `email`: email do contato
-   - `phone`: telefone (se existir)
-   - `owner_user_id`: o `user_id` do `company_contacts` (o admin dono)
-   - `company_contact_id`: o ID do contato
-   - `contact_id`: o `company_id` (ID da empresa no `contacts`)
-3. Criar um `chat_room` com:
-   - `visitor_id`: ID do visitor criado
-   - `owner_user_id`: mesmo user_id acima
-   - `company_contact_id`: ID do contato
-   - `contact_id`: company_id (empresa)
-   - `status`: "waiting"
-4. Iniciar subscricao realtime para mensagens e status da room
-5. Quando o admin atribuir a conversa, mudar para fase "chat"
-6. Quando o admin fechar, mostrar formulario CSAT
-7. Ao submeter CSAT, voltar para a lista
+**RLS:** Admins podem ver/editar todas as permissoes. Usuarios comuns podem ver apenas suas proprias.
 
-#### Dados que serao replicados automaticamente:
+### 2. Nova tabela `user_profiles` para identificar usuarios
 
-| Onde | O que | Como |
-|------|-------|------|
-| Timeline da empresa | Evento "Chat iniciado" e "Chat encerrado" | Trigger `create_chat_timeline_event` (ja existe) |
-| Metricas do contato | `chat_total`, `chat_avg_csat`, `chat_last_at` | Trigger `update_company_contact_chat_metrics` (ja existe) |
-| Workspace do admin | Conversa aparece na fila | Realtime em `chat_rooms` (ja existe) |
-| Historico admin | Conversa aparece na listagem | Query em `chat_rooms` (ja existe) |
-| Dashboard gerencial | Contabilizada nas metricas | Queries agregadas (ja existe) |
-| Portal do contato | Aparece na lista de chats | Query por `company_contact_id` (ja existe) |
+```sql
+CREATE TABLE public.user_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  email text NOT NULL,
+  display_name text,
+  avatar_url text,
+  is_active boolean DEFAULT true,
+  last_sign_in_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+```
 
-**Nenhuma alteracao no banco de dados e necessaria.** Todos os triggers e RLS ja estao prontos.
+**Trigger:** Criar automaticamente um perfil quando um usuario faz signup (via trigger em auth.users nao e possivel, mas faremos via codigo no `Auth.tsx` e no `useAuth`).
+
+### 3. Aba "Usuarios e Permissoes" nas Configuracoes Gerais (`Settings.tsx`)
+
+Adicionar uma 5a aba na pagina de Configuracoes (`/nps/settings`):
+
+**Aba "Equipe" (visivel apenas para admins):**
+- Lista de todos os usuarios do sistema com:
+  - Avatar / Iniciais
+  - Nome de exibicao
+  - Email
+  - Role principal (Admin / Atendente / Usuario)
+  - Status (Ativo / Inativo)
+  - Botao "Editar Permissoes"
+
+- Ao clicar em "Editar Permissoes", abre um Dialog/Sheet com:
+  - Info do usuario (nome, email)
+  - Toggle para cada modulo:
+    ```
+    Customer Success    [Visualizar] [Editar] [Gerenciar]
+    NPS                 [Visualizar] [Editar] [Gerenciar]
+    Chat                [Visualizar] [Editar] [Gerenciar]
+    Cadastros           [Visualizar] [Editar] [Gerenciar]
+    Configuracoes       [Visualizar] [Editar] [Gerenciar]
+    ```
+  - Checkbox "Administrador" (toggle da role admin)
+  - Quando admin, todos os modulos ficam automaticamente com acesso total
+
+- Botao "Convidar Usuario" (apenas copia o link de signup com instrucoes)
+
+### 4. Atualizar `useAuth` para carregar permissoes
+
+O hook passara a retornar:
+```typescript
+interface UseAuthReturn {
+  user: User | null;
+  isAdmin: boolean;
+  isChatEnabled: boolean;
+  loading: boolean;
+  permissions: UserPermissions;
+  hasPermission: (module: string, action: 'view' | 'edit' | 'delete' | 'manage') => boolean;
+}
+```
+
+Admins tem acesso total a tudo automaticamente. Para outros usuarios, o acesso e verificado na tabela `user_permissions`.
+
+### 5. Atualizar `AppSidebar.tsx` para respeitar permissoes
+
+Cada grupo de menu sera exibido condicionalmente:
+- **Customer Success**: visivel se `hasPermission('cs', 'view')`
+- **Cadastros**: visivel se `hasPermission('contacts', 'view')`
+- **NPS**: visivel se `hasPermission('nps', 'view')`
+- **Chat**: visivel se `hasPermission('chat', 'view')`
+- Configuracoes: sempre visivel, mas aba "Equipe" so para admins
+
+### 6. Remover pagina `AdminUsers` (substituida pela aba nas Configuracoes)
+
+A gestao de usuarios/permissoes sai do modulo de Chat e vai para as Configuracoes Gerais, que e o local logico.
+
+### 7. Criar perfil automaticamente no login/signup
+
+No `Auth.tsx`, apos login bem-sucedido, fazer upsert em `user_profiles` com email e timestamp de login.
 
 ---
 
-## Detalhes da implementacao
+## Arquivos
 
-### Arquivo: `src/pages/UserPortal.tsx` (reescrever)
-
-**Novos estados:**
-- `chatPhase`: "list" | "waiting" | "chat" | "csat" | "closed"
-- `activeRoomId`: ID da room ativa
-- `liveMessages`: mensagens em tempo real
-- `csatScore`, `csatComment`: para o formulario CSAT
-
-**Novo botao no header da lista:**
-- "Iniciar novo atendimento" -- visivel apenas se nao houver chat ativo/esperando
-
-**Interface de chat (quando `chatPhase !== "list"`):**
-- Header com status (aguardando / ativo)
-- Area de mensagens com scroll automatico
-- Input de texto + botao enviar (apenas quando status = "active")
-- Formulario CSAT (quando status = "closed" e ainda nao avaliou)
-- Botao "Voltar para lista"
-
-**Subscricoes realtime:**
-- Canal de mensagens: `INSERT` em `chat_messages` filtrado por `room_id`
-- Canal de room: `UPDATE` em `chat_rooms` filtrado por `id` (para detectar mudanca de status)
-
-### Arquivo: `src/locales/pt-BR.ts` e `src/locales/en.ts`
-
-Novas chaves:
-- `chat.portal.new_chat`: "Iniciar novo atendimento" / "Start new conversation"
-- `chat.portal.waiting`: "Aguardando atendimento..." / "Waiting for an attendant..."
-- `chat.portal.waiting_desc`: "Voce sera conectado em breve" / "You will be connected shortly"
-- `chat.portal.active_chat`: "Chat ativo" / "Active chat"
-- `chat.portal.type_message`: "Digite sua mensagem..." / "Type your message..."
-- `chat.portal.rate_service`: "Avalie o atendimento" / "Rate the service"
-- `chat.portal.rate_comment`: "Comentario (opcional)" / "Comment (optional)"
-- `chat.portal.submit_rating`: "Enviar avaliacao" / "Submit rating"
-- `chat.portal.thanks`: "Obrigado pelo feedback!" / "Thank you for your feedback!"
-- `chat.portal.back_to_list`: "Voltar" / "Back"
-- `chat.portal.has_active`: "Voce ja tem um atendimento em andamento" / "You already have an active conversation"
-- `chat.portal.resume_chat`: "Continuar conversa" / "Resume conversation"
-
----
-
-## Resumo de arquivos
+### Novos:
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/components/TeamSettingsTab.tsx` | Aba de Equipe nas Configuracoes -- lista usuarios, dialog de permissoes |
+| `src/components/UserPermissionsDialog.tsx` | Dialog para editar permissoes de um usuario especifico |
 
 ### Modificados:
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/UserPortal.tsx` | Reescrever com interface de chat ao vivo completa |
-| `src/locales/pt-BR.ts` | +12 chaves novas para o portal |
-| `src/locales/en.ts` | +12 chaves novas para o portal |
+| Migration SQL | Criar tabelas `user_permissions` e `user_profiles` com RLS |
+| `src/hooks/useAuth.ts` | Adicionar `permissions` e `hasPermission()`, fazer upsert de profile no login |
+| `src/pages/Settings.tsx` | Adicionar 5a aba "Equipe" (condicional para admins) |
+| `src/components/AppSidebar.tsx` | Condicionar cada grupo de menu a `hasPermission` |
+| `src/pages/Auth.tsx` | Fazer upsert em `user_profiles` apos login/signup |
+| `src/App.tsx` | Remover rota `/admin/users` (substituida pela aba nas Configuracoes) |
+| `src/locales/pt-BR.ts` | ~30 novas chaves para a aba de Equipe e permissoes |
+| `src/locales/en.ts` | ~30 novas chaves para a aba de Equipe e permissoes |
 
-### Sem alteracoes:
-- Banco de dados (triggers e RLS ja estao prontos)
-- `AdminWorkspace.tsx` (ja recebe as conversas via realtime)
-- `PersonDetailsSheet.tsx` (ja exibe chats do contato via query)
-- `CompanyCSDetailsSheet.tsx` (timeline ja e populada pelos triggers)
+### Removidos:
+| Arquivo | Motivo |
+|---------|--------|
+| `src/pages/AdminUsers.tsx` | Funcionalidade migrada para aba "Equipe" nas Configuracoes |
 
 ---
 
 ## Detalhes Tecnicos
 
-- **Visitor reutilizavel**: antes de criar um novo visitor, verificar se o contato ja tem um `chat_visitor_id` salvo em `company_contacts`. Se sim, reutilizar. Se nao, criar e salvar o `chat_visitor_id` no contato.
-- **Campos criticos na room**: `owner_user_id`, `contact_id`, e `company_contact_id` DEVEM ser preenchidos para que os triggers disparem corretamente
-- **Realtime**: duas subscricoes -- uma para mensagens novas (INSERT), outra para mudanca de status da room (UPDATE)
-- **CSAT**: o formulario e exibido no portal quando o admin fecha a conversa. O contato avalia e o score e salvo na room, disparando o trigger de metricas
-- **Sem autenticacao**: todo o fluxo usa as RLS publicas ja configuradas (INSERT publico em visitors, rooms e messages; SELECT publico em rooms e messages)
+### Migration SQL
+
+```sql
+-- 1. Tabela de perfis
+CREATE TABLE public.user_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  email text NOT NULL,
+  display_name text,
+  avatar_url text,
+  is_active boolean DEFAULT true,
+  last_sign_in_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Admins veem todos, usuarios veem apenas o proprio
+CREATE POLICY "Admins can view all profiles"
+  ON public.user_profiles FOR SELECT
+  USING (has_role(auth.uid(), 'admin') OR auth.uid() = user_id);
+
+CREATE POLICY "Users can update own profile"
+  ON public.user_profiles FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own profile"
+  ON public.user_profiles FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins can update any profile"
+  ON public.user_profiles FOR UPDATE
+  USING (has_role(auth.uid(), 'admin'));
+
+-- 2. Tabela de permissoes
+CREATE TABLE public.user_permissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  module text NOT NULL,
+  can_view boolean DEFAULT false,
+  can_edit boolean DEFAULT false,
+  can_delete boolean DEFAULT false,
+  can_manage boolean DEFAULT false,
+  granted_by uuid,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, module)
+);
+ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can manage all permissions"
+  ON public.user_permissions FOR ALL
+  USING (has_role(auth.uid(), 'admin'))
+  WITH CHECK (has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Users can view own permissions"
+  ON public.user_permissions FOR SELECT
+  USING (auth.uid() = user_id);
+```
+
+### Logica de permissao no `useAuth`
+
+```typescript
+const hasPermission = (module: string, action: 'view' | 'edit' | 'delete' | 'manage') => {
+  if (isAdmin) return true; // Admin tem acesso total
+  const perm = permissions.find(p => p.module === module);
+  if (!perm) return false;
+  if (perm.can_manage) return true; // Manage inclui tudo
+  switch (action) {
+    case 'view': return perm.can_view;
+    case 'edit': return perm.can_edit || perm.can_manage;
+    case 'delete': return perm.can_delete || perm.can_manage;
+    case 'manage': return perm.can_manage;
+  }
+};
+```
+
+### Sidebar condicional
+
+```typescript
+// Exemplo: grupo CS so aparece se tiver permissao
+{hasPermission('cs', 'view') && (
+  <SidebarGroup>
+    <SidebarGroupLabel>{t("cs.title")}</SidebarGroupLabel>
+    ...
+  </SidebarGroup>
+)}
+```
+
+### Perfil automatico no login
+
+No `Auth.tsx`, apos login bem-sucedido:
+```typescript
+await supabase.from('user_profiles').upsert({
+  user_id: session.user.id,
+  email: session.user.email,
+  display_name: session.user.email.split('@')[0],
+  last_sign_in_at: new Date().toISOString(),
+}, { onConflict: 'user_id' });
+```
+
+---
+
+## Ordem de Implementacao
+
+1. Migration SQL (criar tabelas + RLS)
+2. Atualizar `useAuth.ts` com `permissions` e `hasPermission`
+3. Atualizar `Auth.tsx` com upsert de profile
+4. Criar `TeamSettingsTab.tsx` e `UserPermissionsDialog.tsx`
+5. Atualizar `Settings.tsx` com aba "Equipe"
+6. Atualizar `AppSidebar.tsx` com condicionais de permissao
+7. Atualizar i18n (pt-BR e en)
+8. Remover `AdminUsers.tsx` e rota `/admin/users` do sidebar e `App.tsx`
+
