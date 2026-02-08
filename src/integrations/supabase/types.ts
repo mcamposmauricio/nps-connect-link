@@ -53,6 +53,53 @@ export type Database = {
         }
         Relationships: []
       }
+      attendant_profiles: {
+        Row: {
+          active_conversations: number | null
+          avatar_url: string | null
+          created_at: string | null
+          csm_id: string
+          display_name: string
+          id: string
+          max_conversations: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_conversations?: number | null
+          avatar_url?: string | null
+          created_at?: string | null
+          csm_id: string
+          display_name: string
+          id?: string
+          max_conversations?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_conversations?: number | null
+          avatar_url?: string | null
+          created_at?: string | null
+          csm_id?: string
+          display_name?: string
+          id?: string
+          max_conversations?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendant_profiles_csm_id_fkey"
+            columns: ["csm_id"]
+            isOneToOne: false
+            referencedRelation: "csms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_settings: {
         Row: {
           accent_color: string | null
@@ -266,8 +313,331 @@ export type Database = {
           },
         ]
       }
+      chat_macros: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          id: string
+          shortcut: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          shortcut?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          shortcut?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_internal: boolean | null
+          message_type: string | null
+          metadata: Json | null
+          room_id: string
+          sender_id: string | null
+          sender_name: string | null
+          sender_type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_internal?: boolean | null
+          message_type?: string | null
+          metadata?: Json | null
+          room_id: string
+          sender_id?: string | null
+          sender_name?: string | null
+          sender_type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_internal?: boolean | null
+          message_type?: string | null
+          metadata?: Json | null
+          room_id?: string
+          sender_id?: string | null
+          sender_name?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_room_tags: {
+        Row: {
+          room_id: string
+          tag_id: string
+        }
+        Insert: {
+          room_id: string
+          tag_id: string
+        }
+        Update: {
+          room_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_tags_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_room_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "chat_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          assigned_at: string | null
+          attendant_id: string | null
+          closed_at: string | null
+          company_contact_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          csat_comment: string | null
+          csat_score: number | null
+          id: string
+          metadata: Json | null
+          owner_user_id: string
+          priority: string | null
+          started_at: string | null
+          status: string | null
+          updated_at: string | null
+          visitor_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          attendant_id?: string | null
+          closed_at?: string | null
+          company_contact_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          csat_comment?: string | null
+          csat_score?: number | null
+          id?: string
+          metadata?: Json | null
+          owner_user_id: string
+          priority?: string | null
+          started_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          visitor_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          attendant_id?: string | null
+          closed_at?: string | null
+          company_contact_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          csat_comment?: string | null
+          csat_score?: number | null
+          id?: string
+          metadata?: Json | null
+          owner_user_id?: string
+          priority?: string | null
+          started_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_attendant_id_fkey"
+            columns: ["attendant_id"]
+            isOneToOne: false
+            referencedRelation: "attendant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_company_contact_id_fkey"
+            columns: ["company_contact_id"]
+            isOneToOne: false
+            referencedRelation: "company_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_visitor_id_fkey"
+            columns: ["visitor_id"]
+            isOneToOne: false
+            referencedRelation: "chat_visitors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_settings: {
+        Row: {
+          auto_assignment: boolean | null
+          business_hours: Json | null
+          created_at: string | null
+          id: string
+          max_queue_size: number | null
+          offline_message: string | null
+          require_approval: boolean | null
+          updated_at: string | null
+          user_id: string
+          welcome_message: string | null
+        }
+        Insert: {
+          auto_assignment?: boolean | null
+          business_hours?: Json | null
+          created_at?: string | null
+          id?: string
+          max_queue_size?: number | null
+          offline_message?: string | null
+          require_approval?: boolean | null
+          updated_at?: string | null
+          user_id: string
+          welcome_message?: string | null
+        }
+        Update: {
+          auto_assignment?: boolean | null
+          business_hours?: Json | null
+          created_at?: string | null
+          id?: string
+          max_queue_size?: number | null
+          offline_message?: string | null
+          require_approval?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+          welcome_message?: string | null
+        }
+        Relationships: []
+      }
+      chat_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_visitors: {
+        Row: {
+          company_contact_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          department: string | null
+          email: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          owner_user_id: string
+          phone: string | null
+          role: string | null
+          visitor_token: string | null
+        }
+        Insert: {
+          company_contact_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          owner_user_id: string
+          phone?: string | null
+          role?: string | null
+          visitor_token?: string | null
+        }
+        Update: {
+          company_contact_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          owner_user_id?: string
+          phone?: string | null
+          role?: string | null
+          visitor_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_visitors_company_contact_id_fkey"
+            columns: ["company_contact_id"]
+            isOneToOne: false
+            referencedRelation: "company_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_visitors_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_contacts: {
         Row: {
+          chat_avg_csat: number | null
+          chat_last_at: string | null
+          chat_total: number | null
+          chat_visitor_id: string | null
           company_id: string
           created_at: string | null
           custom_fields: Json | null
@@ -283,6 +653,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_avg_csat?: number | null
+          chat_last_at?: string | null
+          chat_total?: number | null
+          chat_visitor_id?: string | null
           company_id: string
           created_at?: string | null
           custom_fields?: Json | null
@@ -298,6 +672,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_avg_csat?: number | null
+          chat_last_at?: string | null
+          chat_total?: number | null
+          chat_visitor_id?: string | null
           company_id?: string
           created_at?: string | null
           custom_fields?: Json | null
@@ -425,12 +803,14 @@ export type Database = {
       }
       csms: {
         Row: {
+          chat_max_conversations: number | null
           created_at: string | null
           department: string | null
           email: string
           hire_date: string | null
           id: string
           is_active: boolean | null
+          is_chat_enabled: boolean | null
           name: string
           phone: string | null
           specialty: string[] | null
@@ -438,12 +818,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_max_conversations?: number | null
           created_at?: string | null
           department?: string | null
           email: string
           hire_date?: string | null
           id?: string
           is_active?: boolean | null
+          is_chat_enabled?: boolean | null
           name: string
           phone?: string | null
           specialty?: string[] | null
@@ -451,12 +833,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_max_conversations?: number | null
           created_at?: string | null
           department?: string | null
           email?: string
           hire_date?: string | null
           id?: string
           is_active?: boolean | null
+          is_chat_enabled?: boolean | null
           name?: string
           phone?: string | null
           specialty?: string[] | null
@@ -861,14 +1245,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "attendant"
       timeline_event_type:
         | "meeting"
         | "email"
@@ -877,6 +1286,8 @@ export type Database = {
         | "payment"
         | "activity"
         | "nps_response"
+        | "chat_opened"
+        | "chat_closed"
       trail_type: "default" | "overdue" | "attention" | "nps"
     }
     CompositeTypes: {
@@ -1005,6 +1416,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "attendant"],
       timeline_event_type: [
         "meeting",
         "email",
@@ -1013,6 +1425,8 @@ export const Constants = {
         "payment",
         "activity",
         "nps_response",
+        "chat_opened",
+        "chat_closed",
       ],
       trail_type: ["default", "overdue", "attention", "nps"],
     },

@@ -1,0 +1,153 @@
+import { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
+import SidebarLayout from "@/components/SidebarLayout";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useChatMessages, useChatRooms } from "@/hooks/useChatRealtime";
+import { supabase } from "@/integrations/supabase/client";
+import { ChatRoomList } from "@/components/chat/ChatRoomList";
+import { ChatMessageList } from "@/components/chat/ChatMessageList";
+import { ChatInput } from "@/components/chat/ChatInput";
+import { VisitorInfoPanel } from "@/components/chat/VisitorInfoPanel";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { MessageSquare } from "lucide-react";
+
+const AdminWorkspace = () => {
+  const { roomId: paramRoomId } = useParams();
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
+  const { rooms, loading: roomsLoading } = useChatRooms(user?.id ?? null);
+  const { messages, loading: messagesLoading } = useChatMessages(selectedRoomId);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (paramRoomId) setSelectedRoomId(paramRoomId);
+  }, [paramRoomId]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
+
+  const handleAssignRoom = async (roomId: string) => {
+    const { data: profile } = await supabase
+      .from("attendant_profiles")
+      .select("id")
+      .eq("user_id", user?.id ?? "")
+      .maybeSingle();
+
+    if (profile) {
+      await supabase
+        .from("chat_rooms")
+        .update({
+          attendant_id: profile.id,
+          status: "active",
+          assigned_at: new Date().toISOString(),
+        })
+        .eq("id", roomId);
+    }
+  };
+
+  const handleCloseRoom = async (roomId: string) => {
+    await supabase
+      .from("chat_rooms")
+      .update({
+        status: "closed",
+        closed_at: new Date().toISOString(),
+      })
+      .eq("id", roomId);
+  };
+
+  const handleSendMessage = async (content: string, isInternal = false) => {
+    if (!selectedRoomId || !user) return;
+
+    await supabase.from("chat_messages").insert({
+      room_id: selectedRoomId,
+      sender_type: "attendant",
+      sender_id: user.id,
+      sender_name: user.email?.split("@")[0] ?? "Atendente",
+      content,
+      is_internal: isInternal,
+    });
+  };
+
+  return (
+    <SidebarLayout>
+      <div className="h-[calc(100vh-8rem)] flex gap-4">
+        {/* Left: Room list */}
+        <div className="w-80 shrink-0">
+          <ChatRoomList
+            rooms={rooms}
+            selectedRoomId={selectedRoomId}
+            onSelectRoom={setSelectedRoomId}
+            loading={roomsLoading}
+          />
+        </div>
+
+        {/* Center: Chat area */}
+        <div className="flex-1 flex flex-col">
+          {selectedRoom ? (
+            <>
+              <Card className="p-3 mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <span className="font-medium text-sm">
+                    {t("chat.workspace.room")} #{selectedRoom.id.slice(0, 8)}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
+                    selectedRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    {selectedRoom.status}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {selectedRoom.status === "waiting" && (
+                    <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>
+                      {t("chat.workspace.assign")}
+                    </Button>
+                  )}
+                  {selectedRoom.status === "active" && (
+                    <Button size="sm" variant="destructive" onClick={() => handleCloseRoom(selectedRoom.id)}>
+                      {t("chat.workspace.close")}
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              <div ref={scrollRef} className="flex-1 overflow-auto">
+                <ChatMessageList messages={messages} loading={messagesLoading} />
+              </div>
+
+              {selectedRoom.status !== "closed" && (
+                <ChatInput onSend={handleSendMessage} />
+              )}
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <div className="text-center space-y-2">
+                <MessageSquare className="h-12 w-12 mx-auto opacity-30" />
+                <p>{t("chat.workspace.select_room")}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Visitor info */}
+        {selectedRoom && (
+          <div className="w-72 shrink-0">
+            <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} />
+          </div>
+        )}
+      </div>
+    </SidebarLayout>
+  );
+};
+
+export default AdminWorkspace;
