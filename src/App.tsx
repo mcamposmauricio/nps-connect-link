@@ -27,6 +27,7 @@ import AdminSettings from "./pages/AdminSettings";
 import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
 import AdminChatHistory from "./pages/AdminChatHistory";
 import PendingApproval from "./pages/PendingApproval";
+import UserPortal from "./pages/UserPortal";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
           <Route path="/admin/history" element={<AdminChatHistory />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
+          <Route path="/portal/:token" element={<UserPortal />} />
           
           {/* NPS Module Routes */}
           <Route path="/nps/dashboard" element={<Dashboard />} />
