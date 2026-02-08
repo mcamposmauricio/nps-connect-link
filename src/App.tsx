@@ -28,6 +28,7 @@ import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
 import AdminChatHistory from "./pages/AdminChatHistory";
 import PendingApproval from "./pages/PendingApproval";
 import UserPortal from "./pages/UserPortal";
+import People from "./pages/People";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
           {/* NPS Module Routes */}
           <Route path="/nps/dashboard" element={<Dashboard />} />
           <Route path="/nps/contacts" element={<Contacts />} />
+          <Route path="/nps/people" element={<People />} />
           <Route path="/nps/campaigns" element={<Campaigns />} />
           <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
           <Route path="/nps/settings" element={<Settings />} />

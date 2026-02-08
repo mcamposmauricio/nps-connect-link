@@ -168,6 +168,16 @@ export function AppSidebar() {
                   <span>{t("nav.companies")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate("/nps/people")}
+                  isActive={isActive("/nps/people")}
+                  tooltip={t("nav.people")}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>{t("nav.people")}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
