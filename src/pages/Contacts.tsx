@@ -43,6 +43,7 @@ interface CompanyContact {
   is_primary: boolean;
   created_at: string;
   external_id: string | null;
+  public_token: string | null;
 }
 
 interface Company {
@@ -131,6 +132,7 @@ const Contacts = () => {
             is_primary: primaryContact.is_primary,
             created_at: primaryContact.created_at,
             external_id: primaryContact.external_id,
+            public_token: primaryContact.public_token,
           } : null,
         };
       });

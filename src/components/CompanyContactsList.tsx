@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Star, User, Trash2, Edit, Plus, Loader2 } from "lucide-react";
+import { Star, User, Trash2, Edit, Plus, Loader2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ interface CompanyContact {
   is_primary: boolean;
   created_at: string;
   external_id: string | null;
+  public_token: string | null;
 }
 
 interface CompanyContactsListProps {
@@ -45,7 +47,16 @@ export function CompanyContactsList({
   loading = false,
 }: CompanyContactsListProps) {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
+
+  const copyPortalLink = (token: string | null, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!token) return;
+    const url = `${window.location.origin}/portal/${token}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: t("people.linkCopied") });
+  };
 
   const sortedContacts = [...contacts].sort((a, b) => {
     if (a.is_primary && !b.is_primary) return -1;
@@ -111,6 +122,17 @@ export function CompanyContactsList({
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {contact.public_token && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => copyPortalLink(contact.public_token, e)}
+                      title={t("people.copyLink")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
                   {!contact.is_primary && (
                     <Button
                       variant="ghost"
