@@ -1,122 +1,137 @@
 
-# Plano: Lista de Pessoas (Contatos) + Link do Portal Publico
+# Plano: Chat ao Vivo no Portal do Cliente
+
+## Objetivo
+
+Permitir que o contato abra um novo chat diretamente pelo portal publico (`/portal/:token`), com experiencia completa de tempo real (mensagens, CSAT), e que todas as informacoes sejam replicadas automaticamente nos locais corretos: timeline da empresa, metricas do contato, workspace do admin, e historico.
+
+---
+
+## Como funciona hoje (base para o plano)
+
+### Triggers existentes que ja garantem a replicacao:
+
+1. **`create_chat_timeline_event`** (INSERT/UPDATE em `chat_rooms`): cria eventos na timeline da empresa quando um chat e aberto ou fechado -- **requer `contact_id` (company) preenchido na room**
+2. **`update_company_contact_chat_metrics`** (UPDATE em `chat_rooms`): atualiza `chat_total`, `chat_avg_csat`, `chat_last_at` no `company_contacts` quando a room e fechada -- **requer `company_contact_id` preenchido**
+3. **RLS publica**: ja permite INSERT publico em `chat_visitors`, `chat_rooms`, e `chat_messages`
+
+Ou seja, se criarmos o chat com os campos corretos (`contact_id`, `company_contact_id`, `owner_user_id`), **toda a replicacao ja acontece automaticamente**.
+
+### O widget atual (`ChatWidget.tsx`)
+
+Usa `owner_user_id = "00000000..."` (placeholder) e nao vincula a `company_contact_id` nem `contact_id`. No portal, temos essa informacao e podemos preencher corretamente.
+
+---
 
 ## O que sera feito
 
-Hoje o sistema tem apenas a visao de **Empresas** no menu "Cadastros". Cada empresa tem seus contatos (people) dentro de um Sheet lateral. O pedido e:
+### 1. Reescrever `UserPortal.tsx` para incluir chat ao vivo
 
-1. Criar uma **nova pagina "Pessoas"** (`/nps/people`) que lista TODOS os `company_contacts` de forma independente, similar a pagina de Empresas
-2. Ao clicar em uma pessoa, abrir um **Sheet de detalhes completo** consolidando: dados pessoais, empresa vinculada, historico de chats, CSAT medio, ultimo NPS da empresa, timeline e link do portal publico
-3. Cada contato mostra o **link publico do portal** (`/portal/:token`) com botao de copiar -- visivel tanto na lista de pessoas quanto no Sheet de detalhes da empresa existente
-4. Adicionar **"Pessoas"** como segundo item na secao "Cadastros" do menu lateral
+A pagina do portal tera dois modos:
 
----
+- **Modo Lista** (padrao): Mostra o historico de chats (como hoje) + botao "Novo Chat"
+- **Modo Chat**: Interface de conversa em tempo real (similar ao widget), com fases: `waiting` -> `chat` -> `csat` -> `closed`
 
-## Estrutura de Dados (Sem alteracoes no banco)
+#### Fluxo ao clicar "Novo Chat":
 
-Todas as colunas necessarias ja existem:
+1. Verificar se ja existe um chat ativo/esperando para este contato
+   - Se sim, retoma esse chat
+2. Se nao, criar um `chat_visitor` com:
+   - `name`: nome do contato
+   - `email`: email do contato
+   - `phone`: telefone (se existir)
+   - `owner_user_id`: o `user_id` do `company_contacts` (o admin dono)
+   - `company_contact_id`: o ID do contato
+   - `contact_id`: o `company_id` (ID da empresa no `contacts`)
+3. Criar um `chat_room` com:
+   - `visitor_id`: ID do visitor criado
+   - `owner_user_id`: mesmo user_id acima
+   - `company_contact_id`: ID do contato
+   - `contact_id`: company_id (empresa)
+   - `status`: "waiting"
+4. Iniciar subscricao realtime para mensagens e status da room
+5. Quando o admin atribuir a conversa, mudar para fase "chat"
+6. Quando o admin fechar, mostrar formulario CSAT
+7. Ao submeter CSAT, voltar para a lista
 
-- `company_contacts.public_token` -- ja existe, gerado automaticamente
-- `company_contacts.chat_total`, `chat_avg_csat`, `chat_last_at` -- ja existem
-- `company_contacts.company_id` -- referencia para `contacts` (empresa)
+#### Dados que serao replicados automaticamente:
 
-Nenhuma migration SQL necessaria.
+| Onde | O que | Como |
+|------|-------|------|
+| Timeline da empresa | Evento "Chat iniciado" e "Chat encerrado" | Trigger `create_chat_timeline_event` (ja existe) |
+| Metricas do contato | `chat_total`, `chat_avg_csat`, `chat_last_at` | Trigger `update_company_contact_chat_metrics` (ja existe) |
+| Workspace do admin | Conversa aparece na fila | Realtime em `chat_rooms` (ja existe) |
+| Historico admin | Conversa aparece na listagem | Query em `chat_rooms` (ja existe) |
+| Dashboard gerencial | Contabilizada nas metricas | Queries agregadas (ja existe) |
+| Portal do contato | Aparece na lista de chats | Query por `company_contact_id` (ja existe) |
 
----
-
-## Arquivos Novos
-
-### 1. `src/pages/People.tsx`
-
-Pagina principal com:
-- Titulo "Pessoas" / "People" com contador total
-- Campo de busca (filtro por nome/email)
-- Tabela com colunas: Nome, Email, Empresa, Cargo, Telefone, Chats, CSAT, Portal
-- Coluna "Portal" com icone de link que copia o URL `{origin}/portal/{public_token}` ao clicar
-- Ao clicar na linha, abre Sheet de detalhes
-- Fetch: busca todos `company_contacts` do usuario com join para `contacts` (empresa) via `company_id`
-
-### 2. `src/components/PersonDetailsSheet.tsx`
-
-Sheet lateral com abas (similar ao `CompanyCSDetailsSheet`):
-
-**Aba "Visao Geral":**
-- Dados pessoais: nome, email, telefone, cargo, departamento, ID externo
-- Empresa vinculada: nome da empresa (clicavel, poderia navegar)
-- Link publico do portal com botao de copiar
-- Metricas de chat: total de chats, CSAT medio, ultimo chat
-
-**Aba "Chats":**
-- Lista de `chat_rooms` vinculadas a esse `company_contact_id`
-- Status, data, CSAT de cada conversa
-- Expandir para ver transcript (similar ao UserPortal)
-
-**Aba "Timeline":**
-- Eventos da timeline da empresa vinculada (filtrado pelo contact se possivel)
+**Nenhuma alteracao no banco de dados e necessaria.** Todos os triggers e RLS ja estao prontos.
 
 ---
 
-## Arquivos Modificados
+## Detalhes da implementacao
 
-### 3. `src/components/CompanyContactsList.tsx`
+### Arquivo: `src/pages/UserPortal.tsx` (reescrever)
 
-Adicionar botao de "Copiar Link do Portal" em cada contato na lista existente (icone de link ao lado dos botoes de editar/excluir). Ao clicar, copia `{origin}/portal/{contact.public_token}` e mostra toast "Link copiado!".
+**Novos estados:**
+- `chatPhase`: "list" | "waiting" | "chat" | "csat" | "closed"
+- `activeRoomId`: ID da room ativa
+- `liveMessages`: mensagens em tempo real
+- `csatScore`, `csatComment`: para o formulario CSAT
 
-Requer que a interface `CompanyContact` inclua `public_token`.
+**Novo botao no header da lista:**
+- "Iniciar novo atendimento" -- visivel apenas se nao houver chat ativo/esperando
 
-### 4. `src/components/AppSidebar.tsx`
+**Interface de chat (quando `chatPhase !== "list"`):**
+- Header com status (aguardando / ativo)
+- Area de mensagens com scroll automatico
+- Input de texto + botao enviar (apenas quando status = "active")
+- Formulario CSAT (quando status = "closed" e ainda nao avaliou)
+- Botao "Voltar para lista"
 
-Adicionar item "Pessoas" na secao "Cadastros", abaixo de "Empresas":
-```
-Cadastros
-  Empresas   -> /nps/contacts
-  Pessoas    -> /nps/people
-```
+**Subscricoes realtime:**
+- Canal de mensagens: `INSERT` em `chat_messages` filtrado por `room_id`
+- Canal de room: `UPDATE` em `chat_rooms` filtrado por `id` (para detectar mudanca de status)
 
-### 5. `src/App.tsx`
-
-Adicionar rota: `<Route path="/nps/people" element={<People />} />`
-
-### 6. `src/locales/pt-BR.ts` e `src/locales/en.ts`
+### Arquivo: `src/locales/pt-BR.ts` e `src/locales/en.ts`
 
 Novas chaves:
-- `nav.people`: "Pessoas" / "People"
-- `people.title`: "Pessoas" / "People"
-- `people.subtitle`: "Todos os contatos do sistema" / "All contacts in the system"
-- `people.search`: "Buscar por nome ou email..." / "Search by name or email..."
-- `people.company`: "Empresa" / "Company"
-- `people.chats`: "Chats" / "Chats"
-- `people.noResults`: "Nenhuma pessoa encontrada" / "No people found"
-- `people.details`: "Detalhes do Contato" / "Contact Details"
-- `people.chatHistory`: "Historico de Chats" / "Chat History"
-- `people.portalLink`: "Link do Portal" / "Portal Link"
-- `people.copyLink`: "Copiar Link" / "Copy Link"
-- `people.linkCopied`: "Link copiado!" / "Link copied!"
-- `people.overview`: "Visao Geral" / "Overview"
+- `chat.portal.new_chat`: "Iniciar novo atendimento" / "Start new conversation"
+- `chat.portal.waiting`: "Aguardando atendimento..." / "Waiting for an attendant..."
+- `chat.portal.waiting_desc`: "Voce sera conectado em breve" / "You will be connected shortly"
+- `chat.portal.active_chat`: "Chat ativo" / "Active chat"
+- `chat.portal.type_message`: "Digite sua mensagem..." / "Type your message..."
+- `chat.portal.rate_service`: "Avalie o atendimento" / "Rate the service"
+- `chat.portal.rate_comment`: "Comentario (opcional)" / "Comment (optional)"
+- `chat.portal.submit_rating`: "Enviar avaliacao" / "Submit rating"
+- `chat.portal.thanks`: "Obrigado pelo feedback!" / "Thank you for your feedback!"
+- `chat.portal.back_to_list`: "Voltar" / "Back"
+- `chat.portal.has_active`: "Voce ja tem um atendimento em andamento" / "You already have an active conversation"
+- `chat.portal.resume_chat`: "Continuar conversa" / "Resume conversation"
 
-### 7. `src/pages/Contacts.tsx`
+---
 
-Alterar o fetch de `company_contacts` para incluir o campo `public_token` (ja vem por padrao no SELECT *, mas garantir na interface).
+## Resumo de arquivos
+
+### Modificados:
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/UserPortal.tsx` | Reescrever com interface de chat ao vivo completa |
+| `src/locales/pt-BR.ts` | +12 chaves novas para o portal |
+| `src/locales/en.ts` | +12 chaves novas para o portal |
+
+### Sem alteracoes:
+- Banco de dados (triggers e RLS ja estao prontos)
+- `AdminWorkspace.tsx` (ja recebe as conversas via realtime)
+- `PersonDetailsSheet.tsx` (ja exibe chats do contato via query)
+- `CompanyCSDetailsSheet.tsx` (timeline ja e populada pelos triggers)
 
 ---
 
 ## Detalhes Tecnicos
 
-- **Busca de pessoas**: `SELECT * FROM company_contacts WHERE user_id = auth.uid()` com join manual para buscar nome da empresa em `contacts`
-- **Filtro**: `.ilike('name', '%search%')` ou `.or('name.ilike.%s%,email.ilike.%s%')` no Supabase
-- **Copiar link**: `navigator.clipboard.writeText(url)` + toast de confirmacao
-- **Sheet de detalhes**: Reutiliza padrao do `CompanyCSDetailsSheet` com Tabs
-- **Performance**: Busca empresa junto no fetch inicial para evitar N+1 queries
-
----
-
-## Ordem de Implementacao
-
-1. Traducoes i18n (pt-BR e en)
-2. Pagina `People.tsx` com tabela e busca
-3. Componente `PersonDetailsSheet.tsx` com abas
-4. Atualizar `CompanyContactsList.tsx` com botao de copiar link do portal
-5. Atualizar `AppSidebar.tsx` com item "Pessoas"
-6. Atualizar `App.tsx` com rota
-7. Atualizar `Contacts.tsx` para incluir `public_token` na interface
-
+- **Visitor reutilizavel**: antes de criar um novo visitor, verificar se o contato ja tem um `chat_visitor_id` salvo em `company_contacts`. Se sim, reutilizar. Se nao, criar e salvar o `chat_visitor_id` no contato.
+- **Campos criticos na room**: `owner_user_id`, `contact_id`, e `company_contact_id` DEVEM ser preenchidos para que os triggers disparem corretamente
+- **Realtime**: duas subscricoes -- uma para mensagens novas (INSERT), outra para mudanca de status da room (UPDATE)
+- **CSAT**: o formulario e exibido no portal quando o admin fecha a conversa. O contato avalia e o score e salvo na room, disparando o trigger de metricas
+- **Sem autenticacao**: todo o fluxo usa as RLS publicas ja configuradas (INSERT publico em visitors, rooms e messages; SELECT publico em rooms e messages)
