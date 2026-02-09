@@ -26,6 +26,7 @@ import AdminAttendants from "./pages/AdminAttendants";
 import AdminSettings from "./pages/AdminSettings";
 import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
 import AdminChatHistory from "./pages/AdminChatHistory";
+import AdminBanners from "./pages/AdminBanners";
 import PendingApproval from "./pages/PendingApproval";
 import UserPortal from "./pages/UserPortal";
 import People from "./pages/People";
@@ -66,6 +67,7 @@ const App = () => (
           <Route path="/admin/settings/:tab" element={<AdminSettings />} />
           <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
           <Route path="/admin/history" element={<AdminChatHistory />} />
+          <Route path="/admin/banners" element={<AdminBanners />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
           <Route path="/portal/:token" element={<UserPortal />} />
           
