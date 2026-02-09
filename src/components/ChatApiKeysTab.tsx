@@ -159,12 +159,13 @@ const ChatApiKeysTab = () => {
 
   const getIntegrationCode = (apiKey: ApiKey) => {
     const baseUrl = window.location.origin;
-    const actualKey = apiKey.encrypted_key || 'YOUR_API_KEY';
 
-    return `<iframe
-  src="${baseUrl}/widget?embed=true&api_key=${actualKey}"
-  style="position:fixed;bottom:20px;right:20px;width:400px;height:600px;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;"
-></iframe>`;
+    return `<script src="${baseUrl}/nps-chat-embed.js"
+  data-tenant-id="YOUR_TENANT_ID"
+  data-position="right"
+  data-primary-color="#7C3AED"
+  data-company-name="Suporte">
+</script>`;
   };
 
   return (

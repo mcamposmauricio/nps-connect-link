@@ -6,20 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Send, Star, Loader2, X, ThumbsUp, ThumbsDown, ExternalLink } from "lucide-react";
+import { MessageSquare, Send, Star, Loader2, X } from "lucide-react";
 
 type WidgetPhase = "form" | "waiting" | "chat" | "csat" | "closed";
-
-interface BannerData {
-  assignment_id: string;
-  content: string;
-  bg_color: string;
-  text_color: string;
-  link_url: string | null;
-  link_label: string | null;
-  has_voting: boolean;
-  vote: string | null;
-}
 
 const ChatWidget = () => {
   const [searchParams] = useSearchParams();
@@ -39,8 +28,6 @@ const ChatWidget = () => {
   const [csatComment, setCsatComment] = useState("");
   const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
-  const [banners, setBanners] = useState<BannerData[]>([]);
-  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isRight = position !== "left";
@@ -53,79 +40,6 @@ const ChatWidget = () => {
       checkExistingRoom(savedToken);
     }
   }, []);
-
-  // Load banners for visitor
-  useEffect(() => {
-    if (!visitorToken || !tenantId) return;
-    loadBanners();
-  }, [visitorToken, tenantId]);
-
-  const loadBanners = async () => {
-    if (!visitorToken) return;
-
-    const { data: visitor } = await supabase
-      .from("chat_visitors")
-      .select("contact_id")
-      .eq("visitor_token", visitorToken)
-      .maybeSingle();
-
-    if (!visitor?.contact_id) return;
-
-    const { data } = await supabase
-      .from("chat_banner_assignments")
-      .select("id, vote, banner_id")
-      .eq("contact_id", visitor.contact_id)
-      .eq("is_active", true);
-
-    if (!data || data.length === 0) return;
-
-    const bannerIds = data.map((a) => a.banner_id);
-    const { data: bannersData } = await supabase
-      .from("chat_banners")
-      .select("id, content, bg_color, text_color, link_url, link_label, has_voting")
-      .in("id", bannerIds)
-      .eq("is_active", true);
-
-    if (!bannersData) return;
-
-    const merged: BannerData[] = data
-      .map((assignment) => {
-        const banner = bannersData.find((b) => b.id === assignment.banner_id);
-        if (!banner) return null;
-        return {
-          assignment_id: assignment.id,
-          content: banner.content,
-          bg_color: banner.bg_color ?? "#3B82F6",
-          text_color: banner.text_color ?? "#FFFFFF",
-          link_url: banner.link_url,
-          link_label: banner.link_label,
-          has_voting: banner.has_voting ?? false,
-          vote: assignment.vote,
-        };
-      })
-      .filter(Boolean) as BannerData[];
-
-    setBanners(merged);
-
-    // Increment views
-    for (const a of data) {
-      await supabase
-        .from("chat_banner_assignments")
-        .update({ views_count: ((a as any).views_count ?? 0) + 1 } as any)
-        .eq("id", a.id);
-    }
-  };
-
-  const handleVote = async (assignmentId: string, voteType: "up" | "down") => {
-    await supabase
-      .from("chat_banner_assignments")
-      .update({ vote: voteType, voted_at: new Date().toISOString() } as any)
-      .eq("id", assignmentId);
-
-    setBanners((prev) =>
-      prev.map((b) => (b.assignment_id === assignmentId ? { ...b, vote: voteType } : b))
-    );
-  };
 
   // Realtime messages
   useEffect(() => {
@@ -276,8 +190,6 @@ const ChatWidget = () => {
     setPhase("closed");
   };
 
-  const activeBanners = banners.filter((b) => !dismissedBanners.has(b.assignment_id));
-
   // FAB button when closed (embed mode)
   if (isEmbed && !isOpen) {
     return (
@@ -312,56 +224,6 @@ const ChatWidget = () => {
       className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl"
       style={isEmbed ? { height: "100%", width: "100%" } : { width: "100%", maxWidth: "420px", height: "600px" }}
     >
-      {/* Banners */}
-      {activeBanners.map((banner) => (
-        <div
-          key={banner.assignment_id}
-          className="px-4 py-3 text-sm relative"
-          style={{ backgroundColor: banner.bg_color, color: banner.text_color }}
-        >
-          <button
-            onClick={() => setDismissedBanners((prev) => new Set([...prev, banner.assignment_id]))}
-            className="absolute top-1 right-1 p-1 rounded-full hover:bg-black/10"
-            style={{ color: banner.text_color }}
-          >
-            <X className="h-3 w-3" />
-          </button>
-          <p className="pr-6">{banner.content}</p>
-          <div className="flex items-center gap-3 mt-1.5">
-            {banner.link_url && (
-              <a
-                href={banner.link_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs underline opacity-90 hover:opacity-100"
-                style={{ color: banner.text_color }}
-              >
-                {banner.link_label || "Saiba mais"}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-            {banner.has_voting && (
-              <div className="flex items-center gap-1 ml-auto">
-                <button
-                  onClick={() => handleVote(banner.assignment_id, "up")}
-                  className={`p-1 rounded hover:bg-black/10 ${banner.vote === "up" ? "bg-black/20" : ""}`}
-                  style={{ color: banner.text_color }}
-                >
-                  <ThumbsUp className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => handleVote(banner.assignment_id, "down")}
-                  className={`p-1 rounded hover:bg-black/10 ${banner.vote === "down" ? "bg-black/20" : ""}`}
-                  style={{ color: banner.text_color }}
-                >
-                  <ThumbsDown className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-
       {/* Header */}
       <div
         className="p-4 flex items-center gap-3"
