@@ -5,19 +5,26 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Loader2, ShieldCheck } from "lucide-react";
 
+const SPECIALTIES = ["implementacao", "onboarding", "acompanhamento", "churn"];
+
 interface UserProfile {
   id: string;
-  user_id: string;
+  user_id: string | null;
   email: string;
   display_name: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  phone?: string | null;
+  department?: string | null;
+  specialty?: string[] | null;
 }
 
 interface Permission {
@@ -51,6 +58,11 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // CS fields
+  const [csPhone, setCsPhone] = useState("");
+  const [csDepartment, setCsDepartment] = useState("");
+  const [csSpecialty, setCsSpecialty] = useState<string[]>([]);
+
   useEffect(() => {
     if (open && profile) {
       loadData();
@@ -58,7 +70,7 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
   }, [open, profile]);
 
   const loadData = async () => {
-    if (!profile) return;
+    if (!profile || !profile.user_id) return;
     setLoading(true);
 
     // Check if user is admin
@@ -75,7 +87,6 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
       .select("module, can_view, can_edit, can_delete, can_manage")
       .eq("user_id", profile.user_id);
 
-    // Build full permissions array with defaults
     const permMap = new Map((perms ?? []).map((p) => [p.module, p]));
     const fullPerms = MODULES.map((m) => ({
       module: m.key,
@@ -85,6 +96,12 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
       can_manage: permMap.get(m.key)?.can_manage ?? false,
     }));
     setPermissions(fullPerms);
+
+    // Load CS fields from profile
+    setCsPhone(profile.phone || "");
+    setCsDepartment(profile.department || "");
+    setCsSpecialty(profile.specialty || []);
+
     setLoading(false);
   };
 
@@ -93,13 +110,11 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
       prev.map((p) => {
         if (p.module !== module) return p;
         const updated = { ...p, [field]: !p[field] };
-        // If manage is turned on, enable all
         if (field === "can_manage" && updated.can_manage) {
           updated.can_view = true;
           updated.can_edit = true;
           updated.can_delete = true;
         }
-        // If view is turned off, disable all
         if (field === "can_view" && !updated.can_view) {
           updated.can_edit = false;
           updated.can_delete = false;
@@ -110,8 +125,14 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
     );
   };
 
+  const toggleCsSpecialty = (spec: string) => {
+    setCsSpecialty(prev =>
+      prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]
+    );
+  };
+
   const handleSave = async () => {
-    if (!profile) return;
+    if (!profile || !profile.user_id) return;
     setSaving(true);
 
     try {
@@ -150,6 +171,51 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
           },
           { onConflict: "user_id,module" }
         );
+      }
+
+      // Update CS fields on user_profiles
+      await supabase
+        .from("user_profiles")
+        .update({
+          phone: csPhone || null,
+          department: csDepartment || null,
+          specialty: csSpecialty,
+        } as any)
+        .eq("id", profile.id);
+
+      // Sync with csms table
+      if (csSpecialty.length > 0) {
+        const { data: existingCsm } = await supabase
+          .from("csms")
+          .select("id")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+
+        if (existingCsm) {
+          await supabase
+            .from("csms")
+            .update({
+              phone: csPhone || null,
+              department: csDepartment || null,
+              specialty: csSpecialty,
+              name: profile.display_name || profile.email.split("@")[0],
+              email: profile.email,
+            })
+            .eq("id", existingCsm.id);
+        } else {
+          // Get current user to set as owner
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.from("csms").insert({
+              user_id: user.id,
+              name: profile.display_name || profile.email.split("@")[0],
+              email: profile.email,
+              phone: csPhone || null,
+              department: csDepartment || null,
+              specialty: csSpecialty,
+            });
+          }
+        }
       }
 
       toast({ title: t("team.saveSuccess") });
@@ -214,6 +280,50 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
                 {t("team.adminFullAccess")}
               </Badge>
             )}
+
+            <Separator />
+
+            {/* CS Fields */}
+            <div className="space-y-4">
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("team.csInfo")}
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t("cs.csms.phone")}</Label>
+                  <Input
+                    value={csPhone}
+                    onChange={(e) => setCsPhone(e.target.value)}
+                    placeholder={t("cs.csms.phonePlaceholder")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("cs.csms.department")}</Label>
+                  <Input
+                    value={csDepartment}
+                    onChange={(e) => setCsDepartment(e.target.value)}
+                    placeholder={t("cs.csms.departmentPlaceholder")}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{t("cs.csms.specialties")}</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SPECIALTIES.map((spec) => (
+                    <div key={spec} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`cs-${spec}`}
+                        checked={csSpecialty.includes(spec)}
+                        onCheckedChange={() => toggleCsSpecialty(spec)}
+                      />
+                      <label htmlFor={`cs-${spec}`} className="text-sm cursor-pointer">
+                        {t(`cs.status.${spec}`)}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <Separator />
 
