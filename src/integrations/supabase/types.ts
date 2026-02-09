@@ -399,6 +399,120 @@ export type Database = {
           },
         ]
       }
+      chat_banner_assignments: {
+        Row: {
+          banner_id: string
+          contact_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          tenant_id: string | null
+          views_count: number | null
+          vote: string | null
+          voted_at: string | null
+        }
+        Insert: {
+          banner_id: string
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string | null
+          views_count?: number | null
+          vote?: string | null
+          voted_at?: string | null
+        }
+        Update: {
+          banner_id?: string
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string | null
+          views_count?: number | null
+          vote?: string | null
+          voted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_banner_assignments_banner_id_fkey"
+            columns: ["banner_id"]
+            isOneToOne: false
+            referencedRelation: "chat_banners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_banner_assignments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_banner_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_banners: {
+        Row: {
+          bg_color: string | null
+          content: string
+          created_at: string | null
+          has_voting: boolean | null
+          id: string
+          is_active: boolean | null
+          link_label: string | null
+          link_url: string | null
+          tenant_id: string | null
+          text_color: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bg_color?: string | null
+          content: string
+          created_at?: string | null
+          has_voting?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          link_label?: string | null
+          link_url?: string | null
+          tenant_id?: string | null
+          text_color?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bg_color?: string | null
+          content?: string
+          created_at?: string | null
+          has_voting?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          link_label?: string | null
+          link_url?: string | null
+          tenant_id?: string | null
+          text_color?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_banners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_business_hours: {
         Row: {
           created_at: string | null
@@ -720,6 +834,8 @@ export type Database = {
           updated_at: string | null
           user_id: string
           welcome_message: string | null
+          widget_position: string | null
+          widget_primary_color: string | null
         }
         Insert: {
           auto_assignment?: boolean | null
@@ -733,6 +849,8 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           welcome_message?: string | null
+          widget_position?: string | null
+          widget_primary_color?: string | null
         }
         Update: {
           auto_assignment?: boolean | null
@@ -746,6 +864,8 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           welcome_message?: string | null
+          widget_position?: string | null
+          widget_primary_color?: string | null
         }
         Relationships: [
           {

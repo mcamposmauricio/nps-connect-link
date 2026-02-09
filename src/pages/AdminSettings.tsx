@@ -9,12 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, Plus, Edit, Trash2, Key } from "lucide-react";
 import ChatApiKeysTab from "@/components/ChatApiKeysTab";
+import WidgetPreview from "@/components/chat/WidgetPreview";
 
 interface Macro {
   id: string;
@@ -58,6 +60,9 @@ const AdminSettings = () => {
     auto_assignment: true,
     max_queue_size: 50,
     require_approval: false,
+    widget_position: "right",
+    widget_primary_color: "#7C3AED",
+    widget_company_name: "",
   });
 
   // Macros
@@ -91,6 +96,9 @@ const AdminSettings = () => {
         auto_assignment: settingsData.auto_assignment ?? true,
         max_queue_size: settingsData.max_queue_size ?? 50,
         require_approval: settingsData.require_approval ?? false,
+        widget_position: (settingsData as any).widget_position ?? "right",
+        widget_primary_color: (settingsData as any).widget_primary_color ?? "#7C3AED",
+        widget_company_name: "",
       });
     }
 
@@ -140,19 +148,21 @@ const AdminSettings = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const payload = {
+    const payload: Record<string, any> = {
       user_id: session.user.id,
       welcome_message: settings.welcome_message,
       offline_message: settings.offline_message,
       auto_assignment: settings.auto_assignment,
       max_queue_size: settings.max_queue_size,
       require_approval: settings.require_approval,
+      widget_position: settings.widget_position,
+      widget_primary_color: settings.widget_primary_color,
     };
 
     if (settings.id) {
-      await supabase.from("chat_settings").update(payload).eq("id", settings.id);
+      await supabase.from("chat_settings").update(payload as any).eq("id", settings.id);
     } else {
-      await supabase.from("chat_settings").insert(payload);
+      await supabase.from("chat_settings").insert(payload as any);
     }
 
     toast({ title: t("chat.settings.saved") });
@@ -346,18 +356,94 @@ const AdminSettings = () => {
             </Button>
           </TabsContent>
 
-          {/* Widget Tab */}
-          <TabsContent value="widget" className="mt-4">
+          <TabsContent value="widget" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Config */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">{t("chat.settings.widgetConfig")}</CardTitle>
+                  <CardDescription>{t("chat.settings.widgetConfigDesc")}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>{t("chat.settings.companyName")}</Label>
+                    <Input
+                      value={settings.widget_company_name}
+                      onChange={(e) => setSettings({ ...settings, widget_company_name: e.target.value })}
+                      placeholder="Minha Empresa"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("chat.settings.primaryColor")}</Label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={settings.widget_primary_color}
+                        onChange={(e) => setSettings({ ...settings, widget_primary_color: e.target.value })}
+                        className="w-10 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={settings.widget_primary_color}
+                        onChange={(e) => setSettings({ ...settings, widget_primary_color: e.target.value })}
+                        className="w-28"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("chat.settings.widgetPosition")}</Label>
+                    <RadioGroup
+                      value={settings.widget_position}
+                      onValueChange={(v) => setSettings({ ...settings, widget_position: v })}
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="right" id="pos-right" />
+                        <Label htmlFor="pos-right">{t("chat.settings.posRight")}</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="left" id="pos-left" />
+                        <Label htmlFor="pos-left">{t("chat.settings.posLeft")}</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <Button onClick={handleSaveGeneral} disabled={saving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? t("common.saving") : t("common.save")}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Preview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Preview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <WidgetPreview
+                    position={settings.widget_position as "left" | "right"}
+                    primaryColor={settings.widget_primary_color}
+                    companyName={settings.widget_company_name || "Suporte"}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Embed Code */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("chat.settings.widget_code")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded-md text-sm overflow-auto">
-{`<iframe
-  src="${window.location.origin}/widget?embed=true"
-  style="position:fixed;bottom:20px;right:20px;width:400px;height:600px;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;"
-></iframe>`}
+{`<script>
+  (function() {
+    var w = document.createElement('iframe');
+    w.src = '${window.location.origin}/widget?embed=true&position=${settings.widget_position}&primaryColor=${encodeURIComponent(settings.widget_primary_color)}&companyName=${encodeURIComponent(settings.widget_company_name || "Suporte")}';
+    w.style = 'position:fixed;bottom:0;${settings.widget_position === "right" ? "right" : "left"}:0;width:420px;height:700px;border:none;z-index:99999;background:transparent;';
+    w.allow = 'clipboard-write';
+    document.body.appendChild(w);
+  })();
+</script>`}
                 </pre>
               </CardContent>
             </Card>

@@ -20,6 +20,7 @@ import {
   Headphones,
   TrendingUp,
   History,
+  Flag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -296,6 +297,17 @@ export function AppSidebar() {
                           >
                             <Headphones className="h-4 w-4" />
                             <span>{t("chat.attendants.title")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            onClick={() => navigate("/admin/banners")}
+                            isActive={isActive("/admin/banners")}
+                            tooltip={t("banners.title")}
+                            className="pl-6"
+                          >
+                            <Flag className="h-4 w-4" />
+                            <span>{t("banners.title")}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
