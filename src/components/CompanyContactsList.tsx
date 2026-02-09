@@ -35,6 +35,7 @@ interface CompanyContactsListProps {
   onEditContact: (contact: CompanyContact) => void;
   onDeleteContact: (id: string) => void;
   onSetPrimary: (id: string) => void;
+  onContactClick?: (contact: CompanyContact) => void;
   loading?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
@@ -46,6 +47,7 @@ export function CompanyContactsList({
   onEditContact,
   onDeleteContact,
   onSetPrimary,
+  onContactClick,
   loading = false,
   canEdit = true,
   canDelete = true,
@@ -60,6 +62,13 @@ export function CompanyContactsList({
     const url = `${window.location.origin}/portal/${token}`;
     navigator.clipboard.writeText(url);
     toast({ title: t("people.linkCopied") });
+  };
+
+  const copyExternalId = (externalId: string | null, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!externalId) return;
+    navigator.clipboard.writeText(externalId);
+    toast({ title: t("companyDetails.copied") });
   };
 
   const sortedContacts = [...contacts].sort((a, b) => {
@@ -102,7 +111,11 @@ export function CompanyContactsList({
       ) : (
         <div className="space-y-2">
           {sortedContacts.map((contact) => (
-            <Card key={contact.id} className="p-3 hover:bg-accent/50 transition-colors">
+            <Card
+              key={contact.id}
+              className={`p-3 hover:bg-accent/50 transition-colors ${onContactClick ? "cursor-pointer" : ""}`}
+              onClick={() => onContactClick?.(contact)}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div className="p-2 bg-muted rounded-full shrink-0">
@@ -126,6 +139,19 @@ export function CompanyContactsList({
                     )}
                     {contact.phone && (
                       <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                    )}
+                    {contact.external_id && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                          ID: {contact.external_id}
+                        </span>
+                        <button
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={(e) => copyExternalId(contact.external_id, e)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

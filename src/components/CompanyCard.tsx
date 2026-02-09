@@ -1,8 +1,9 @@
-import { Building2, Users, Star, MapPin, ChevronRight, Trash2 } from "lucide-react";
+import { Building2, Users, Star, MapPin, ChevronRight, Trash2, Copy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface CompanyContact {
   id: string;
@@ -36,6 +37,15 @@ interface CompanyCardProps {
 
 export function CompanyCard({ company, onClick, onDelete, canDelete = true }: CompanyCardProps) {
   const { t } = useLanguage();
+  const { toast } = useToast();
+
+  const copyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(company.id);
+    toast({ title: t("companyDetails.copied") });
+  };
+
+  const truncateId = (id: string) => `${id.slice(0, 8)}...`;
   
   return (
     <Card 
@@ -72,11 +82,26 @@ export function CompanyCard({ company, onClick, onDelete, canDelete = true }: Co
         </div>
       </div>
 
-      {company.company_document && (
-        <p className="text-xs text-muted-foreground mb-2">
-          CNPJ: {company.company_document}
-        </p>
-      )}
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-1">
+          <code className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+            ID: {truncateId(company.id)}
+          </code>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={copyId}
+          >
+            <Copy className="h-3 w-3 text-muted-foreground" />
+          </Button>
+        </div>
+        {company.company_document && (
+          <span className="text-[10px] text-muted-foreground">
+            CNPJ: {company.company_document}
+          </span>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
         {company.company_sector && (
