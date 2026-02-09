@@ -1,143 +1,115 @@
 
-# Plano: Separar Banner do Chat -- Banner no Topo da Pagina do Cliente
 
-## Problema Atual
+# Plano: Expor IDs da Empresa e Consolidar Visao de Detalhes
 
-Os banners estao renderizados **dentro** do widget de chat (dentro do Card). O usuario quer que o banner apareca no **topo da pagina do cliente**, como uma barra fixa de notificacao -- a primeira coisa visivel de cima para baixo -- completamente independente do chat widget.
+## Resumo
 
-## Solucao
+Atualmente existem **duas visoes diferentes** para detalhes de empresa:
+- **Contacts page** (`Contacts.tsx`): Sheet simples com dados cadastrais + lista de contatos, sem historico/NPS/timeline
+- **CS Dashboard** (`CompanyCSDetailsSheet.tsx`): Sheet completo com overview, NPS, trilhas, timeline, mas sem mostrar IDs ou lista de contatos clicaveis
 
-O iframe embed atual mistura chat + banners em um unico elemento posicionado no canto inferior. A nova arquitetura separa em **dois elementos independentes**:
+O objetivo e **consolidar ambas** em um unico componente rico que:
+1. Mostra o **ID interno** (UUID) da empresa e o **external_id** dos contatos para facilitar integracao
+2. Tem **contatos clicaveis** que abrem o `PersonDetailsSheet`
+3. Inclui **todas as abas importantes**: Overview (com IDs), Contatos, NPS, Trilhas/Jornadas, Timeline
 
-1. **Banner**: barra fixa no `top: 0` da pagina, largura total (`width: 100%`)
-2. **Chat Widget**: FAB + painel flutuante no canto inferior (como ja esta)
-
-Como o embed roda em iframe, o banner precisa de seu proprio iframe separado ou ser injetado diretamente na pagina do cliente via script. A abordagem mais eficaz e usar um **script de embed unico** que injeta:
-- Um `div` fixo no topo da pagina para os banners (injetado diretamente no DOM da pagina)
-- Um `iframe` no canto inferior para o chat widget
-
-### Arquitetura do Embed (novo)
-
-O script de integracao muda de um simples iframe para um script JS que:
-1. Busca os banners via API (usando `visitor_token` do localStorage)
-2. Injeta os banners como um `div` fixo no topo da pagina do cliente (sem iframe, acesso direto ao DOM)
-3. Cria o iframe do chat widget no canto inferior (como ja funciona)
-
-Isso resolve o problema: os banners ficam no topo da pagina real do cliente, nao dentro do chat.
+---
 
 ## Mudancas
 
-### 1. Criar script de embed publico (`public/nps-chat-embed.js`)
+### 1. Criar componente unificado `CompanyDetailsSheet`
 
-Script JS que o cliente coloca no site. Ele:
-- Recebe `tenantId` como parametro
-- Le `visitor_token` do localStorage (se existir)
-- Faz fetch para uma edge function que retorna os banners ativos para o visitor
-- Injeta um `div` fixo no `top:0` da pagina com os banners (cor, texto, link, votacao)
-- Injeta o iframe do chat widget no canto inferior
-- Gerencia dismiss, votacao e view tracking dos banners
+**`src/components/CompanyDetailsSheet.tsx`** (novo)
 
-### 2. Criar edge function `get-visitor-banners`
+Componente consolidado que une o melhor de ambas as visoes:
 
-Edge function publica que:
-- Recebe `visitor_token` como parametro
-- Busca o `contact_id` do visitor
-- Retorna os banners ativos atribuidos a esse contato
-- Registra a visualizacao (incrementa `views_count`)
+**Tab Overview:**
+- ID interno da empresa (UUID) com botao de copia
+- Dados cadastrais (email, telefone, endereco, CNPJ, setor)
+- Health Score e status CS
+- Dados financeiros (MRR, valor contrato, renovacao)
+- Ultimo NPS
 
-### 3. Criar edge function `vote-banner`
+**Tab Contatos:**
+- Lista de contatos (`company_contacts`) **clicaveis**
+- Cada contato mostra: nome, email, cargo, departamento, `external_id`, `public_token`
+- Ao clicar em um contato, abre o `PersonDetailsSheet` existente
+- Botoes de acao (editar, excluir, definir primario) respeitando permissoes
 
-Edge function publica que:
-- Recebe `assignment_id` e `vote` ("up" ou "down")
-- Atualiza o voto na tabela `chat_banner_assignments`
+**Tab NPS:**
+- Trilhas NPS ativas
+- Historico de respostas NPS com score e comentarios
 
-### 4. Remover banners do ChatWidget.tsx
+**Tab Timeline:**
+- Eventos da timeline da empresa
 
-- Remover todo o codigo de banners do componente (estados, fetch, render)
-- O widget volta a ser apenas chat, sem banners
+### 2. Atualizar Contacts page para usar o novo componente
 
-### 5. Atualizar BannerPreview.tsx
+**`src/pages/Contacts.tsx`**
+- Substituir o Sheet inline pelo `CompanyDetailsSheet`
+- Manter todos os dialogs de add/edit/delete como estao
 
-- O preview deve simular o banner como uma barra no topo de uma pagina mockada (nao dentro do chat)
-- Mostra uma pagina simulada com o banner no topo e conteudo abaixo
+### 3. Atualizar CS Dashboard para usar o novo componente
 
-### 6. Atualizar ChatApiKeysTab.tsx
+**`src/components/cs/CSKanbanBoard.tsx`** ou onde o `CompanyCSDetailsSheet` e usado
+- Substituir por `CompanyDetailsSheet`
 
-- Atualizar o codigo de integracao para usar o novo script embed ao inves de um iframe simples
+### 4. Adicionar IDs ao CompanyCard
 
-### 7. Atualizar AdminSettings.tsx (tab Widget)
+**`src/components/CompanyCard.tsx`**
+- Mostrar o ID interno da empresa (UUID truncado) com botao de copia
+- Sutil, nao poluir visualmente
 
-- O codigo de embed gerado deve usar o novo script
+### 5. Mostrar external_id na lista de contatos
+
+**`src/components/CompanyContactsList.tsx`**
+- Exibir `external_id` quando presente, com icone e label "ID Externo"
+- Botao de copia para o external_id
+
+---
 
 ## Arquivos
 
 | # | Arquivo | Mudanca |
 |---|---------|---------|
-| 1 | `public/nps-chat-embed.js` | **Novo** - Script de embed que injeta banners no topo + iframe do chat |
-| 2 | `supabase/functions/get-visitor-banners/index.ts` | **Novo** - Edge function para buscar banners do visitor |
-| 3 | `supabase/functions/vote-banner/index.ts` | **Novo** - Edge function para registrar voto |
-| 4 | `src/pages/ChatWidget.tsx` | Remover toda logica de banners (estados, fetch, render) |
-| 5 | `src/components/chat/BannerPreview.tsx` | Redesenhar preview como barra no topo de pagina mockada |
-| 6 | `src/components/ChatApiKeysTab.tsx` | Atualizar codigo de integracao para novo script |
-| 7 | `src/pages/AdminSettings.tsx` | Atualizar embed code na tab Widget |
+| 1 | `src/components/CompanyDetailsSheet.tsx` | **Novo** -- Componente unificado de detalhes da empresa |
+| 2 | `src/pages/Contacts.tsx` | Usar `CompanyDetailsSheet` no lugar do Sheet inline |
+| 3 | `src/components/cs/CompanyCSDetailsSheet.tsx` | Remover (substituido pelo componente unificado) |
+| 4 | `src/components/CompanyCard.tsx` | Adicionar ID interno com copia |
+| 5 | `src/components/CompanyContactsList.tsx` | Exibir `external_id` com copia |
+| 6 | `src/locales/pt-BR.ts` | Novas chaves de traducao |
+| 7 | `src/locales/en.ts` | Novas chaves de traducao |
+| 8 | Componentes CS que referenciam `CompanyCSDetailsSheet` | Atualizar imports |
+
+---
 
 ## Secao Tecnica
 
-### Script de Embed (`public/nps-chat-embed.js`)
+### CompanyDetailsSheet -- Dados carregados
 
-```text
-Uso pelo cliente:
-<script src="https://app.url/nps-chat-embed.js" 
-  data-tenant-id="xxx" 
-  data-position="right" 
-  data-primary-color="#7C3AED"
-  data-company-name="Suporte">
-</script>
-```
+O componente recebera o `company.id` e fara queries para:
+- `contacts` (dados da empresa)
+- `company_contacts` (lista de pessoas vinculadas)
+- `trails` (trilhas/jornadas)
+- `responses` JOIN `campaigns` (historico NPS)
+- `timeline_events` (timeline)
 
-O script:
-1. Le os atributos `data-*` do proprio elemento `<script>`
-2. Verifica `localStorage` por `chat_visitor_token`
-3. Se existe token, chama a edge function `get-visitor-banners`
-4. Para cada banner ativo, cria um `div` fixo no topo (`position:fixed; top:0; left:0; width:100%; z-index:99999`)
-5. Os banners empilham verticalmente no topo
-6. Cria o iframe do widget de chat no canto inferior (reutiliza a rota `/widget` existente)
+### IDs expostos
 
-### Edge Function `get-visitor-banners`
+| Campo | Origem | Exibicao |
+|-------|--------|----------|
+| ID Interno (empresa) | `contacts.id` (UUID) | Texto truncado + botao copiar na tab Overview e no CompanyCard |
+| External ID (pessoa) | `company_contacts.external_id` | Na lista de contatos e no PersonDetailsSheet |
 
-```text
-GET /get-visitor-banners?visitor_token=xxx
+### Contatos clicaveis
 
-Response:
-{
-  banners: [
-    { assignment_id, content, bg_color, text_color, link_url, link_label, has_voting, vote }
-  ]
-}
-```
+Ao clicar em um contato na tab "Contatos", o componente abrira o `PersonDetailsSheet` passando os dados da pessoa. Como ambos sao Sheets, o `PersonDetailsSheet` sera aberto em uma segunda camada (overlay sobre o CompanyDetailsSheet).
 
-### Edge Function `vote-banner`
+### Snippet de integracao
 
-```text
-POST /vote-banner
-Body: { assignment_id, vote: "up" | "down" }
-```
+Na tab Overview, alem do ID, havera uma secao "Integracao" que mostra o de-para:
+- ID da empresa no sistema: `contacts.id`
+- IDs externos dos contatos: lista de `company_contacts.external_id`
 
-### BannerPreview Redesenhado
+Isso facilita o mapeamento para quem esta integrando via API/widget.
 
-O preview mostrara:
-```text
-+--------------------------------------------------+
-| [Banner: texto + link + votacao] [X]              |  <-- topo, full-width
-+--------------------------------------------------+
-| Barra de navegacao mockada                        |
-+--------------------------------------------------+
-| Conteudo da pagina mockada                        |
-|                                                   |
-|   [blocos de conteudo cinza]                      |
-|                                                   |
-|                              [FAB chat widget]    |
-+--------------------------------------------------+
-```
-
-Isso mostra claramente que o banner fica no topo da pagina do cliente, separado do chat.
