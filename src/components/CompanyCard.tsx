@@ -39,12 +39,12 @@ export function CompanyCard({ company, onClick, onDelete, canDelete = true }: Co
   
   return (
     <Card 
-      className="p-4 hover:shadow-md transition-shadow cursor-pointer group"
+      className="p-4 glass-card hover:shadow-lg hover:scale-[1.01] transition-all cursor-pointer group"
       onClick={onClick}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-primary/10 rounded-lg">
+          <div className="p-2 bg-primary/8 rounded-xl">
             <Building2 className="h-5 w-5 text-primary" />
           </div>
           <div>

@@ -159,7 +159,7 @@ const AdminWorkspace = () => {
         <div className="flex-1 flex flex-col">
           {selectedRoom ? (
             <>
-              <Card className="p-3 mb-2 flex items-center justify-between">
+              <Card className="p-3 mb-2 flex items-center justify-between glass-card">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary" />
                   <span className="font-medium text-sm">

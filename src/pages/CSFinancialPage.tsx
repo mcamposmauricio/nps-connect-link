@@ -46,7 +46,7 @@ export default function CSFinancialPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-semibold">{t("cs.financial.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t("cs.financial.subtitle")}</p>
@@ -54,77 +54,77 @@ export default function CSFinancialPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
                 {t("cs.financial.totalMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-primary">{formatCurrency(totalMRR)}</span>
+              <span className="text-3xl font-bold text-primary">{formatCurrency(totalMRR)}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 {t("cs.financial.avgMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold">{formatCurrency(avgMRR)}</span>
+              <span className="text-3xl font-bold">{formatCurrency(avgMRR)}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <PieChart className="h-4 w-4" />
                 {t("cs.financial.totalContracts")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold">{formatCurrency(totalContractValue)}</span>
+              <span className="text-3xl font-bold">{formatCurrency(totalContractValue)}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
                 {t("cs.financial.activeCompanies")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold">{companies.length}</span>
+              <span className="text-3xl font-bold">{companies.length}</span>
             </CardContent>
           </Card>
         </div>
 
         {/* MRR by Status */}
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>{t("cs.financial.mrrByStatus")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 border rounded-lg">
-                <p className="text-sm text-muted-foreground">{t("cs.status.implementacao")}</p>
-                <p className="text-xl font-bold">{formatCurrency(mrrByStatus.implementacao)}</p>
+              <div className="p-4 glass-card">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{t("cs.status.implementacao")}</p>
+                <p className="text-xl font-bold mt-1">{formatCurrency(mrrByStatus.implementacao)}</p>
               </div>
-              <div className="p-4 border rounded-lg">
-                <p className="text-sm text-muted-foreground">{t("cs.status.onboarding")}</p>
-                <p className="text-xl font-bold">{formatCurrency(mrrByStatus.onboarding)}</p>
+              <div className="p-4 glass-card">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{t("cs.status.onboarding")}</p>
+                <p className="text-xl font-bold mt-1">{formatCurrency(mrrByStatus.onboarding)}</p>
               </div>
-              <div className="p-4 border rounded-lg">
-                <p className="text-sm text-muted-foreground">{t("cs.status.acompanhamento")}</p>
-                <p className="text-xl font-bold">{formatCurrency(mrrByStatus.acompanhamento)}</p>
+              <div className="p-4 glass-card">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{t("cs.status.acompanhamento")}</p>
+                <p className="text-xl font-bold mt-1">{formatCurrency(mrrByStatus.acompanhamento)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Top Companies by MRR */}
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>{t("cs.financial.topCompanies")}</CardTitle>
           </CardHeader>
@@ -136,7 +136,7 @@ export default function CSFinancialPage() {
             ) : (
               <div className="space-y-3">
                 {companies.slice(0, 10).map((company, index) => (
-                  <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="text-lg font-bold text-muted-foreground w-6">{index + 1}</span>
                       <div>

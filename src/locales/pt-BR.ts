@@ -43,11 +43,14 @@ export default {
   "auth.error": "Erro de autenticação",
 
   // CS Dashboard
-  "cs.dashboard.title": "Customer Success",
-  "cs.dashboard.subtitle": "Gerencie o ciclo de vida dos seus clientes",
+  "cs.title": "Customer Success",
+  "cs.reports": "Relatórios",
+  "cs.dashboard.title": "Visão Geral",
+  "cs.dashboard.subtitle": "Acompanhe o ciclo de vida dos seus clientes",
   "cs.metrics.totalCompanies": "Total de Empresas",
   "cs.metrics.totalMRR": "MRR Total",
   "cs.metrics.avgHealth": "Health Médio",
+  "cs.metrics.atRisk": "Em Risco",
   "cs.metrics.activeTrails": "Trilhas Ativas",
   "cs.kanban.title": "Kanban de Clientes",
   "cs.status.implementacao": "Implementação",
@@ -86,8 +89,8 @@ export default {
   "cs.trails.typeNps": "Acompanhamento NPS",
 
   // CS Trails
-  "cs.trails.title": "Trilhas",
-  "cs.trails.subtitle": "Gerencie templates de trilhas de atividades",
+  "cs.trails.title": "Jornadas",
+  "cs.trails.subtitle": "Gerencie templates de jornadas e atividades",
   "cs.trails.addTemplate": "Nova Trilha",
   "cs.trails.newTemplate": "Criar Template de Trilha",
   "cs.trails.noTemplates": "Nenhum template de trilha cadastrado",
@@ -111,8 +114,8 @@ export default {
   "cs.trails.nameRequired": "Nome é obrigatório",
 
   // CS CSMs
-  "cs.csms.title": "Customer Success Managers",
-  "cs.csms.subtitle": "Gerencie sua equipe de CS",
+  "cs.csms.title": "Equipe CS",
+  "cs.csms.subtitle": "Gerencie sua equipe de Customer Success",
   "cs.csms.addCSM": "Adicionar CSM",
   "cs.csms.newCSM": "Novo CSM",
   "cs.csms.noCSMs": "Nenhum CSM cadastrado",
@@ -131,8 +134,8 @@ export default {
   "cs.csms.requiredFields": "Nome e email são obrigatórios",
 
   // CS Health
-  "cs.health.title": "Health Score",
-  "cs.health.subtitle": "Análise de saúde dos clientes",
+  "cs.health.title": "Saúde dos Clientes",
+  "cs.health.subtitle": "Monitore a saúde do seu portfólio",
   "cs.health.average": "Health Médio",
   "cs.health.healthy": "Saudável",
   "cs.health.attention": "Atenção",
@@ -141,8 +144,8 @@ export default {
   "cs.health.noCompanies": "Nenhuma empresa cadastrada",
 
   // CS Churn
-  "cs.churn.title": "Análise de Churn",
-  "cs.churn.subtitle": "Monitore e previna o churn de clientes",
+  "cs.churn.title": "Risco e Churn",
+  "cs.churn.subtitle": "Monitore e previna a perda de clientes",
   "cs.churn.churned": "Clientes em Churn",
   "cs.churn.atRisk": "Em Risco",
   "cs.churn.lostMRR": "MRR Perdido",
@@ -158,8 +161,8 @@ export default {
   "cs.churn.daysLeft": "dias",
 
   // CS Financial
-  "cs.financial.title": "Análise Financeira",
-  "cs.financial.subtitle": "Métricas financeiras do portfólio",
+  "cs.financial.title": "Receita",
+  "cs.financial.subtitle": "Métricas financeiras do seu portfólio",
   "cs.financial.totalMRR": "MRR Total",
   "cs.financial.avgMRR": "Ticket Médio",
   "cs.financial.totalContracts": "Total em Contratos",
@@ -597,8 +600,8 @@ export default {
   "chat.csat.title": "Avalie o Atendimento",
   "chat.pending.title": "Aguardando Aprovação",
   "chat.pending.description": "Sua conta está aguardando aprovação do administrador.",
-  "chat.dashboard.title": "Dashboard Chat",
-  "chat.dashboard.subtitle": "Visão geral do atendimento via chat",
+  "chat.dashboard.title": "Painel de Atendimento",
+  "chat.dashboard.subtitle": "Visão geral do atendimento",
   "chat.dashboard.active_chats": "Conversas Ativas",
   "chat.dashboard.waiting": "Na Fila",
   "chat.dashboard.avg_response": "Tempo Médio de Resposta",
@@ -650,8 +653,8 @@ export default {
   "chat.settings.auto_assignment": "Atribuição automática",
   "chat.settings.max_queue": "Tamanho máximo da fila",
   "chat.settings.widget_code": "Código do Widget",
-  "chat.gerencial.title": "Dashboard Gerencial",
-  "chat.gerencial.subtitle": "Relatórios e métricas do atendimento",
+  "chat.gerencial.title": "Relatórios de Atendimento",
+  "chat.gerencial.subtitle": "Métricas e análises do atendimento",
   "chat.gerencial.total_conversations": "Total de Conversas (30 dias)",
   "chat.gerencial.conversations_per_day": "Conversas por Dia",
   "chat.gerencial.no_data": "Nenhum dado disponível",
@@ -667,7 +670,7 @@ export default {
   "chat.gerencial.week": "7 dias",
   "chat.gerencial.month_period": "30 dias",
   "chat.gerencial.all_time": "Todos",
-  "chat.history.title": "Histórico de Chats",
+  "chat.history.title": "Histórico",
   "chat.history.subtitle": "Consulte conversas anteriores",
   "chat.history.recent": "Conversas Recentes",
   "chat.history.no_chats": "Nenhuma conversa registrada",

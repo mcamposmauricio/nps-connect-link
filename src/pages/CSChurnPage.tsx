@@ -87,7 +87,7 @@ export default function CSChurnPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-semibold">{t("cs.churn.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t("cs.churn.subtitle")}</p>
@@ -95,44 +95,44 @@ export default function CSChurnPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                 {t("cs.churn.churned")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-destructive">{churnedCompanies.length}</span>
+              <span className="text-3xl font-bold text-destructive">{churnedCompanies.length}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                 {t("cs.churn.atRisk")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-warning">{atRiskCompanies.length}</span>
+              <span className="text-3xl font-bold text-warning">{atRiskCompanies.length}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                 {t("cs.churn.lostMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-destructive">{formatCurrency(totalChurnedMRR)}</span>
+              <span className="text-3xl font-bold text-destructive">{formatCurrency(totalChurnedMRR)}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                 {t("cs.churn.atRiskMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-warning">{formatCurrency(atRiskMRR)}</span>
+              <span className="text-3xl font-bold text-warning">{formatCurrency(atRiskMRR)}</span>
             </CardContent>
           </Card>
         </div>
@@ -142,7 +142,7 @@ export default function CSChurnPage() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
             {/* At Risk Companies */}
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-warning" />
@@ -156,7 +156,7 @@ export default function CSChurnPage() {
                 ) : (
                   <div className="space-y-3">
                     {atRiskCompanies.slice(0, 5).map((company) => (
-                      <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                         <div>
                           <p className="font-medium">{company.trade_name || company.name}</p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -177,7 +177,7 @@ export default function CSChurnPage() {
             </Card>
 
             {/* Upcoming Renewals */}
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-primary" />
@@ -193,7 +193,7 @@ export default function CSChurnPage() {
                     {upcomingRenewals.map((company) => {
                       const daysUntil = differenceInDays(new Date(company.renewal_date!), new Date());
                       return (
-                        <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                           <div>
                             <p className="font-medium">{company.trade_name || company.name}</p>
                             <p className="text-sm text-muted-foreground">
@@ -212,7 +212,7 @@ export default function CSChurnPage() {
             </Card>
 
             {/* Churned Companies */}
-            <Card className="lg:col-span-2">
+            <Card className="glass-card lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingDown className="h-5 w-5 text-destructive" />
@@ -225,7 +225,7 @@ export default function CSChurnPage() {
                 ) : (
                   <div className="space-y-3">
                     {churnedCompanies.map((company) => (
-                      <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                         <div>
                           <p className="font-medium">{company.trade_name || company.name}</p>
                           <p className="text-sm text-muted-foreground">

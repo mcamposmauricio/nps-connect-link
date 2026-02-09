@@ -43,11 +43,14 @@ export default {
   "auth.error": "Authentication error",
 
   // CS Dashboard
-  "cs.dashboard.title": "Customer Success",
-  "cs.dashboard.subtitle": "Manage your customers lifecycle",
+  "cs.title": "Customer Success",
+  "cs.reports": "Reports",
+  "cs.dashboard.title": "Overview",
+  "cs.dashboard.subtitle": "Track your customers lifecycle",
   "cs.metrics.totalCompanies": "Total Companies",
   "cs.metrics.totalMRR": "Total MRR",
   "cs.metrics.avgHealth": "Avg Health",
+  "cs.metrics.atRisk": "At Risk",
   "cs.metrics.activeTrails": "Active Trails",
   "cs.kanban.title": "Customer Kanban",
   "cs.status.implementacao": "Implementation",
@@ -86,8 +89,8 @@ export default {
   "cs.trails.typeNps": "NPS Tracking",
 
   // CS Trails
-  "cs.trails.title": "Trails",
-  "cs.trails.subtitle": "Manage activity trail templates",
+  "cs.trails.title": "Journeys",
+  "cs.trails.subtitle": "Manage activity journey templates",
   "cs.trails.addTemplate": "New Trail",
   "cs.trails.newTemplate": "Create Trail Template",
   "cs.trails.noTemplates": "No trail templates registered",
@@ -111,8 +114,8 @@ export default {
   "cs.trails.nameRequired": "Name is required",
 
   // CS CSMs
-  "cs.csms.title": "Customer Success Managers",
-  "cs.csms.subtitle": "Manage your CS team",
+  "cs.csms.title": "CS Team",
+  "cs.csms.subtitle": "Manage your Customer Success team",
   "cs.csms.addCSM": "Add CSM",
   "cs.csms.newCSM": "New CSM",
   "cs.csms.noCSMs": "No CSMs registered",
@@ -131,8 +134,8 @@ export default {
   "cs.csms.requiredFields": "Name and email are required",
 
   // CS Health
-  "cs.health.title": "Health Score",
-  "cs.health.subtitle": "Customer health analysis",
+  "cs.health.title": "Customer Health",
+  "cs.health.subtitle": "Monitor your portfolio health",
   "cs.health.average": "Average Health",
   "cs.health.healthy": "Healthy",
   "cs.health.attention": "Attention",
@@ -141,8 +144,8 @@ export default {
   "cs.health.noCompanies": "No companies registered",
 
   // CS Churn
-  "cs.churn.title": "Churn Analysis",
-  "cs.churn.subtitle": "Monitor and prevent customer churn",
+  "cs.churn.title": "Risk & Churn",
+  "cs.churn.subtitle": "Monitor and prevent customer loss",
   "cs.churn.churned": "Churned Customers",
   "cs.churn.atRisk": "At Risk",
   "cs.churn.lostMRR": "Lost MRR",
@@ -158,7 +161,7 @@ export default {
   "cs.churn.daysLeft": "days",
 
   // CS Financial
-  "cs.financial.title": "Financial Analysis",
+  "cs.financial.title": "Revenue",
   "cs.financial.subtitle": "Portfolio financial metrics",
   "cs.financial.totalMRR": "Total MRR",
   "cs.financial.avgMRR": "Average Ticket",
@@ -597,7 +600,7 @@ export default {
   "chat.csat.title": "Rate the Service",
   "chat.pending.title": "Pending Approval",
   "chat.pending.description": "Your account is awaiting administrator approval.",
-  "chat.dashboard.title": "Chat Dashboard",
+  "chat.dashboard.title": "Service Dashboard",
   "chat.dashboard.subtitle": "Chat support overview",
   "chat.dashboard.active_chats": "Active Chats",
   "chat.dashboard.waiting": "In Queue",
@@ -650,8 +653,8 @@ export default {
   "chat.settings.auto_assignment": "Auto assignment",
   "chat.settings.max_queue": "Max queue size",
   "chat.settings.widget_code": "Widget Code",
-  "chat.gerencial.title": "Management Dashboard",
-  "chat.gerencial.subtitle": "Reports and service metrics",
+  "chat.gerencial.title": "Service Reports",
+  "chat.gerencial.subtitle": "Metrics and service analysis",
   "chat.gerencial.total_conversations": "Total Conversations (30 days)",
   "chat.gerencial.conversations_per_day": "Conversations per Day",
   "chat.gerencial.no_data": "No data available",
@@ -667,7 +670,7 @@ export default {
   "chat.gerencial.week": "7 days",
   "chat.gerencial.month_period": "30 days",
   "chat.gerencial.all_time": "All",
-  "chat.history.title": "Chat History",
+  "chat.history.title": "History",
   "chat.history.subtitle": "Browse past conversations",
   "chat.history.recent": "Recent Conversations",
   "chat.history.no_chats": "No conversations recorded",

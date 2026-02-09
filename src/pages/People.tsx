@@ -145,7 +145,7 @@ const People = () => {
             <p>{t("people.noResults")}</p>
           </div>
         ) : (
-          <div className="border rounded-lg">
+          <div className="glass-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>

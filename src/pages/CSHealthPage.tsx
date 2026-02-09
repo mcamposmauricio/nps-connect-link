@@ -33,12 +33,6 @@ export default function CSHealthPage() {
     return "bg-destructive";
   };
 
-  const getHealthLabel = (score: number) => {
-    if (score >= 70) return t("cs.health.healthy");
-    if (score >= 40) return t("cs.health.attention");
-    return t("cs.health.critical");
-  };
-
   const distribution = {
     healthy: companies.filter((c) => (c.health_score ?? 50) >= 70).length,
     attention: companies.filter((c) => (c.health_score ?? 50) >= 40 && (c.health_score ?? 50) < 70).length,
@@ -51,7 +45,7 @@ export default function CSHealthPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-semibold">{t("cs.health.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t("cs.health.subtitle")}</p>
@@ -59,56 +53,56 @@ export default function CSHealthPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                 {t("cs.health.average")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
                 <Heart className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-bold">{avgHealth}%</span>
+                <span className="text-3xl font-bold">{avgHealth}%</span>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 {t("cs.health.healthy")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-primary">{distribution.healthy}</span>
+              <span className="text-3xl font-bold text-primary">{distribution.healthy}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <Minus className="h-4 w-4 text-warning" />
                 {t("cs.health.attention")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-warning">{distribution.attention}</span>
+              <span className="text-3xl font-bold text-warning">{distribution.attention}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-destructive" />
                 {t("cs.health.critical")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-destructive">{distribution.critical}</span>
+              <span className="text-3xl font-bold text-destructive">{distribution.critical}</span>
             </CardContent>
           </Card>
         </div>
 
         {/* Companies List */}
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>{t("cs.health.companiesList")}</CardTitle>
           </CardHeader>
@@ -122,7 +116,7 @@ export default function CSHealthPage() {
                 {companies.map((company) => {
                   const healthScore = company.health_score ?? 50;
                   return (
-                    <div key={company.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                    <div key={company.id} className="flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
                           {company.trade_name || company.name}

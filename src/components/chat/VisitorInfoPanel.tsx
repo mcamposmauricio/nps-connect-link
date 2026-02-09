@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Mail, Phone } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -39,20 +38,18 @@ export function VisitorInfoPanel({ visitorId }: VisitorInfoPanelProps) {
 
   if (!visitor) {
     return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-        </CardContent>
-      </Card>
+      <div className="glass-card h-full flex items-center justify-center p-6">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      </div>
     );
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm">{t("chat.workspace.visitor_info")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="glass-card h-full">
+      <div className="p-4 border-b border-white/10">
+        <h3 className="text-sm font-semibold">{t("chat.workspace.visitor_info")}</h3>
+      </div>
+      <div className="p-4 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
             <User className="h-5 w-5 text-primary" />
@@ -87,7 +84,7 @@ export function VisitorInfoPanel({ visitorId }: VisitorInfoPanelProps) {
         <div className="text-xs text-muted-foreground pt-2 border-t">
           {t("chat.workspace.since")} {new Date(visitor.created_at).toLocaleDateString()}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
