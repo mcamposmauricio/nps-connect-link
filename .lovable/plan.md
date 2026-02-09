@@ -1,272 +1,143 @@
 
-# Plano: Widget de Chat Flutuante com Posicionamento Configuravel e Sistema de Banners
+# Plano: Separar Banner do Chat -- Banner no Topo da Pagina do Cliente
 
-## Resumo
+## Problema Atual
 
-Tres grandes entregas:
-1. Transformar o widget de chat em um componente flutuante (overlay) com botao de abrir/fechar, posicionavel no canto inferior direito ou esquerdo
-2. Criar um sistema de banners configuravel que aparece no topo do widget, atribuido por cliente
-3. Adicionar previews ao vivo tanto para o widget quanto para os banners nas paginas de configuracao
+Os banners estao renderizados **dentro** do widget de chat (dentro do Card). O usuario quer que o banner apareca no **topo da pagina do cliente**, como uma barra fixa de notificacao -- a primeira coisa visivel de cima para baixo -- completamente independente do chat widget.
 
----
+## Solucao
 
-## 1. Widget de Chat Flutuante (Overlay)
+O iframe embed atual mistura chat + banners em um unico elemento posicionado no canto inferior. A nova arquitetura separa em **dois elementos independentes**:
 
-### 1.1 Problema Atual
+1. **Banner**: barra fixa no `top: 0` da pagina, largura total (`width: 100%`)
+2. **Chat Widget**: FAB + painel flutuante no canto inferior (como ja esta)
 
-O widget atual (`ChatWidget.tsx`) renderiza como uma pagina inteira ou um iframe fixo. Nao tem comportamento de "bolha" flutuante que abre/fecha.
+Como o embed roda em iframe, o banner precisa de seu proprio iframe separado ou ser injetado diretamente na pagina do cliente via script. A abordagem mais eficaz e usar um **script de embed unico** que injeta:
+- Um `div` fixo no topo da pagina para os banners (injetado diretamente no DOM da pagina)
+- Um `iframe` no canto inferior para o chat widget
 
-### 1.2 Solucao
+### Arquitetura do Embed (novo)
 
-Transformar o widget em dois modos:
-- **Modo bolha**: Botao circular flutuante no canto da tela. Ao clicar, abre o painel de chat com animacao
-- **Modo aberto**: Painel de chat com header, corpo e input
+O script de integracao muda de um simples iframe para um script JS que:
+1. Busca os banners via API (usando `visitor_token` do localStorage)
+2. Injeta os banners como um `div` fixo no topo da pagina do cliente (sem iframe, acesso direto ao DOM)
+3. Cria o iframe do chat widget no canto inferior (como ja funciona)
 
-**Parametros via query string:**
-- `position=right` (default) ou `position=left` -- define canto inferior direito ou esquerdo
-- `embed=true` -- ativa modo embed (sem fundo, sem padding)
-- `companyName` -- nome exibido no header
-- `primaryColor` -- cor do botao e header
-- `tenantId` -- identifica o tenant para carregar banners
+Isso resolve o problema: os banners ficam no topo da pagina real do cliente, nao dentro do chat.
 
-### 1.3 Novo embed code (gerado na configuracao)
+## Mudancas
 
-```html
-<script>
-  (function() {
-    var w = document.createElement('iframe');
-    w.src = 'https://app.url/widget?embed=true&position=right&tenantId=xxx';
-    w.style = 'position:fixed;bottom:0;right:0;width:420px;height:700px;border:none;z-index:99999;';
-    w.allow = 'clipboard-write';
-    document.body.appendChild(w);
-  })();
-</script>
-```
+### 1. Criar script de embed publico (`public/nps-chat-embed.js`)
 
-### 1.4 Mudancas no ChatWidget.tsx
+Script JS que o cliente coloca no site. Ele:
+- Recebe `tenantId` como parametro
+- Le `visitor_token` do localStorage (se existir)
+- Faz fetch para uma edge function que retorna os banners ativos para o visitor
+- Injeta um `div` fixo no `top:0` da pagina com os banners (cor, texto, link, votacao)
+- Injeta o iframe do chat widget no canto inferior
+- Gerencia dismiss, votacao e view tracking dos banners
 
-- Adicionar estado `isOpen` (bolha vs painel aberto)
-- Ler `position` da query string
-- Renderizar botao FAB quando fechado (posicao dinamica: `right:20px` ou `left:20px`)
-- Renderizar painel de chat quando aberto (mesma posicao)
-- Adicionar animacao de entrada/saida
-- Ler `tenantId` para buscar banners ativos
+### 2. Criar edge function `get-visitor-banners`
 
-### 1.5 Preview na Configuracao do Widget
+Edge function publica que:
+- Recebe `visitor_token` como parametro
+- Busca o `contact_id` do visitor
+- Retorna os banners ativos atribuidos a esse contato
+- Registra a visualizacao (incrementa `views_count`)
 
-Na tab "Widget" do `AdminSettings.tsx`, adicionar:
-- Seletor de posicao (direita/esquerda)
-- Input para nome da empresa
-- Color picker para cor primaria
-- **Preview ao vivo** que simula como o widget aparecera na tela do cliente, incluindo o botao FAB e o painel aberto
+### 3. Criar edge function `vote-banner`
 
----
+Edge function publica que:
+- Recebe `assignment_id` e `vote` ("up" ou "down")
+- Atualiza o voto na tabela `chat_banner_assignments`
 
-## 2. Sistema de Banners
+### 4. Remover banners do ChatWidget.tsx
 
-### 2.1 Conceito
+- Remover todo o codigo de banners do componente (estados, fetch, render)
+- O widget volta a ser apenas chat, sem banners
 
-Banners sao mensagens simples (texto + emojis + cor + link opcional + votacao opcional) que aparecem no **topo** do widget de chat. Sao atribuidos a nivel de cliente (contact).
+### 5. Atualizar BannerPreview.tsx
 
-### 2.2 Nova Tabela: `chat_banners`
+- O preview deve simular o banner como uma barra no topo de uma pagina mockada (nao dentro do chat)
+- Mostra uma pagina simulada com o banner no topo e conteudo abaixo
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid PK | |
-| tenant_id | uuid | Isolamento multi-tenant |
-| user_id | uuid | Criador |
-| title | text | Titulo interno |
-| content | text | Texto do banner (suporta emojis) |
-| bg_color | text | Cor de fundo |
-| text_color | text | Cor do texto |
-| link_url | text | URL opcional (CTA) |
-| link_label | text | Texto do link |
-| has_voting | boolean | Ativa votacao (like/dislike) |
-| is_active | boolean | Ativo/inativo |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+### 6. Atualizar ChatApiKeysTab.tsx
 
-### 2.3 Nova Tabela: `chat_banner_assignments`
+- Atualizar o codigo de integracao para usar o novo script embed ao inves de um iframe simples
 
-Cada atribuicao de banner a um cliente gera uma linha separada para rastrear status.
+### 7. Atualizar AdminSettings.tsx (tab Widget)
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid PK | |
-| banner_id | uuid FK | Referencia ao banner |
-| contact_id | uuid FK | Cliente atribuido |
-| tenant_id | uuid | Isolamento |
-| is_active | boolean | Ativo para este cliente |
-| views_count | integer | Quantas vezes foi visualizado |
-| vote | text nullable | "up", "down" ou null |
-| voted_at | timestamptz | |
-| created_at | timestamptz | |
+- O codigo de embed gerado deve usar o novo script
 
-### 2.4 RLS Policies
+## Arquivos
 
-- `chat_banners`: Tenant members podem CRUD; publico pode SELECT (para o widget carregar)
-- `chat_banner_assignments`: Tenant members podem CRUD; publico pode SELECT e UPDATE (para registrar votos)
-
-### 2.5 Nova Pagina: Gerenciamento de Banners
-
-**Rota**: `/admin/banners`
-**Menu**: Novo item no submenu Chat da sidebar
-
-A pagina tera:
-- **Lista de banners** com status, contagem de atribuicoes, votos
-- **Criar/editar banner**: Formulario com campos de texto, cor, link, votacao
-- **Atribuir a clientes**: Modal com filtro/busca de contacts, selecao multipla
-- **Tabela de atribuicoes**: Cada linha mostra contact, status, views, voto
-- **Preview ao vivo**: Simulacao do banner no topo de um widget mockado
-
-### 2.6 Preview do Banner
-
-Componente `BannerPreview` que renderiza:
-
-```text
-+------------------------------------------+
-| [emoji] Texto do banner com link [CTA]   |
-|         [thumbsUp] [thumbsDown]          |
-+------------------------------------------+
-```
-
-- Mostra cores configuradas em tempo real
-- Mostra votacao se habilitada
-- Mostra link clicavel se configurado
-
----
-
-## 3. Widget Carregando Banners
-
-### 3.1 Fluxo no ChatWidget
-
-1. Ao carregar, o widget le `tenantId` da query string
-2. Se o visitante tem `visitor_token` salvo, busca o `contact_id` associado
-3. Busca banners ativos atribuidos a esse contact: `chat_banner_assignments` JOIN `chat_banners`
-4. Renderiza os banners ativos no topo do widget (acima do chat)
-5. Ao visualizar, incrementa `views_count`
-6. Ao votar, atualiza `vote` e `voted_at`
-
-### 3.2 Banner no Widget (visual)
-
-```text
-+------------------------------------------+
-| [X] Texto do banner aqui com emojis      |  <-- topo, cor de fundo
-|     [Link CTA] [thumbsUp] [thumbsDown]   |
-+------------------------------------------+
-| Header: Empresa - Chat ativo             |
-+------------------------------------------+
-| Mensagens do chat...                     |
-+------------------------------------------+
-| [Input de mensagem]            [Enviar]  |
-+------------------------------------------+
-```
-
----
-
-## 4. Preview na Configuracao do Widget (AdminSettings)
-
-Na tab "Widget" existente do AdminSettings:
-
-- **Seletor de posicao**: Radio group (Direita / Esquerda)
-- **Nome da empresa**: Input
-- **Cor primaria**: Color picker
-- **Preview interativo**: Div simulando uma tela de site com o widget no canto selecionado
-  - Mostra o botao FAB
-  - Ao clicar no FAB no preview, abre o painel mockado
-  - Se ha banners ativos do tenant, mostra-os no preview
-
-Salvar posicao e cor na tabela `chat_settings` (adicionar colunas `widget_position` e `widget_primary_color`).
-
----
-
-## 5. Arquivos
-
-### Novos Arquivos (4)
-1. `src/pages/AdminBanners.tsx` -- Pagina de gerenciamento de banners
-2. `src/components/chat/BannerPreview.tsx` -- Componente de preview de banner
-3. `src/components/chat/WidgetPreview.tsx` -- Componente de preview do widget na config
-4. `src/components/chat/WidgetBanner.tsx` -- Componente de banner dentro do widget
-
-### Arquivos Modificados (7)
-1. `src/pages/ChatWidget.tsx` -- Modo bolha, posicao configuravel, carregamento de banners
-2. `src/pages/AdminSettings.tsx` -- Tab Widget com preview, seletor de posicao, cor
-3. `src/components/AppSidebar.tsx` -- Adicionar item "Banners" no submenu Chat
-4. `src/App.tsx` -- Rota `/admin/banners`
-5. `src/locales/pt-BR.ts` -- Chaves de traducao
-6. `src/locales/en.ts` -- Chaves de traducao
-7. `src/components/ChatApiKeysTab.tsx` -- Atualizar embed code com novos parametros
-
-### Migracoes de Banco (1)
-- Criar tabelas `chat_banners` e `chat_banner_assignments`
-- Adicionar colunas `widget_position` e `widget_primary_color` em `chat_settings`
-- RLS policies
-- Habilitar realtime para `chat_banner_assignments`
-
----
+| # | Arquivo | Mudanca |
+|---|---------|---------|
+| 1 | `public/nps-chat-embed.js` | **Novo** - Script de embed que injeta banners no topo + iframe do chat |
+| 2 | `supabase/functions/get-visitor-banners/index.ts` | **Novo** - Edge function para buscar banners do visitor |
+| 3 | `supabase/functions/vote-banner/index.ts` | **Novo** - Edge function para registrar voto |
+| 4 | `src/pages/ChatWidget.tsx` | Remover toda logica de banners (estados, fetch, render) |
+| 5 | `src/components/chat/BannerPreview.tsx` | Redesenhar preview como barra no topo de pagina mockada |
+| 6 | `src/components/ChatApiKeysTab.tsx` | Atualizar codigo de integracao para novo script |
+| 7 | `src/pages/AdminSettings.tsx` | Atualizar embed code na tab Widget |
 
 ## Secao Tecnica
 
-### Schema SQL (migracao)
+### Script de Embed (`public/nps-chat-embed.js`)
 
-```sql
--- chat_banners
-CREATE TABLE public.chat_banners (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES public.tenants(id),
-  user_id uuid NOT NULL,
-  title text NOT NULL,
-  content text NOT NULL,
-  bg_color text DEFAULT '#3B82F6',
-  text_color text DEFAULT '#FFFFFF',
-  link_url text,
-  link_label text,
-  has_voting boolean DEFAULT false,
-  is_active boolean DEFAULT true,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- chat_banner_assignments
-CREATE TABLE public.chat_banner_assignments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  banner_id uuid NOT NULL REFERENCES public.chat_banners(id) ON DELETE CASCADE,
-  contact_id uuid NOT NULL REFERENCES public.contacts(id) ON DELETE CASCADE,
-  tenant_id uuid REFERENCES public.tenants(id),
-  is_active boolean DEFAULT true,
-  views_count integer DEFAULT 0,
-  vote text,
-  voted_at timestamptz,
-  created_at timestamptz DEFAULT now()
-);
-
--- Colunas novas em chat_settings
-ALTER TABLE public.chat_settings
-  ADD COLUMN widget_position text DEFAULT 'right',
-  ADD COLUMN widget_primary_color text DEFAULT '#7C3AED';
+```text
+Uso pelo cliente:
+<script src="https://app.url/nps-chat-embed.js" 
+  data-tenant-id="xxx" 
+  data-position="right" 
+  data-primary-color="#7C3AED"
+  data-company-name="Suporte">
+</script>
 ```
 
-### RLS
+O script:
+1. Le os atributos `data-*` do proprio elemento `<script>`
+2. Verifica `localStorage` por `chat_visitor_token`
+3. Se existe token, chama a edge function `get-visitor-banners`
+4. Para cada banner ativo, cria um `div` fixo no topo (`position:fixed; top:0; left:0; width:100%; z-index:99999`)
+5. Os banners empilham verticalmente no topo
+6. Cria o iframe do widget de chat no canto inferior (reutiliza a rota `/widget` existente)
 
-- `chat_banners`: Tenant CRUD + public SELECT (para widget)
-- `chat_banner_assignments`: Tenant CRUD + public SELECT/UPDATE (para widget registrar votos/views)
+### Edge Function `get-visitor-banners`
 
-### Trigger
+```text
+GET /get-visitor-banners?visitor_token=xxx
 
-- `set_tenant_id_from_user` em `chat_banners`
+Response:
+{
+  banners: [
+    { assignment_id, content, bg_color, text_color, link_url, link_label, has_voting, vote }
+  ]
+}
+```
 
-### ChatWidget - Logica de Posicao
+### Edge Function `vote-banner`
 
-O widget le `position` da query string e aplica:
-- `position=right`: `right: 20px; bottom: 20px`
-- `position=left`: `left: 20px; bottom: 20px`
+```text
+POST /vote-banner
+Body: { assignment_id, vote: "up" | "down" }
+```
 
-O FAB usa a mesma logica de posicao.
+### BannerPreview Redesenhado
 
-### WidgetPreview Component
+O preview mostrara:
+```text
++--------------------------------------------------+
+| [Banner: texto + link + votacao] [X]              |  <-- topo, full-width
++--------------------------------------------------+
+| Barra de navegacao mockada                        |
++--------------------------------------------------+
+| Conteudo da pagina mockada                        |
+|                                                   |
+|   [blocos de conteudo cinza]                      |
+|                                                   |
+|                              [FAB chat widget]    |
++--------------------------------------------------+
+```
 
-Renderiza um `div` simulando uma pagina web (fundo cinza claro, barra de endereco mockada) com o widget miniaturizado no canto configurado. Reage em tempo real a mudancas de posicao e cor.
-
-### BannerPreview Component
-
-Recebe props do formulario de banner e renderiza uma simulacao do banner dentro de um widget mockado, mostrando exatamente como o cliente vera.
+Isso mostra claramente que o banner fica no topo da pagina do cliente, separado do chat.
