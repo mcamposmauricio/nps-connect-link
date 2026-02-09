@@ -26,7 +26,7 @@ export function CSMetricsHeader({ metrics }: CSMetricsHeaderProps) {
       value: metrics.totalCompanies,
       icon: Building2,
       color: "text-primary",
-      bgColor: "bg-primary/8",
+      bgColor: "bg-primary/10",
     },
     {
       title: t("cs.metrics.totalMRR"),
@@ -54,11 +54,11 @@ export function CSMetricsHeader({ metrics }: CSMetricsHeaderProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((card, index) => (
-        <div key={index} className="glass-card p-5">
+        <div key={index} className="rounded-lg border bg-card shadow-sm p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">{card.title}</p>
-              <p className="text-3xl font-bold mt-1">{card.value}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{card.title}</p>
+              <p className="text-2xl font-semibold mt-1">{card.value}</p>
             </div>
             <div className={`p-3 rounded-xl ${card.bgColor}`}>
               <card.icon className={`h-5 w-5 ${card.color}`} />

@@ -228,7 +228,7 @@ export default function CSMsPage() {
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
         ) : csms.length === 0 ? (
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardContent className="py-12 text-center">
               <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">{t("cs.csms.noCSMs")}</p>
@@ -237,7 +237,7 @@ export default function CSMsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {csms.map((csm: any) => (
-              <Card key={csm.id} className="glass-card">
+              <Card key={csm.id} className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-12 w-12">

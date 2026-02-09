@@ -92,7 +92,7 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = 
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onClick={onClick}
-      className={`cursor-pointer hover:shadow-lg hover:translate-y-[-1px] transition-all border-l-4 ${!draggable ? 'cursor-default' : ''}`}
+      className={`cursor-pointer hover:bg-muted/50 transition-colors border-l-4 ${!draggable ? 'cursor-default' : ''}`}
       style={{
         borderLeftColor: getBorderColor(healthScore),
       }}

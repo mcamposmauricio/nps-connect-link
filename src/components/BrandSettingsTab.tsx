@@ -204,7 +204,7 @@ const BrandSettingsTab = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold mb-2">{t("settings.brandSettings")}</h2>
+          <h2 className="text-lg font-semibold mb-2">{t("settings.brandSettings")}</h2>
           <p className="text-muted-foreground">
             {t("settings.subtitle")}
           </p>

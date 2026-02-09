@@ -106,7 +106,7 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
               key={status.key}
               onDragOver={handleDragOver}
               onDrop={() => handleDrop(status.key)}
-              className="min-h-[400px] glass-card"
+              className="min-h-[400px] rounded-lg border bg-card shadow-sm"
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">

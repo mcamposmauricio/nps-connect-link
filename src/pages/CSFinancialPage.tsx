@@ -54,54 +54,54 @@ export default function CSFinancialPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
                 {t("cs.financial.totalMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-primary">{formatCurrency(totalMRR)}</span>
+              <span className="text-2xl font-semibold text-primary">{formatCurrency(totalMRR)}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 {t("cs.financial.avgMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold">{formatCurrency(avgMRR)}</span>
+              <span className="text-2xl font-semibold">{formatCurrency(avgMRR)}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <PieChart className="h-4 w-4" />
                 {t("cs.financial.totalContracts")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold">{formatCurrency(totalContractValue)}</span>
+              <span className="text-2xl font-semibold">{formatCurrency(totalContractValue)}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
                 {t("cs.financial.activeCompanies")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold">{companies.length}</span>
+              <span className="text-2xl font-semibold">{companies.length}</span>
             </CardContent>
           </Card>
         </div>
 
         {/* MRR by Status */}
-        <Card className="glass-card">
+        <Card className="rounded-lg border bg-card shadow-sm">
           <CardHeader>
             <CardTitle>{t("cs.financial.mrrByStatus")}</CardTitle>
           </CardHeader>
@@ -124,7 +124,7 @@ export default function CSFinancialPage() {
         </Card>
 
         {/* Top Companies by MRR */}
-        <Card className="glass-card">
+        <Card className="rounded-lg border bg-card shadow-sm">
           <CardHeader>
             <CardTitle>{t("cs.financial.topCompanies")}</CardTitle>
           </CardHeader>
