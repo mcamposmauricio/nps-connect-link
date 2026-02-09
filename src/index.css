@@ -56,6 +56,11 @@ All colors MUST be HSL.
     
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
+    --glass-bg: 0 0% 100% / 0.6;
+    --glass-border: 0 0% 100% / 0.3;
+    --glass-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.06);
+    --glass-blur: 12px;
+
     --sidebar-background: 0 0% 100%;
 
     --sidebar-foreground: 210 4% 18%;
@@ -117,6 +122,10 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 210 4% 30%;
     --sidebar-ring: 148 59% 35%;
+
+    --glass-bg: 210 4% 22% / 0.5;
+    --glass-border: 0 0% 100% / 0.08;
+    --glass-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.2);
   }
 }
 
@@ -128,4 +137,25 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Glass Design System — outside @layer so it overrides Tailwind utilities */
+.glass-card {
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+.glass-card:hover {
+  box-shadow: 0 12px 40px 0 hsl(0 0% 0% / 0.08);
+}
+
+.glass-gradient-bg {
+  background: linear-gradient(135deg, hsl(148 59% 95%) 0%, hsl(0 0% 98%) 40%, hsl(210 4% 96%) 100%);
+}
+.dark .glass-gradient-bg {
+  background: linear-gradient(135deg, hsl(210 4% 16%) 0%, hsl(210 4% 18%) 40%, hsl(210 4% 20%) 100%);
 }

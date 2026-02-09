@@ -54,27 +54,27 @@ const AdminDashboard = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold">{t("chat.dashboard.title")}</h1>
-          <p className="text-muted-foreground">{t("chat.dashboard.subtitle")}</p>
+          <h1 className="text-2xl font-semibold">{t("chat.dashboard.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("chat.dashboard.subtitle")}</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
-            <Card key={card.title}>
+            <Card key={card.title} className="glass-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                <CardTitle className="text-xs uppercase tracking-wider font-medium">{card.title}</CardTitle>
                 <card.icon className={`h-4 w-4 ${card.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{card.value}</div>
+                <div className="text-3xl font-bold">{card.value}</div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>{t("chat.dashboard.closed_today")}</CardTitle>
           </CardHeader>

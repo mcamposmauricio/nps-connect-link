@@ -49,7 +49,7 @@ const AdminChatHistory = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t("chat.history.title")}</h1>
+            <h1 className="text-2xl font-semibold">{t("chat.history.title")}</h1>
             <p className="text-muted-foreground">
               {totalCount} {t("chat.history.total_closed")}
             </p>
@@ -102,7 +102,7 @@ const AdminChatHistory = () => {
         </div>
 
         {/* Table */}
-        <Card>
+        <Card className="glass-card">
           <CardContent className="pt-6">
             {loading ? (
               <div className="flex justify-center py-8">

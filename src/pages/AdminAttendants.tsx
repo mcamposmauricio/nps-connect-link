@@ -55,10 +55,10 @@ const AdminAttendants = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold">{t("chat.attendants.title")}</h1>
-          <p className="text-muted-foreground">{t("chat.attendants.subtitle")}</p>
+          <h1 className="text-2xl font-semibold">{t("chat.attendants.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("chat.attendants.subtitle")}</p>
         </div>
 
         {loading ? (
@@ -66,14 +66,14 @@ const AdminAttendants = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : csms.length === 0 ? (
-          <Card className="p-8 text-center text-muted-foreground">
+          <div className="glass-card p-8 text-center text-muted-foreground">
             <Headphones className="h-12 w-12 mx-auto mb-4 opacity-30" />
             <p>{t("chat.attendants.no_csms")}</p>
-          </Card>
+          </div>
         ) : (
           <div className="grid gap-4">
             {csms.map((csm) => (
-              <Card key={csm.id}>
+              <Card key={csm.id} className="glass-card">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{csm.name}</CardTitle>

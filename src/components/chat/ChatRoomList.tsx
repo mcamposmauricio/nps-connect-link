@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, Clock } from "lucide-react";
@@ -40,15 +39,15 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
 
   if (loading) {
     return (
-      <Card className="h-full flex items-center justify-center">
+      <div className="glass-card h-full flex items-center justify-center">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <div className="p-3 border-b">
+    <div className="glass-card h-full flex flex-col">
+      <div className="p-3 border-b border-white/10">
         <h3 className="font-semibold text-sm">{t("chat.workspace.conversations")}</h3>
         <p className="text-xs text-muted-foreground">{rooms.length} {t("chat.workspace.total")}</p>
       </div>
@@ -64,7 +63,7 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
                 className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
                   selectedRoomId === room.id
                     ? "bg-primary/10 border border-primary/20"
-                    : "hover:bg-muted"
+                    : "hover:bg-muted/50"
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -82,6 +81,6 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
           )}
         </div>
       </ScrollArea>
-    </Card>
+    </div>
   );
 }
