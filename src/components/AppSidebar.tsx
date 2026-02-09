@@ -94,6 +94,7 @@ export function AppSidebar() {
   const npsItems = [
     { path: "/nps/dashboard", icon: BarChart3, label: t("nav.metrics") },
     { path: "/nps/campaigns", icon: Send, label: t("nav.surveys") },
+    { path: "/nps/nps-settings", icon: Settings, label: t("npsSettings.navLabel") },
   ];
 
   return (

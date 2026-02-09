@@ -19,7 +19,7 @@ const AdminWorkspace = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
-  const { rooms, loading: roomsLoading } = useChatRooms(user?.id ?? null);
+  const { rooms, loading: roomsLoading } = useChatRooms(user?.id ?? null, { excludeClosed: true });
   const { messages, loading: messagesLoading } = useChatMessages(selectedRoomId);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -38,20 +38,18 @@ const AdminWorkspace = () => {
   const handleAssignRoom = async (roomId: string) => {
     if (!user) return;
 
-    // Try to find existing attendant profile
     let { data: profile } = await supabase
       .from("attendant_profiles")
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    // If no attendant profile exists, create one on-the-fly for admin users
     if (!profile) {
       const { data: newProfile, error: createError } = await supabase
         .from("attendant_profiles")
         .insert({
           user_id: user.id,
-          csm_id: user.id, // fallback - will be overwritten if a real CSM exists
+          csm_id: user.id,
           display_name: user.email?.split("@")[0] ?? "Admin",
           status: "online",
         })
@@ -59,7 +57,6 @@ const AdminWorkspace = () => {
         .single();
 
       if (createError) {
-        // csm_id FK constraint might fail — try to find/create a CSM first
         const { data: csm } = await supabase
           .from("csms")
           .select("id")
@@ -163,7 +160,7 @@ const AdminWorkspace = () => {
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary" />
                   <span className="font-medium text-sm">
-                    {t("chat.workspace.room")} #{selectedRoom.id.slice(0, 8)}
+                    {selectedRoom.visitor_name || `${t("chat.workspace.room")} #${selectedRoom.id.slice(0, 8)}`}
                   </span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
