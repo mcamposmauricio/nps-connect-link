@@ -1,20 +1,24 @@
 import SidebarLayout from "@/components/SidebarLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Key, Users, Building2 } from "lucide-react";
+import { Users, Building2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import ApiKeysTab from "@/components/ApiKeysTab";
 import TeamSettingsTab from "@/components/TeamSettingsTab";
 import OrganizationSettingsTab from "@/components/OrganizationSettingsTab";
 
 const Settings = () => {
   const { t } = useLanguage();
-  const { isAdmin, hasPermission } = useAuth();
+  const { isAdmin } = useAuth();
 
-  const showApiKeys = isAdmin || hasPermission('settings', 'manage');
-
-  // Determine default tab
-  const defaultTab = showApiKeys ? "apikeys" : isAdmin ? "team" : "apikeys";
+  if (!isAdmin) {
+    return (
+      <SidebarLayout>
+        <div className="text-center py-12 text-muted-foreground">
+          {t("common.noPermission") || "Sem permissão para acessar esta página."}
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
     <SidebarLayout>
@@ -26,45 +30,25 @@ const Settings = () => {
           </p>
         </div>
 
-        <Tabs defaultValue={defaultTab} className="space-y-6">
+        <Tabs defaultValue="team" className="space-y-6">
           <TabsList className="w-full lg:w-auto lg:inline-flex flex-wrap">
-            {showApiKeys && (
-              <TabsTrigger value="apikeys" className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("settings.tabs.apiKeys")}</span>
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="team" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("settings.tabs.team")}</span>
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="organization" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("settings.tabs.organization")}</span>
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="team" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("settings.tabs.team")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="organization" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("settings.tabs.organization")}</span>
+            </TabsTrigger>
           </TabsList>
 
-          {showApiKeys && (
-            <TabsContent value="apikeys">
-              <ApiKeysTab />
-            </TabsContent>
-          )}
+          <TabsContent value="team">
+            <TeamSettingsTab />
+          </TabsContent>
 
-          {isAdmin && (
-            <TabsContent value="team">
-              <TeamSettingsTab />
-            </TabsContent>
-          )}
-
-          {isAdmin && (
-            <TabsContent value="organization">
-              <OrganizationSettingsTab />
-            </TabsContent>
-          )}
+          <TabsContent value="organization">
+            <OrganizationSettingsTab />
+          </TabsContent>
         </Tabs>
       </div>
     </SidebarLayout>

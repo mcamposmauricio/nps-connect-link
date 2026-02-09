@@ -13,7 +13,8 @@ import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Plus, Edit, Trash2 } from "lucide-react";
+import { Save, Plus, Edit, Trash2, Key } from "lucide-react";
+import ChatApiKeysTab from "@/components/ChatApiKeysTab";
 
 interface Macro {
   id: string;
@@ -288,6 +289,10 @@ const AdminSettings = () => {
             <TabsTrigger value="macros">{t("chat.settings.tab_macros")}</TabsTrigger>
             <TabsTrigger value="hours">{t("chat.settings.tab_hours")}</TabsTrigger>
             <TabsTrigger value="rules">{t("chat.settings.tab_rules")}</TabsTrigger>
+            <TabsTrigger value="apikeys" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              {t("settings.tabs.apiKeys")}
+            </TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
@@ -546,6 +551,11 @@ const AdminSettings = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* API Keys Tab */}
+          <TabsContent value="apikeys" className="mt-4">
+            <ChatApiKeysTab />
           </TabsContent>
         </Tabs>
 

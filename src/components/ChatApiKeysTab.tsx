@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Key, Plus, Trash2, Copy, Check, Code2, Eye, EyeOff } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Check, Code2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ApiKey {
   id: string;
@@ -37,7 +36,7 @@ interface ApiKey {
   created_at: string;
 }
 
-const ApiKeysTab = () => {
+const ChatApiKeysTab = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -63,13 +62,13 @@ const ApiKeysTab = () => {
       const { data, error } = await supabase
         .from("api_keys")
         .select("id, name, key_prefix, encrypted_key, is_active, last_used_at, created_at")
-        .like("key_prefix", "nps_%")
+        .like("key_prefix", "chat_%")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setApiKeys(data || []);
     } catch (error: any) {
-      console.error("Error fetching API keys:", error);
+      console.error("Error fetching chat API keys:", error);
     } finally {
       setLoading(false);
     }
@@ -89,32 +88,28 @@ const ApiKeysTab = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Generate a secure random key
       const array = new Uint8Array(32);
       crypto.getRandomValues(array);
-      const rawKey = "nps_" + Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      // Hash the key for storage
+      const rawKey = "chat_" + Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+
       const encoder = new TextEncoder();
       const data = encoder.encode(rawKey);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-      // Store the key with full encrypted_key for frontend use
       const { error } = await supabase
         .from("api_keys")
         .insert({
           user_id: user.id,
           name: newKeyName.trim(),
           key_hash: keyHash,
-          key_prefix: rawKey.substring(0, 12),
+          key_prefix: rawKey.substring(0, 13),
           encrypted_key: rawKey,
         });
 
       if (error) throw error;
 
-      // Show the key to the user (only once!)
       setNewlyCreatedKey(rawKey);
       setNewKeyName("");
       await fetchApiKeys();
@@ -143,10 +138,7 @@ const ApiKeysTab = () => {
 
       if (error) throw error;
 
-      toast({
-        title: t("settings.apiKeys.deleteSuccess"),
-      });
-
+      toast({ title: t("settings.apiKeys.deleteSuccess") });
       await fetchApiKeys();
     } catch (error: any) {
       toast({
@@ -168,33 +160,11 @@ const ApiKeysTab = () => {
   const getIntegrationCode = (apiKey: ApiKey) => {
     const baseUrl = window.location.origin;
     const actualKey = apiKey.encrypted_key || 'YOUR_API_KEY';
-    
-    return {
-      script: `<!-- NPS Widget - Auto-init -->
-<script 
-  src="${baseUrl}/nps-widget.js"
-  data-api-key="${actualKey}"
-  data-external-id="CUSTOMER_EXTERNAL_ID"
-></script>`,
-      programmatic: `<!-- NPS Widget - Programmatic -->
-<script src="${baseUrl}/nps-widget.js"></script>
-<script>
-  // Call this when your user logs in
-  NPSWidget.init({
-    apiKey: "${actualKey}",
-    externalId: loggedUser.id, // Your customer's ID
-    position: "bottom-right", // or "bottom-left", "center-modal"
-    onComplete: (data) => {
-      console.log("NPS submitted:", data.score);
-    }
-  });
-</script>`,
-      iframe: `<!-- NPS Widget - iFrame -->
-<iframe 
-  src="${baseUrl}/embed?api_key=${actualKey}&external_id=CUSTOMER_EXTERNAL_ID"
-  style="position:fixed;bottom:20px;right:20px;width:420px;height:400px;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;"
-></iframe>`,
-    };
+
+    return `<iframe
+  src="${baseUrl}/widget?embed=true&api_key=${actualKey}"
+  style="position:fixed;bottom:20px;right:20px;width:400px;height:600px;border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;"
+></iframe>`;
   };
 
   return (
@@ -202,20 +172,18 @@ const ApiKeysTab = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Key className="h-5 w-5" />
-          {t("settings.apiKeys.title")}
+          {t("chat.settings.apiKeys.title")}
         </CardTitle>
         <CardDescription>
-          {t("settings.apiKeys.description")}
+          {t("chat.settings.apiKeys.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Create new key button */}
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {t("settings.apiKeys.create")}
         </Button>
 
-        {/* API Keys list */}
         <div className="space-y-3">
           {loading ? (
             <div className="text-center py-4 text-muted-foreground">
@@ -251,9 +219,7 @@ const ApiKeysTab = () => {
                       size="sm"
                       onClick={() => {
                         copyToClipboard(key.encrypted_key!);
-                        toast({
-                          title: t("settings.apiKeys.keyCopied"),
-                        });
+                        toast({ title: t("settings.apiKeys.keyCopied") });
                       }}
                     >
                       <Copy className="h-4 w-4" />
@@ -355,67 +321,26 @@ const ApiKeysTab = () => {
         <Dialog open={showIntegrationCode} onOpenChange={setShowIntegrationCode}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{t("settings.apiKeys.integrationCode")}</DialogTitle>
+              <DialogTitle>{t("chat.settings.apiKeys.integrationCode")}</DialogTitle>
               <DialogDescription>
-                {t("settings.apiKeys.integrationDescription")}
+                {t("chat.settings.apiKeys.integrationDescription")}
               </DialogDescription>
             </DialogHeader>
-            <Tabs defaultValue="script" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="script">Script</TabsTrigger>
-                <TabsTrigger value="programmatic">Programático</TabsTrigger>
-                <TabsTrigger value="iframe">iFrame</TabsTrigger>
-              </TabsList>
-              {selectedKeyForCode && (
-                <>
-                  <TabsContent value="script" className="space-y-4">
-                    <div className="relative">
-                      <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-                        <code>{getIntegrationCode(selectedKeyForCode).script}</code>
-                      </pre>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-2"
-                        onClick={() => copyToClipboard(getIntegrationCode(selectedKeyForCode).script)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="programmatic" className="space-y-4">
-                    <div className="relative">
-                      <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-                        <code>{getIntegrationCode(selectedKeyForCode).programmatic}</code>
-                      </pre>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-2"
-                        onClick={() => copyToClipboard(getIntegrationCode(selectedKeyForCode).programmatic)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="iframe" className="space-y-4">
-                    <div className="relative">
-                      <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-                        <code>{getIntegrationCode(selectedKeyForCode).iframe}</code>
-                      </pre>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-2"
-                        onClick={() => copyToClipboard(getIntegrationCode(selectedKeyForCode).iframe)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TabsContent>
-                </>
-              )}
-            </Tabs>
+            {selectedKeyForCode && (
+              <div className="relative">
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+                  <code>{getIntegrationCode(selectedKeyForCode)}</code>
+                </pre>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-2"
+                  onClick={() => copyToClipboard(getIntegrationCode(selectedKeyForCode))}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
             <DialogFooter>
               <Button onClick={() => setShowIntegrationCode(false)}>
                 {t("common.close")}
@@ -449,4 +374,4 @@ const ApiKeysTab = () => {
   );
 };
 
-export default ApiKeysTab;
+export default ChatApiKeysTab;

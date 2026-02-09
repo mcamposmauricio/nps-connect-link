@@ -1,13 +1,17 @@
 import SidebarLayout from "@/components/SidebarLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Mail, Bell } from "lucide-react";
+import { Palette, Mail, Bell, Key } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import BrandSettingsTab from "@/components/BrandSettingsTab";
 import EmailSettingsTab from "@/components/EmailSettingsTab";
 import NotificationSettingsTab from "@/components/NotificationSettingsTab";
+import ApiKeysTab from "@/components/ApiKeysTab";
 
 const NPSSettings = () => {
   const { t } = useLanguage();
+  const { isAdmin, hasPermission } = useAuth();
+  const showApiKeys = isAdmin || hasPermission('settings', 'manage');
 
   return (
     <SidebarLayout>
@@ -33,6 +37,12 @@ const NPSSettings = () => {
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.notifications")}</span>
             </TabsTrigger>
+            {showApiKeys && (
+              <TabsTrigger value="apikeys" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                <span className="hidden sm:inline">{t("settings.tabs.apiKeys")}</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="brand">
@@ -46,6 +56,12 @@ const NPSSettings = () => {
           <TabsContent value="notifications">
             <NotificationSettingsTab />
           </TabsContent>
+
+          {showApiKeys && (
+            <TabsContent value="apikeys">
+              <ApiKeysTab />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </SidebarLayout>
