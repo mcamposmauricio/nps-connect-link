@@ -55,7 +55,6 @@ export default function CSMsPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("csm_id")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .not("csm_id", "is", null);
 

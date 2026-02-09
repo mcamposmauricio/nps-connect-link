@@ -55,7 +55,6 @@ const EmailSettingsTab = () => {
       const { data, error } = await supabase
         .from("user_email_settings")
         .select("*")
-        .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) throw error;
