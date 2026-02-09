@@ -21,7 +21,6 @@ export default function CSChurnPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .eq("cs_status", "churn")
         .order("updated_at", { ascending: false });
@@ -40,7 +39,6 @@ export default function CSChurnPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .neq("cs_status", "churn")
         .lt("health_score", 40)
@@ -63,7 +61,6 @@ export default function CSChurnPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .neq("cs_status", "churn")
         .not("renewal_date", "is", null)

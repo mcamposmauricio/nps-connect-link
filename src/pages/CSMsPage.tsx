@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import SidebarLayout from "@/components/SidebarLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const SPECIALTIES = ["implementacao", "onboarding", "acompanhamento", "churn"];
 
 export default function CSMsPage() {
   const { t } = useLanguage();
+  const { user, tenantId } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,13 +33,12 @@ export default function CSMsPage() {
   const { data: csms = [], isLoading } = useQuery({
     queryKey: ["csms"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
         .from("csms")
         .select("*")
-        .eq("user_id", user.id)
         .order("name");
 
       if (error) throw error;

@@ -61,8 +61,7 @@ const Results = () => {
           comment,
           responded_at,
           campaigns!inner (
-            name,
-            user_id
+            name
           ),
           contacts (
             name,
@@ -70,7 +69,6 @@ const Results = () => {
           )
         `
         )
-        .eq("campaigns.user_id", user.id)
         .order("responded_at", { ascending: false });
 
       if (error) throw error;

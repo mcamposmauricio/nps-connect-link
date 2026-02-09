@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import SidebarLayout from "@/components/SidebarLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Plus, Route as RouteIcon, Trash2, Edit2, CheckCircle, Circle } from "lu
 
 export default function CSTrailsPage() {
   const { t } = useLanguage();
+  const { user, tenantId } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
@@ -36,7 +38,6 @@ export default function CSTrailsPage() {
       const { data, error } = await supabase
         .from("trail_templates")
         .select("*, trail_template_activities(*)")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -46,13 +47,13 @@ export default function CSTrailsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData & { activities: typeof activities }) => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const { data: template, error: templateError } = await supabase
         .from("trail_templates")
         .insert({
           user_id: user.id,
+          tenant_id: tenantId,
           name: data.name,
           description: data.description,
           type: data.type,

@@ -18,7 +18,6 @@ export default function CSFinancialPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .neq("cs_status", "churn")
         .order("mrr", { ascending: false });

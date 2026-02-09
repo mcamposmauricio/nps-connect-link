@@ -94,7 +94,6 @@ const Contacts = () => {
       const { data: companiesData, error: companiesError } = await supabase
         .from("contacts")
         .select("*")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .order("name");
 

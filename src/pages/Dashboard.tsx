@@ -127,12 +127,11 @@ const Dashboard = () => {
         if (!user) return;
 
         const [contactsRes, campaignsRes, responsesRes] = await Promise.all([
-          supabase.from("contacts").select("id", { count: "exact" }).eq("user_id", user.id),
-          supabase.from("campaigns").select("id", { count: "exact" }).eq("user_id", user.id).in("status", ["active", "sent"]),
+          supabase.from("contacts").select("id", { count: "exact" }),
+          supabase.from("campaigns").select("id", { count: "exact" }).in("status", ["active", "sent"]),
           supabase
             .from("responses")
-            .select("score, responded_at, campaigns!inner(user_id)")
-            .eq("campaigns.user_id", user.id),
+            .select("score, responded_at"),
         ]);
 
         const responses = responsesRes.data || [];
@@ -212,7 +211,6 @@ const Dashboard = () => {
         const { data: campaigns } = await supabase
           .from("campaigns")
           .select("id, name")
-          .eq("user_id", user.id)
           .in("status", ["active", "sent"]);
 
         if (!campaigns) return;
@@ -345,7 +343,6 @@ const Dashboard = () => {
         const { data, error } = await supabase
           .from("contacts")
           .select("*")
-          .eq("user_id", user.id)
           .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
           .limit(10);
 
