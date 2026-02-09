@@ -43,13 +43,9 @@ const BrandSettingsTab = () => {
 
   const fetchSettings = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from("brand_settings")
         .select("*")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: true });
 
       if (error) throw error;

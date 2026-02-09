@@ -187,12 +187,10 @@ const Dashboard = () => {
               email,
               is_company
             ),
-            campaigns!inner (
-              name,
-              user_id
+            campaigns (
+              name
             )
           `)
-          .eq("campaigns.user_id", user.id)
           .order("responded_at", { ascending: false })
           .limit(10);
 

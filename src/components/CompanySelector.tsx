@@ -51,7 +51,6 @@ export function CompanySelector({ value, onChange, onCreateNew, disabled }: Comp
       const { data, error } = await supabase
         .from("contacts")
         .select("id, name, trade_name, company_document")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .order("name");
 

@@ -815,4 +815,19 @@ export default {
   "auth.displayName": "Nome de exibição",
   "auth.displayNamePlaceholder": "Como você quer ser chamado",
   "auth.acceptInvite": "Aceitar Convite e Criar Conta",
+
+  // Organization Settings
+  "organization.title": "Organização",
+  "organization.subtitle": "Informações da sua organização",
+  "organization.name": "Nome da Organização",
+  "organization.namePlaceholder": "Nome da sua empresa",
+  "organization.slug": "Identificador (Slug)",
+  "organization.slugPlaceholder": "minha-empresa",
+  "organization.createdAt": "Criada em",
+  "organization.members": "Membros",
+  "organization.companies": "Empresas",
+  "organization.campaigns": "Campanhas",
+  "organization.saveSuccess": "Organização atualizada com sucesso!",
+  "organization.usage": "Uso da Organização",
+  "settings.tabs.organization": "Organização",
 };

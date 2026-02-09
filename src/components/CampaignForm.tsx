@@ -30,13 +30,9 @@ export const CampaignForm = ({ onSuccess, onCancel }: CampaignFormProps) => {
 
   const fetchBrands = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from("brand_settings")
         .select("id, brand_name, company_name")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
