@@ -14,7 +14,7 @@ import NPSEmbed from "./pages/NPSEmbed";
 import NotFound from "./pages/NotFound";
 import CSDashboard from "./pages/CSDashboard";
 import CSTrailsPage from "./pages/CSTrailsPage";
-import CSMsPage from "./pages/CSMsPage";
+// CSMsPage now redirects to settings via route below
 import CSHealthPage from "./pages/CSHealthPage";
 import CSChurnPage from "./pages/CSChurnPage";
 import CSFinancialPage from "./pages/CSFinancialPage";
@@ -52,7 +52,7 @@ const App = () => (
           <Route path="/cs-health" element={<CSHealthPage />} />
           <Route path="/cs-churn" element={<CSChurnPage />} />
           <Route path="/cs-financial" element={<CSFinancialPage />} />
-          <Route path="/csms" element={<CSMsPage />} />
+          <Route path="/csms" element={<Navigate to="/nps/settings" replace />} />
           
           {/* Chat Module Routes */}
           <Route path="/widget" element={<ChatWidget />} />

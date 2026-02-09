@@ -15,6 +15,7 @@ interface UseAuthReturn {
   isAdmin: boolean;
   isChatEnabled: boolean;
   loading: boolean;
+  tenantId: string | null;
   permissions: UserPermission[];
   hasPermission: (module: string, action: 'view' | 'edit' | 'delete' | 'manage') => boolean;
 }
@@ -24,6 +25,7 @@ export function useAuth(): UseAuthReturn {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isChatEnabled, setIsChatEnabled] = useState(false);
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const hasPermission = useCallback(
@@ -86,6 +88,15 @@ export function useAuth(): UseAuthReturn {
           setPermissions([]);
         }
 
+        // Load tenant_id from profile
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("tenant_id")
+          .eq("user_id", currentUser.id)
+          .maybeSingle();
+
+        setTenantId(profile?.tenant_id ?? null);
+
         // Upsert user profile
         await supabase.from("user_profiles").upsert(
           {
@@ -109,11 +120,12 @@ export function useAuth(): UseAuthReturn {
         setIsAdmin(false);
         setIsChatEnabled(false);
         setPermissions([]);
+        setTenantId(null);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  return { user, isAdmin, isChatEnabled, loading, permissions, hasPermission };
+  return { user, isAdmin, isChatEnabled, loading, tenantId, permissions, hasPermission };
 }

@@ -1002,6 +1002,36 @@ export type Database = {
           },
         ]
       }
+      tenants: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          slug: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          slug?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          slug?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       timeline_events: {
         Row: {
           contact_id: string
@@ -1393,37 +1423,66 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          department: string | null
           display_name: string | null
           email: string
           id: string
+          invite_status: string | null
+          invite_token: string | null
+          invited_by: string | null
           is_active: boolean | null
           last_sign_in_at: string | null
+          phone: string | null
+          specialty: string[] | null
+          tenant_id: string | null
           updated_at: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          department?: string | null
           display_name?: string | null
           email: string
           id?: string
+          invite_status?: string | null
+          invite_token?: string | null
+          invited_by?: string | null
           is_active?: boolean | null
           last_sign_in_at?: string | null
+          phone?: string | null
+          specialty?: string[] | null
+          tenant_id?: string | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          department?: string | null
           display_name?: string | null
           email?: string
           id?: string
+          invite_status?: string | null
+          invite_token?: string | null
+          invited_by?: string | null
           is_active?: boolean | null
           last_sign_in_at?: string | null
+          phone?: string | null
+          specialty?: string[] | null
+          tenant_id?: string | null
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
