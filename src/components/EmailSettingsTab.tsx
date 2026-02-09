@@ -8,6 +8,7 @@ import { Loader2, Mail, Server, Check, AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Select,
   SelectContent,
@@ -42,6 +43,8 @@ const EmailSettingsTab = () => {
   const [testing, setTesting] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { hasPermission } = useAuth();
+  const canEditSettings = hasPermission('settings', 'edit');
 
   useEffect(() => {
     fetchSettings();
@@ -382,13 +385,13 @@ const EmailSettingsTab = () => {
             <Button
               variant="outline"
               onClick={handleTestConfig}
-              disabled={testing}
+              disabled={testing || !canEditSettings}
             >
               {testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("settings.email.testConfig")}
             </Button>
           )}
-          <Button onClick={handleSave} disabled={saving} className="flex-1">
+          <Button onClick={handleSave} disabled={saving || !canEditSettings} className="flex-1">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("settings.saveChanges")}
           </Button>

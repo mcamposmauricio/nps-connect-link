@@ -18,7 +18,9 @@ import { Plus, Route as RouteIcon, Trash2, Edit2, CheckCircle, Circle } from "lu
 
 export default function CSTrailsPage() {
   const { t } = useLanguage();
-  const { user, tenantId } = useAuth();
+  const { user, tenantId, hasPermission } = useAuth();
+  const canEditCS = hasPermission('cs', 'edit');
+  const canDeleteCS = hasPermission('cs', 'delete');
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
@@ -147,13 +149,14 @@ export default function CSTrailsPage() {
             <h1 className="text-2xl font-semibold">{t("cs.trails.title")}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("cs.trails.subtitle")}</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("cs.trails.addTemplate")}
-              </Button>
-            </DialogTrigger>
+          {canEditCS && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => resetForm()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("cs.trails.addTemplate")}
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>{t("cs.trails.newTemplate")}</DialogTitle>
@@ -243,6 +246,7 @@ export default function CSTrailsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
         {isLoading ? (
@@ -288,17 +292,19 @@ export default function CSTrailsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => deleteMutation.mutate(template.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      {t("common.delete")}
-                    </Button>
-                  </div>
+                  {canDeleteCS && (
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => deleteMutation.mutate(template.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        {t("common.delete")}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

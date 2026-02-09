@@ -19,7 +19,9 @@ const SPECIALTIES = ["implementacao", "onboarding", "acompanhamento", "churn"];
 
 export default function CSMsPage() {
   const { t } = useLanguage();
-  const { user, tenantId } = useAuth();
+  const { user, tenantId, hasPermission } = useAuth();
+  const canEditCS = hasPermission('cs', 'edit');
+  const canDeleteCS = hasPermission('cs', 'delete');
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -146,13 +148,14 @@ export default function CSMsPage() {
             <h1 className="text-2xl font-semibold">{t("cs.csms.title")}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("cs.csms.subtitle")}</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("cs.csms.addCSM")}
-              </Button>
-            </DialogTrigger>
+          {canEditCS && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("cs.csms.addCSM")}
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{t("cs.csms.newCSM")}</DialogTitle>
@@ -219,6 +222,7 @@ export default function CSMsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
         {isLoading ? (
@@ -275,15 +279,17 @@ export default function CSMsPage() {
                       </Badge>
                     ))}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => deleteMutation.mutate(csm.id)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    {t("common.delete")}
-                  </Button>
+                  {canDeleteCS && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => deleteMutation.mutate(csm.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      {t("common.delete")}
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

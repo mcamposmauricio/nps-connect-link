@@ -8,6 +8,7 @@ import { Loader2, Upload, Palette } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import NPSForm from "@/components/NPSForm";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface BrandSettings {
   id?: string;
@@ -36,6 +37,8 @@ const BrandSettingsTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { hasPermission } = useAuth();
+  const canEditSettings = hasPermission('settings', 'edit');
 
   useEffect(() => {
     fetchSettings();
@@ -349,7 +352,7 @@ const BrandSettingsTab = () => {
             </div>
           </div>
 
-          <Button onClick={handleSave} className="w-full" disabled={saving}>
+          <Button onClick={handleSave} className="w-full" disabled={saving || !canEditSettings}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("settings.saveChanges")}
           </Button>

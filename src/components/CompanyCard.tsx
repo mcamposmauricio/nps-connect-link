@@ -31,9 +31,10 @@ interface CompanyCardProps {
   company: Company;
   onClick: () => void;
   onDelete: () => void;
+  canDelete?: boolean;
 }
 
-export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
+export function CompanyCard({ company, onClick, onDelete, canDelete = true }: CompanyCardProps) {
   const { t } = useLanguage();
   
   return (
@@ -54,17 +55,19 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
           <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </div>
       </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Copy, Check, User, Building2, Code2, Download, Mail, Trash2, Send, Users, TrendingUp, BarChart3, MessageSquare, Filter, Plus, XCircle, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { QuickContactForm } from "@/components/QuickContactForm";
 import { getStatusLabel, getStatusColor } from "@/utils/campaignUtils";
 import {
@@ -152,6 +153,10 @@ const CampaignDetails = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
   const { language } = useLanguage();
+  const { hasPermission } = useAuth();
+  const canEditNps = hasPermission('nps', 'edit');
+  const canDeleteNps = hasPermission('nps', 'delete');
+  const canManageNps = hasPermission('nps', 'manage');
 
   useEffect(() => {
     fetchCampaignDetails();
@@ -807,7 +812,7 @@ const CampaignDetails = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {campaign.status !== 'cancelled' && (
+            {canManageNps && campaign.status !== 'cancelled' && (
               <Button 
                 variant="outline" 
                 size="sm"
@@ -1011,16 +1016,18 @@ const CampaignDetails = () => {
               Contatos da Campanha ({getFilteredContacts().length})
             </h2>
             <div className="flex gap-2">
-              <Button 
-                onClick={openAddContactsDialog} 
-                variant="outline" 
-                size="sm"
-                disabled={!canAddContacts}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Adicionar Contatos
-              </Button>
-              {selectedContacts.length > 0 && (
+              {canEditNps && (
+                <Button 
+                  onClick={openAddContactsDialog} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={!canAddContacts}
+                >
+                  <Users className="mr-2 h-4 w-4" />
+                  Adicionar Contatos
+                </Button>
+              )}
+              {canEditNps && selectedContacts.length > 0 && (
                 <Button 
                   onClick={sendBulkReminders} 
                   disabled={sendingBulk}
@@ -1168,22 +1175,26 @@ const CampaignDetails = () => {
                               </>
                             )}
                           </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => sendNPSReminder(cc.contact_id)}
-                            disabled={sendingEmail === cc.contact_id || cc.email_sent}
-                          >
-                            <Mail className="mr-2 h-4 w-4" />
-                            {sendingEmail === cc.contact_id ? "Enviando..." : cc.email_sent ? "Enviado" : "Enviar"}
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => setContactToDelete(cc.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canEditNps && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => sendNPSReminder(cc.contact_id)}
+                              disabled={sendingEmail === cc.contact_id || cc.email_sent}
+                            >
+                              <Mail className="mr-2 h-4 w-4" />
+                              {sendingEmail === cc.contact_id ? "Enviando..." : cc.email_sent ? "Enviado" : "Enviar"}
+                            </Button>
+                          )}
+                          {canDeleteNps && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setContactToDelete(cc.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
