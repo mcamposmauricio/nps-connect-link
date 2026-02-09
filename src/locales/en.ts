@@ -838,4 +838,10 @@ export default {
   "npsSettings.title": "NPS Settings",
   "npsSettings.subtitle": "Configure brand, email and notifications for NPS surveys",
   "npsSettings.navLabel": "Settings",
+
+  // Chat API Keys
+  "chat.settings.apiKeys.title": "Chat API Keys",
+  "chat.settings.apiKeys.description": "Manage API keys for chat widget integration",
+  "chat.settings.apiKeys.integrationCode": "Chat Integration Code",
+  "chat.settings.apiKeys.integrationDescription": "Copy the code below and paste it into your website HTML to integrate the chat widget",
 };
