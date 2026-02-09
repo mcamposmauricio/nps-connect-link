@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NotificationSettings {
   id?: string;
@@ -32,6 +33,8 @@ const NotificationSettingsTab = () => {
   const [userEmail, setUserEmail] = useState("");
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { hasPermission } = useAuth();
+  const canEditSettings = hasPermission('settings', 'edit');
 
   useEffect(() => {
     fetchSettings();
@@ -229,7 +232,7 @@ const NotificationSettingsTab = () => {
         )}
 
         <div className="pt-4 border-t">
-          <Button onClick={handleSave} disabled={saving} className="w-full">
+          <Button onClick={handleSave} disabled={saving || !canEditSettings} className="w-full">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("settings.saveChanges")}
           </Button>

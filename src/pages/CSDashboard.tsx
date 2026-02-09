@@ -8,7 +8,8 @@ import { CSMetricsHeader } from "@/components/cs/CSMetricsHeader";
 
 export default function CSDashboard() {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canEdit = hasPermission('cs', 'edit');
 
   const { data: companies = [], isLoading, refetch } = useQuery({
     queryKey: ["cs-companies", user?.id],
@@ -63,6 +64,7 @@ export default function CSDashboard() {
           csms={csms}
           isLoading={isLoading} 
           onRefresh={refetch}
+          canEdit={canEdit}
         />
       </div>
     </SidebarLayout>

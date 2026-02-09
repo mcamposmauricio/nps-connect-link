@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Download, Calendar, Clock, Trash2, Users, BarChart3 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getStatusLabel, getStatusColor, getCycleLabel, formatDate } from "@/utils/campaignUtils";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +57,9 @@ const Campaigns = () => {
   const [totalContacts, setTotalContacts] = useState(0);
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { hasPermission } = useAuth();
+  const canEditNps = hasPermission('nps', 'edit');
+  const canDeleteNps = hasPermission('nps', 'delete');
 
   useEffect(() => {
     fetchCampaigns();
@@ -190,26 +194,28 @@ const Campaigns = () => {
                 {t("contacts.export")}
               </Button>
             )}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("campaigns.createCampaign")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>{t("campaignForm.title")}</DialogTitle>
-                </DialogHeader>
-                <CampaignForm
-                  onSuccess={() => {
-                    setDialogOpen(false);
-                    fetchCampaigns();
-                  }}
-                  onCancel={() => setDialogOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            {canEditNps && (
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t("campaigns.createCampaign")}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{t("campaignForm.title")}</DialogTitle>
+                  </DialogHeader>
+                  <CampaignForm
+                    onSuccess={() => {
+                      setDialogOpen(false);
+                      fetchCampaigns();
+                    }}
+                    onCancel={() => setDialogOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
@@ -263,7 +269,7 @@ const Campaigns = () => {
                         </div>
                       </div>
                       
-                      {campaign.status !== 'live' && (
+                      {canDeleteNps && campaign.status !== 'live' && (
                         <Button
                           variant="ghost"
                           size="icon"

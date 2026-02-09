@@ -36,6 +36,8 @@ interface CompanyContactsListProps {
   onDeleteContact: (id: string) => void;
   onSetPrimary: (id: string) => void;
   loading?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function CompanyContactsList({
@@ -45,6 +47,8 @@ export function CompanyContactsList({
   onDeleteContact,
   onSetPrimary,
   loading = false,
+  canEdit = true,
+  canDelete = true,
 }: CompanyContactsListProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -76,20 +80,24 @@ export function CompanyContactsList({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">{t("companyContacts.title")}</h3>
-        <Button size="sm" onClick={onAddContact}>
-          <Plus className="h-4 w-4 mr-1" />
-          {t("companyContacts.add")}
-        </Button>
+        {canEdit && (
+          <Button size="sm" onClick={onAddContact}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t("companyContacts.add")}
+          </Button>
+        )}
       </div>
 
       {sortedContacts.length === 0 ? (
         <Card className="p-6 text-center">
           <User className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">{t("companies.noContacts")}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={onAddContact}>
-            <Plus className="h-4 w-4 mr-1" />
-            {t("companyContacts.addFirst")}
-          </Button>
+          {canEdit && (
+            <Button variant="outline" size="sm" className="mt-3" onClick={onAddContact}>
+              <Plus className="h-4 w-4 mr-1" />
+              {t("companyContacts.addFirst")}
+            </Button>
+          )}
         </Card>
       ) : (
         <div className="space-y-2">
@@ -133,7 +141,7 @@ export function CompanyContactsList({
                       <Copy className="h-4 w-4" />
                     </Button>
                   )}
-                  {!contact.is_primary && (
+                  {canEdit && !contact.is_primary && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -144,22 +152,26 @@ export function CompanyContactsList({
                       <Star className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onEditContact(contact)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setDeleteContactId(contact.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => onEditContact(contact)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDeleteContactId(contact.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>

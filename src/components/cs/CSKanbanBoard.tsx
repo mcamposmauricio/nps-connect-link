@@ -18,6 +18,7 @@ interface CSKanbanBoardProps {
   csms: CSM[];
   isLoading: boolean;
   onRefresh: () => void;
+  canEdit?: boolean;
 }
 
 const CS_STATUSES = [
@@ -27,7 +28,7 @@ const CS_STATUSES = [
   { key: "churn", color: "bg-destructive" },
 ];
 
-export function CSKanbanBoard({ companies, csms, isLoading, onRefresh }: CSKanbanBoardProps) {
+export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit = true }: CSKanbanBoardProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [selectedCompany, setSelectedCompany] = useState<KanbanCompany | null>(null);
@@ -46,7 +47,7 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh }: CSKanba
   };
 
   const handleDrop = async (status: string) => {
-    if (!draggedCompany || draggedCompany.cs_status === status) {
+    if (!canEdit || !draggedCompany || draggedCompany.cs_status === status) {
       setDraggedCompany(null);
       return;
     }
@@ -127,8 +128,9 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh }: CSKanba
                       key={company.id}
                       company={company as KanbanCompany}
                       csms={csms}
-                      onDragStart={() => handleDragStart(company)}
+                      onDragStart={canEdit ? () => handleDragStart(company) : () => {}}
                       onClick={() => setSelectedCompany(company)}
+                      draggable={canEdit}
                     />
                   ))
                 )}

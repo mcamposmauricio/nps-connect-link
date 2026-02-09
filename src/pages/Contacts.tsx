@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, Building2, Pencil } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +81,9 @@ const Contacts = () => {
   
   const { toast } = useToast();
   const { t } = useLanguage();
-
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('contacts', 'edit');
+  const canDelete = hasPermission('contacts', 'delete');
   useEffect(() => {
     fetchCompanies();
   }, []);
@@ -447,10 +450,12 @@ const Contacts = () => {
             <p className="text-sm text-muted-foreground mt-1">{t("companies.subtitle")}</p>
           </div>
 
-          <Button onClick={() => setAddCompanyDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t("companies.addCompany")}
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setAddCompanyDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("companies.addCompany")}
+            </Button>
+          )}
         </div>
 
         {loading ? (
@@ -461,13 +466,15 @@ const Contacts = () => {
           <Card className="p-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">{t("companies.noCompanies")}</p>
-            <Button 
-              className="mt-4"
-              onClick={() => setAddCompanyDialogOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {t("companies.addCompany")}
-            </Button>
+            {canEdit && (
+              <Button 
+                className="mt-4"
+                onClick={() => setAddCompanyDialogOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {t("companies.addCompany")}
+              </Button>
+            )}
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -477,6 +484,7 @@ const Contacts = () => {
                 company={company}
                 onClick={() => handleCompanyClick(company)}
                 onDelete={() => setDeleteCompanyId(company.id)}
+                canDelete={canDelete}
               />
             ))}
           </div>
@@ -511,14 +519,16 @@ const Contacts = () => {
             {selectedCompany && (
               <div className="mt-6 space-y-6">
                 <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditCompanyData(selectedCompany)}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t("companies.editCompany")}
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditCompanyData(selectedCompany)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t("companies.editCompany")}
+                    </Button>
+                  )}
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -567,6 +577,8 @@ const Contacts = () => {
                   onEditContact={(contact) => setEditContactData(contact)}
                   onDeleteContact={handleDeleteContact}
                   onSetPrimary={handleSetPrimary}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </div>
             )}

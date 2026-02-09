@@ -33,9 +33,10 @@ interface CSKanbanCardProps {
   csms: CSM[];
   onDragStart: () => void;
   onClick: () => void;
+  draggable?: boolean;
 }
 
-export function CSKanbanCard({ company, csms, onDragStart, onClick }: CSKanbanCardProps) {
+export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = true }: CSKanbanCardProps) {
   const { t } = useLanguage();
   const healthScore = company.health_score ?? 50;
   const csm = csms.find((c) => c.id === company.csm_id);
@@ -88,10 +89,10 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick }: CSKanbanCa
 
   return (
     <Card
-      draggable
-      onDragStart={onDragStart}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
       onClick={onClick}
-      className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+      className={`cursor-pointer hover:shadow-md transition-shadow border-l-4 ${!draggable ? 'cursor-default' : ''}`}
       style={{
         borderLeftColor: getBorderColor(healthScore),
       }}
