@@ -878,4 +878,10 @@ export default {
   "banners.noAssignments": "No assignments",
   "banners.client": "Client",
   "banners.vote": "Vote",
+
+  // Company Details Sheet
+  "companyDetails.integration": "Integration",
+  "companyDetails.systemId": "System ID",
+  "companyDetails.copied": "Copied!",
+  "companyDetails.externalId": "External ID",
 };

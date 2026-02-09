@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2, Pencil } from "lucide-react";
+import { Plus, Loader2, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -12,12 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,8 +25,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CompanyCard } from "@/components/CompanyCard";
 import { CompanyForm } from "@/components/CompanyForm";
-import { CompanyContactForm } from "@/components/CompanyContactForm";
-import { CompanyContactsList } from "@/components/CompanyContactsList";
+import { CompanyDetailsSheet } from "@/components/CompanyDetailsSheet";
 
 interface CompanyContact {
   id: string;
@@ -72,11 +65,7 @@ const Contacts = () => {
   const [loading, setLoading] = useState(true);
   const [addCompanyDialogOpen, setAddCompanyDialogOpen] = useState(false);
   const [editCompanyData, setEditCompanyData] = useState<Company | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [companyContacts, setCompanyContacts] = useState<CompanyContact[]>([]);
-  const [loadingContacts, setLoadingContacts] = useState(false);
-  const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
-  const [editContactData, setEditContactData] = useState<CompanyContact | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [deleteCompanyId, setDeleteCompanyId] = useState<string | null>(null);
   
   const { toast } = useToast();
@@ -151,32 +140,9 @@ const Contacts = () => {
     }
   };
 
-  const fetchCompanyContacts = useCallback(async (companyId: string) => {
-    setLoadingContacts(true);
-    try {
-      const { data, error } = await supabase
-        .from("company_contacts")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("created_at");
-
-      if (error) throw error;
-      setCompanyContacts(data || []);
-    } catch (error: any) {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingContacts(false);
-    }
-  }, [toast, t]);
-
   const handleCompanyClick = useCallback((company: Company) => {
-    setSelectedCompany(company);
-    fetchCompanyContacts(company.id);
-  }, [fetchCompanyContacts]);
+    setSelectedCompanyId(company.id);
+  }, []);
 
   const handleAddCompany = async (data: any) => {
     try {
@@ -252,9 +218,8 @@ const Contacts = () => {
       setEditCompanyData(null);
       fetchCompanies();
       
-      // Update selectedCompany if editing the currently viewed company
-      if (selectedCompany?.id === editCompanyData.id) {
-        setSelectedCompany(null);
+      if (selectedCompanyId === editCompanyData.id) {
+        setSelectedCompanyId(null);
       }
     } catch (error: any) {
       toast({
@@ -282,155 +247,9 @@ const Contacts = () => {
       });
 
       setDeleteCompanyId(null);
-      if (selectedCompany?.id === deleteCompanyId) {
-        setSelectedCompany(null);
+      if (selectedCompanyId === deleteCompanyId) {
+        setSelectedCompanyId(null);
       }
-      fetchCompanies();
-    } catch (error: any) {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddContact = async (data: any) => {
-    if (!selectedCompany) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("auth.error"));
-
-      // If setting as primary, unset other primary contacts first
-      if (data.is_primary) {
-        await supabase
-          .from("company_contacts")
-          .update({ is_primary: false })
-          .eq("company_id", selectedCompany.id);
-      }
-
-      const { error } = await supabase.from("company_contacts").insert({
-        company_id: selectedCompany.id,
-        user_id: user.id,
-        name: data.name,
-        email: data.email,
-        phone: data.phone || null,
-        role: data.role || null,
-        department: data.department || null,
-        is_primary: data.is_primary || companyContacts.length === 0,
-        external_id: data.external_id || null,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: t("common.success"),
-        description: t("contacts.addSuccess"),
-      });
-
-      setAddContactDialogOpen(false);
-      fetchCompanyContacts(selectedCompany.id);
-      fetchCompanies(); // Update counts
-    } catch (error: any) {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEditContact = async (data: any) => {
-    if (!selectedCompany || !editContactData) return;
-
-    try {
-      // If setting as primary, unset other primary contacts first
-      if (data.is_primary && !editContactData.is_primary) {
-        await supabase
-          .from("company_contacts")
-          .update({ is_primary: false })
-          .eq("company_id", selectedCompany.id);
-      }
-
-      const { error } = await supabase
-        .from("company_contacts")
-        .update({
-          name: data.name,
-          email: data.email,
-          phone: data.phone || null,
-          role: data.role || null,
-          department: data.department || null,
-          is_primary: data.is_primary,
-          external_id: data.external_id || null,
-        })
-        .eq("id", editContactData.id);
-
-      if (error) throw error;
-
-      toast({
-        title: t("common.success"),
-        description: t("companies.updateSuccess"),
-      });
-
-      setEditContactData(null);
-      fetchCompanyContacts(selectedCompany.id);
-      fetchCompanies();
-    } catch (error: any) {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteContact = async (contactId: string) => {
-    if (!selectedCompany) return;
-
-    try {
-      const { error } = await supabase
-        .from("company_contacts")
-        .delete()
-        .eq("id", contactId);
-
-      if (error) throw error;
-
-      toast({
-        title: t("common.success"),
-        description: t("contacts.deleteSuccess"),
-      });
-
-      fetchCompanyContacts(selectedCompany.id);
-      fetchCompanies();
-    } catch (error: any) {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSetPrimary = async (contactId: string) => {
-    if (!selectedCompany) return;
-
-    try {
-      // Unset all primary first
-      await supabase
-        .from("company_contacts")
-        .update({ is_primary: false })
-        .eq("company_id", selectedCompany.id);
-
-      // Set new primary
-      const { error } = await supabase
-        .from("company_contacts")
-        .update({ is_primary: true })
-        .eq("id", contactId);
-
-      if (error) throw error;
-
-      fetchCompanyContacts(selectedCompany.id);
       fetchCompanies();
     } catch (error: any) {
       toast({
@@ -503,126 +322,6 @@ const Contacts = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Company Details Sheet */}
-        <Sheet 
-          open={!!selectedCompany} 
-          onOpenChange={(open) => !open && setSelectedCompany(null)}
-        >
-          <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                {selectedCompany?.trade_name || selectedCompany?.name}
-              </SheetTitle>
-            </SheetHeader>
-            
-            {selectedCompany && (
-              <div className="mt-6 space-y-6">
-                <div className="flex justify-end">
-                  {canEdit && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditCompanyData(selectedCompany)}
-                    >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      {t("companies.editCompany")}
-                    </Button>
-                  )}
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  {selectedCompany.name !== selectedCompany.trade_name && selectedCompany.trade_name && (
-                    <p><span className="text-muted-foreground">{t("companies.companyName")}:</span> {selectedCompany.name}</p>
-                  )}
-                  {selectedCompany.company_document && (
-                    <p><span className="text-muted-foreground">CNPJ:</span> {selectedCompany.company_document}</p>
-                  )}
-                  {selectedCompany.company_sector && (
-                    <p><span className="text-muted-foreground">{t("contacts.sector")}:</span> {selectedCompany.company_sector}</p>
-                  )}
-                  {selectedCompany.email && (
-                    <p><span className="text-muted-foreground">{t("contacts.email")}:</span> {selectedCompany.email}</p>
-                  )}
-                  {selectedCompany.phone && (
-                    <p><span className="text-muted-foreground">{t("companyContacts.phone")}:</span> {selectedCompany.phone}</p>
-                  )}
-                  {(selectedCompany.street || selectedCompany.city) && (
-                    <div>
-                      <span className="text-muted-foreground">{t("cnpj.address")}:</span>
-                      <p className="mt-1">
-                        {[
-                          selectedCompany.street,
-                          selectedCompany.street_number,
-                          selectedCompany.complement,
-                        ].filter(Boolean).join(", ")}
-                        {selectedCompany.neighborhood && (
-                          <><br />{selectedCompany.neighborhood}</>
-                        )}
-                        {(selectedCompany.city || selectedCompany.state) && (
-                          <><br />{[selectedCompany.city, selectedCompany.state].filter(Boolean).join(" - ")}</>
-                        )}
-                        {selectedCompany.zip_code && (
-                          <><br />CEP: {selectedCompany.zip_code}</>
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <CompanyContactsList
-                  contacts={companyContacts}
-                  loading={loadingContacts}
-                  onAddContact={() => setAddContactDialogOpen(true)}
-                  onEditContact={(contact) => setEditContactData(contact)}
-                  onDeleteContact={handleDeleteContact}
-                  onSetPrimary={handleSetPrimary}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                />
-              </div>
-            )}
-          </SheetContent>
-        </Sheet>
-
-        {/* Add Contact Dialog */}
-        <Dialog open={addContactDialogOpen} onOpenChange={setAddContactDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("companyContacts.add")}</DialogTitle>
-            </DialogHeader>
-            <CompanyContactForm
-              onSubmit={handleAddContact}
-              onCancel={() => setAddContactDialogOpen(false)}
-              showPrimaryOption={companyContacts.length > 0}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Contact Dialog */}
-        <Dialog open={!!editContactData} onOpenChange={(open) => !open && setEditContactData(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("companyContacts.edit")}</DialogTitle>
-            </DialogHeader>
-            {editContactData && (
-              <CompanyContactForm
-                initialData={{
-                  name: editContactData.name,
-                  email: editContactData.email,
-                  phone: editContactData.phone || "",
-                  role: editContactData.role || "",
-                  department: editContactData.department || "",
-                  is_primary: editContactData.is_primary,
-                  external_id: editContactData.external_id || "",
-                }}
-                onSubmit={handleEditContact}
-                onCancel={() => setEditContactData(null)}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
         {/* Edit Company Dialog */}
         <Dialog open={!!editCompanyData} onOpenChange={(open) => !open && setEditCompanyData(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -652,6 +351,21 @@ const Contacts = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Unified Company Details Sheet */}
+        <CompanyDetailsSheet
+          companyId={selectedCompanyId}
+          onClose={() => {
+            setSelectedCompanyId(null);
+            fetchCompanies();
+          }}
+          onEdit={() => {
+            const company = companies.find(c => c.id === selectedCompanyId);
+            if (company) setEditCompanyData(company);
+          }}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
 
         {/* Delete Company Confirmation */}
         <AlertDialog open={!!deleteCompanyId} onOpenChange={() => setDeleteCompanyId(null)}>

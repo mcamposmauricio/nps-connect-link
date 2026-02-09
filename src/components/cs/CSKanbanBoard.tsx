@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CSKanbanCard, type KanbanCompany } from "./CSKanbanCard";
-import { CompanyCSDetailsSheet } from "./CompanyCSDetailsSheet";
+import { CompanyDetailsSheet } from "@/components/CompanyDetailsSheet";
 
 interface CSM {
   id: string;
@@ -140,9 +140,10 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
         })}
       </div>
 
-      <CompanyCSDetailsSheet
-        company={selectedCompany}
+      <CompanyDetailsSheet
+        companyId={selectedCompany?.id || null}
         onClose={() => setSelectedCompany(null)}
+        canEdit={canEdit}
       />
     </>
   );
