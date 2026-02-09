@@ -12,9 +12,13 @@ import OrganizationSettingsTab from "@/components/OrganizationSettingsTab";
 
 const Settings = () => {
   const { t } = useLanguage();
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasPermission } = useAuth();
 
-  const tabCount = isAdmin ? 6 : 4;
+  const showApiKeys = isAdmin || hasPermission('settings', 'manage');
+  
+  let tabCount = 3; // brand, email, notifications
+  if (showApiKeys) tabCount++;
+  if (isAdmin) tabCount += 2; // team, organization
 
   return (
     <SidebarLayout>
@@ -40,10 +44,12 @@ const Settings = () => {
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.notifications")}</span>
             </TabsTrigger>
-            <TabsTrigger value="apikeys" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("settings.tabs.apiKeys")}</span>
-            </TabsTrigger>
+            {showApiKeys && (
+              <TabsTrigger value="apikeys" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                <span className="hidden sm:inline">{t("settings.tabs.apiKeys")}</span>
+              </TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="team" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
@@ -70,9 +76,11 @@ const Settings = () => {
             <NotificationSettingsTab />
           </TabsContent>
 
-          <TabsContent value="apikeys">
-            <ApiKeysTab />
-          </TabsContent>
+          {showApiKeys && (
+            <TabsContent value="apikeys">
+              <ApiKeysTab />
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="team">

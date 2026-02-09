@@ -273,6 +273,17 @@ export function AppSidebar() {
                         <span>Workspace</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => navigate("/admin/history")}
+                        isActive={isActive("/admin/history")}
+                        tooltip={t("chat.history.title")}
+                        className="pl-6"
+                      >
+                        <History className="h-4 w-4" />
+                        <span>{t("chat.history.title")}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                     {hasPermission('chat', 'manage') && (
                       <>
                         <SidebarMenuItem>
@@ -299,17 +310,6 @@ export function AppSidebar() {
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                           <SidebarMenuButton
-                            onClick={() => navigate("/admin/history")}
-                            isActive={isActive("/admin/history")}
-                            tooltip={t("chat.history.title")}
-                            className="pl-6"
-                          >
-                            <History className="h-4 w-4" />
-                            <span>{t("chat.history.title")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
                             onClick={() => navigate("/admin/settings")}
                             isActive={isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")}
                             tooltip={t("chat.settings.title")}
@@ -332,15 +332,17 @@ export function AppSidebar() {
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-2">
           {/* Settings button */}
-          <SidebarMenuButton
-            onClick={() => navigate("/nps/settings")}
-            isActive={isActive("/nps/settings")}
-            tooltip={t("nav.config")}
-            className="w-full justify-start"
-          >
-            <Settings className="h-4 w-4" />
-            {!collapsed && <span>{t("nav.config")}</span>}
-          </SidebarMenuButton>
+          {hasPermission('settings', 'view') && (
+            <SidebarMenuButton
+              onClick={() => navigate("/nps/settings")}
+              isActive={isActive("/nps/settings")}
+              tooltip={t("nav.config")}
+              className="w-full justify-start"
+            >
+              <Settings className="h-4 w-4" />
+              {!collapsed && <span>{t("nav.config")}</span>}
+            </SidebarMenuButton>
+          )}
           
           {/* Language and logout buttons */}
           <div className="flex items-center gap-2">
