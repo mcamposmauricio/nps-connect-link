@@ -66,14 +66,14 @@ const AdminAttendants = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : csms.length === 0 ? (
-          <div className="glass-card p-8 text-center text-muted-foreground">
+          <div className="rounded-lg border bg-card shadow-sm p-8 text-center text-muted-foreground">
             <Headphones className="h-12 w-12 mx-auto mb-4 opacity-30" />
             <p>{t("chat.attendants.no_csms")}</p>
           </div>
         ) : (
           <div className="grid gap-4">
             {csms.map((csm) => (
-              <Card key={csm.id} className="glass-card">
+              <Card key={csm.id} className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{csm.name}</CardTitle>

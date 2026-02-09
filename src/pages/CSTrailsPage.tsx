@@ -252,7 +252,7 @@ export default function CSTrailsPage() {
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
         ) : templates.length === 0 ? (
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardContent className="py-12 text-center">
               <RouteIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">{t("cs.trails.noTemplates")}</p>
@@ -261,7 +261,7 @@ export default function CSTrailsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {templates.map((template: any) => (
-              <Card key={template.id} className="glass-card">
+              <Card key={template.id} className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div>

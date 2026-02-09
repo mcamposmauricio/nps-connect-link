@@ -53,56 +53,56 @@ export default function CSHealthPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t("cs.health.average")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
                 <Heart className="h-5 w-5 text-primary" />
-                <span className="text-3xl font-bold">{avgHealth}%</span>
+                <span className="text-2xl font-semibold">{avgHealth}%</span>
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 {t("cs.health.healthy")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-primary">{distribution.healthy}</span>
+              <span className="text-2xl font-semibold text-primary">{distribution.healthy}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Minus className="h-4 w-4 text-warning" />
                 {t("cs.health.attention")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-warning">{distribution.attention}</span>
+              <span className="text-2xl font-semibold text-warning">{distribution.attention}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-destructive" />
                 {t("cs.health.critical")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-destructive">{distribution.critical}</span>
+              <span className="text-2xl font-semibold text-destructive">{distribution.critical}</span>
             </CardContent>
           </Card>
         </div>
 
         {/* Companies List */}
-        <Card className="glass-card">
+        <Card className="rounded-lg border bg-card shadow-sm">
           <CardHeader>
             <CardTitle>{t("cs.health.companiesList")}</CardTitle>
           </CardHeader>

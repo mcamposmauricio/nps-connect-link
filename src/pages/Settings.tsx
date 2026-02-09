@@ -15,10 +15,6 @@ const Settings = () => {
   const { isAdmin, hasPermission } = useAuth();
 
   const showApiKeys = isAdmin || hasPermission('settings', 'manage');
-  
-  let tabCount = 3; // brand, email, notifications
-  if (showApiKeys) tabCount++;
-  if (isAdmin) tabCount += 2; // team, organization
 
   return (
     <SidebarLayout>
@@ -31,7 +27,7 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="brand" className="space-y-6">
-          <TabsList className={`grid w-full grid-cols-${tabCount} lg:w-auto lg:inline-grid`}>
+          <TabsList className="w-full lg:w-auto lg:inline-flex flex-wrap">
             <TabsTrigger value="brand" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.brand")}</span>

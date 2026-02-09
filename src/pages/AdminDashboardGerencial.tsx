@@ -72,63 +72,63 @@ const AdminDashboardGerencial = () => {
           <>
             {/* KPI Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs uppercase tracking-wider flex items-center gap-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wider flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
                     {t("chat.gerencial.total_chats")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{stats.totalChats}</p>
+                  <p className="text-2xl font-semibold">{stats.totalChats}</p>
                 </CardContent>
               </Card>
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs uppercase tracking-wider flex items-center gap-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wider flex items-center gap-2">
                     <CalendarDays className="h-4 w-4" />
                     {t("chat.gerencial.chats_today")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{stats.chatsToday}</p>
+                  <p className="text-2xl font-semibold">{stats.chatsToday}</p>
                 </CardContent>
               </Card>
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs uppercase tracking-wider flex items-center gap-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wider flex items-center gap-2">
                     <Star className="h-4 w-4" />
                     {t("chat.dashboard.csat_avg")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">
+                  <p className="text-2xl font-semibold">
                     {stats.avgCsat != null ? `${stats.avgCsat}/5` : "—"}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs uppercase tracking-wider flex items-center gap-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wider flex items-center gap-2">
                     <CheckCircle className="h-4 w-4" />
                     {t("chat.gerencial.resolution_rate")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">
+                  <p className="text-2xl font-semibold">
                     {stats.resolutionRate != null ? `${stats.resolutionRate}%` : "—"}
                   </p>
                 </CardContent>
               </Card>
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs uppercase tracking-wider flex items-center gap-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wider flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     {t("chat.gerencial.avg_resolution")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">
+                  <p className="text-2xl font-semibold">
                     {stats.avgResolutionMinutes != null ? `${stats.avgResolutionMinutes}min` : "—"}
                   </p>
                 </CardContent>
@@ -137,7 +137,7 @@ const AdminDashboardGerencial = () => {
 
             {/* Charts Row */}
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle>{t("chat.gerencial.conversations_per_day")}</CardTitle>
                 </CardHeader>
@@ -158,7 +158,7 @@ const AdminDashboardGerencial = () => {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
+              <Card className="rounded-lg border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle>{t("chat.gerencial.chats_by_attendant")}</CardTitle>
                 </CardHeader>
@@ -181,7 +181,7 @@ const AdminDashboardGerencial = () => {
             </div>
 
             {/* Resolution Distribution */}
-            <Card className="glass-card">
+            <Card className="rounded-lg border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle>{t("chat.gerencial.resolution_distribution")}</CardTitle>
               </CardHeader>

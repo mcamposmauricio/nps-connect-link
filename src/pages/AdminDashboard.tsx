@@ -62,24 +62,24 @@ const AdminDashboard = () => {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
-            <Card key={card.title} className="glass-card">
+            <Card key={card.title} className="rounded-lg border bg-card shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs uppercase tracking-wider font-medium">{card.title}</CardTitle>
+                <CardTitle className="text-xs font-medium uppercase tracking-wider">{card.title}</CardTitle>
                 <card.icon className={`h-4 w-4 ${card.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{card.value}</div>
+                <div className="text-2xl font-semibold">{card.value}</div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card className="glass-card">
+        <Card className="rounded-lg border bg-card shadow-sm">
           <CardHeader>
             <CardTitle>{t("chat.dashboard.closed_today")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{metrics.closedToday}</p>
+            <p className="text-2xl font-semibold">{metrics.closedToday}</p>
           </CardContent>
         </Card>
       </div>

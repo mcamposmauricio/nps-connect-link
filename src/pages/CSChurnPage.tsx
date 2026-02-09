@@ -95,44 +95,44 @@ export default function CSChurnPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t("cs.churn.churned")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-destructive">{churnedCompanies.length}</span>
+              <span className="text-2xl font-semibold text-destructive">{churnedCompanies.length}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t("cs.churn.atRisk")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-warning">{atRiskCompanies.length}</span>
+              <span className="text-2xl font-semibold text-warning">{atRiskCompanies.length}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t("cs.churn.lostMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-destructive">{formatCurrency(totalChurnedMRR)}</span>
+              <span className="text-2xl font-semibold text-destructive">{formatCurrency(totalChurnedMRR)}</span>
             </CardContent>
           </Card>
-          <Card className="glass-card">
+          <Card className="rounded-lg border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t("cs.churn.atRiskMRR")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-bold text-warning">{formatCurrency(atRiskMRR)}</span>
+              <span className="text-2xl font-semibold text-warning">{formatCurrency(atRiskMRR)}</span>
             </CardContent>
           </Card>
         </div>
@@ -142,7 +142,7 @@ export default function CSChurnPage() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
             {/* At Risk Companies */}
-            <Card className="glass-card">
+            <Card className="rounded-lg border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-warning" />
@@ -177,7 +177,7 @@ export default function CSChurnPage() {
             </Card>
 
             {/* Upcoming Renewals */}
-            <Card className="glass-card">
+            <Card className="rounded-lg border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-primary" />
@@ -212,7 +212,7 @@ export default function CSChurnPage() {
             </Card>
 
             {/* Churned Companies */}
-            <Card className="glass-card lg:col-span-2">
+            <Card className="rounded-lg border bg-card shadow-sm lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingDown className="h-5 w-5 text-destructive" />

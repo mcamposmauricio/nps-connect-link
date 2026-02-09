@@ -47,7 +47,7 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
 
   return (
     <div className="glass-card h-full flex flex-col">
-      <div className="p-3 border-b border-white/10">
+      <div className="p-3 border-b border-border">
         <h3 className="font-semibold text-sm">{t("chat.workspace.conversations")}</h3>
         <p className="text-xs text-muted-foreground">{rooms.length} {t("chat.workspace.total")}</p>
       </div>

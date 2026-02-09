@@ -102,7 +102,7 @@ const AdminChatHistory = () => {
         </div>
 
         {/* Table */}
-        <Card className="glass-card">
+        <Card className="rounded-lg border bg-card shadow-sm">
           <CardContent className="pt-6">
             {loading ? (
               <div className="flex justify-center py-8">
