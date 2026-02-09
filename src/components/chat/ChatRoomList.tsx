@@ -9,6 +9,10 @@ interface ChatRoom {
   created_at: string;
   visitor_id: string;
   attendant_id: string | null;
+  visitor_name?: string;
+  visitor_email?: string;
+  last_message?: string;
+  last_message_at?: string;
 }
 
 interface ChatRoomListProps {
@@ -16,6 +20,14 @@ interface ChatRoomListProps {
   selectedRoomId: string | null;
   onSelectRoom: (id: string) => void;
   loading: boolean;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  if (diff < 1) return "<1min";
+  if (diff < 60) return `${diff}min`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h`;
+  return `${Math.floor(diff / 1440)}d`;
 }
 
 export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: ChatRoomListProps) {
@@ -67,14 +79,21 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium font-mono text-xs">#{room.id.slice(0, 8)}</span>
-                  <Badge variant={statusColor(room.status)} className="text-[10px] gap-1">
+                  <span className="font-medium text-xs truncate max-w-[60%]">
+                    {room.visitor_name || `#${room.id.slice(0, 8)}`}
+                  </span>
+                  <Badge variant={statusColor(room.status)} className="text-[10px] gap-1 shrink-0">
                     {statusIcon(room.status)}
                     {room.status}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(room.created_at).toLocaleString()}
+                {room.last_message && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {room.last_message.slice(0, 60)}{room.last_message.length > 60 ? "..." : ""}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {room.last_message_at ? timeAgo(room.last_message_at) : timeAgo(room.created_at)}
                 </p>
               </button>
             ))

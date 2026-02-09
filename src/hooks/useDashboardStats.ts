@@ -10,11 +10,16 @@ export interface DashboardStats {
   chartData: { date: string; total: number }[];
   chatsByAttendant: { name: string; count: number }[];
   resolutionDistribution: { status: string; count: number }[];
+  activeChats: number;
+  waitingChats: number;
+  onlineAttendants: number;
 }
 
 export interface DashboardFilters {
   period: "today" | "week" | "month" | "all";
   attendantId?: string | null;
+  status?: string | null;
+  priority?: string | null;
 }
 
 export function useDashboardStats(filters: DashboardFilters) {
@@ -27,6 +32,9 @@ export function useDashboardStats(filters: DashboardFilters) {
     chartData: [],
     chatsByAttendant: [],
     resolutionDistribution: [],
+    activeChats: 0,
+    waitingChats: 0,
+    onlineAttendants: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +64,7 @@ export function useDashboardStats(filters: DashboardFilters) {
     // Fetch rooms
     let query = supabase
       .from("chat_rooms")
-      .select("id, status, resolution_status, created_at, closed_at, csat_score, attendant_id");
+      .select("id, status, resolution_status, created_at, closed_at, csat_score, attendant_id, priority");
 
     if (startDate) {
       query = query.gte("created_at", startDate.toISOString());
@@ -64,8 +72,20 @@ export function useDashboardStats(filters: DashboardFilters) {
     if (filters.attendantId) {
       query = query.eq("attendant_id", filters.attendantId);
     }
+    if (filters.status) {
+      query = query.eq("status", filters.status);
+    }
+    if (filters.priority) {
+      query = query.eq("priority", filters.priority);
+    }
 
-    const { data: rooms } = await query;
+    const [roomsRes, attendantsRes] = await Promise.all([
+      query,
+      supabase.from("attendant_profiles").select("id, display_name, status"),
+    ]);
+
+    const rooms = roomsRes.data;
+    const allAttendants = attendantsRes.data ?? [];
 
     if (!rooms || rooms.length === 0) {
       setStats({
@@ -77,6 +97,9 @@ export function useDashboardStats(filters: DashboardFilters) {
         chartData: [],
         chatsByAttendant: [],
         resolutionDistribution: [],
+        activeChats: 0,
+        waitingChats: 0,
+        onlineAttendants: allAttendants.filter((a) => a.status === "available" || a.status === "online").length,
       });
       setLoading(false);
       return;
@@ -88,6 +111,13 @@ export function useDashboardStats(filters: DashboardFilters) {
     // Chats today
     const todayStr = now.toISOString().slice(0, 10);
     const chatsToday = rooms.filter((r) => r.created_at?.slice(0, 10) === todayStr).length;
+
+    // Active / Waiting counts
+    const activeChats = rooms.filter((r) => r.status === "active").length;
+    const waitingChats = rooms.filter((r) => r.status === "waiting").length;
+
+    // Online attendants
+    const onlineAttendants = allAttendants.filter((a) => a.status === "available" || a.status === "online").length;
 
     // Avg CSAT
     const withCsat = rooms.filter((r) => r.csat_score != null);
@@ -132,19 +162,10 @@ export function useDashboardStats(filters: DashboardFilters) {
       }
     });
 
-    let chatsByAttendant: { name: string; count: number }[] = [];
-    const attendantIds = Object.keys(byAttendant);
-    if (attendantIds.length > 0) {
-      const { data: attendants } = await supabase
-        .from("attendant_profiles")
-        .select("id, display_name")
-        .in("id", attendantIds);
-
-      const nameMap = new Map(attendants?.map((a) => [a.id, a.display_name]) ?? []);
-      chatsByAttendant = attendantIds
-        .map((id) => ({ name: nameMap.get(id) ?? id.slice(0, 8), count: byAttendant[id] }))
-        .sort((a, b) => b.count - a.count);
-    }
+    const nameMap = new Map(allAttendants.map((a) => [a.id, a.display_name]));
+    const chatsByAttendant = Object.keys(byAttendant)
+      .map((id) => ({ name: nameMap.get(id) ?? id.slice(0, 8), count: byAttendant[id] }))
+      .sort((a, b) => b.count - a.count);
 
     // Resolution distribution
     const resDist: Record<string, number> = {};
@@ -163,9 +184,12 @@ export function useDashboardStats(filters: DashboardFilters) {
       chartData,
       chatsByAttendant,
       resolutionDistribution,
+      activeChats,
+      waitingChats,
+      onlineAttendants,
     });
     setLoading(false);
-  }, [filters.period, filters.attendantId]);
+  }, [filters.period, filters.attendantId, filters.status, filters.priority]);
 
   useEffect(() => {
     fetchStats();

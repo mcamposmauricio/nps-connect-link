@@ -833,4 +833,9 @@ export default {
   "organization.saveSuccess": "Organization updated successfully!",
   "organization.usage": "Organization Usage",
   "settings.tabs.organization": "Organization",
+
+  // NPS Settings
+  "npsSettings.title": "NPS Settings",
+  "npsSettings.subtitle": "Configure brand, email and notifications for NPS surveys",
+  "npsSettings.navLabel": "Settings",
 };
