@@ -70,7 +70,6 @@ const Campaigns = () => {
       const { data, error } = await supabase
         .from("campaigns")
         .select("*")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -93,8 +92,7 @@ const Campaigns = () => {
 
       const { count, error } = await supabase
         .from("contacts")
-        .select("*", { count: 'exact', head: true })
-        .eq("user_id", user.id);
+        .select("*", { count: 'exact', head: true });
 
       if (error) throw error;
       setTotalContacts(count || 0);
@@ -131,8 +129,7 @@ const Campaigns = () => {
       const { error } = await supabase
         .from("campaigns")
         .delete()
-        .eq("id", campaignToDelete)
-        .eq("user_id", user.id);
+        .eq("id", campaignToDelete);
 
       if (error) throw error;
 

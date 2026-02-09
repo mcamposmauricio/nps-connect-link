@@ -172,7 +172,6 @@ const CampaignDetails = () => {
         .from("campaigns")
         .select("*")
         .eq("id", id)
-        .eq("user_id", user.id)
         .single();
 
       if (campaignError) throw campaignError;
@@ -362,7 +361,7 @@ const CampaignDetails = () => {
       if (campaign.brand_settings_id) {
         brandSettingsQuery = brandSettingsQuery.eq("id", campaign.brand_settings_id);
       } else {
-        brandSettingsQuery = brandSettingsQuery.eq("user_id", user?.id);
+        brandSettingsQuery = brandSettingsQuery.limit(1);
       }
       
       const { data: brandSettings } = await brandSettingsQuery.maybeSingle();
@@ -437,7 +436,7 @@ const CampaignDetails = () => {
       if (campaign?.brand_settings_id) {
         brandSettingsQuery = brandSettingsQuery.eq("id", campaign.brand_settings_id);
       } else {
-        brandSettingsQuery = brandSettingsQuery.eq("user_id", user?.id);
+        brandSettingsQuery = brandSettingsQuery.limit(1);
       }
       
       const { data: brandSettings } = await brandSettingsQuery.maybeSingle();
@@ -562,7 +561,6 @@ const CampaignDetails = () => {
       const { data: contactsData, error } = await supabase
         .from("contacts")
         .select("id, name, email, phone, is_company, company_document, company_sector")
-        .eq("user_id", user.id)
         .order("name", { ascending: true });
 
       if (error) throw error;

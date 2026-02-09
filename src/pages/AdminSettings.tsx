@@ -80,7 +80,6 @@ const AdminSettings = () => {
     const { data: settingsData } = await supabase
       .from("chat_settings")
       .select("*")
-      .eq("user_id", userId)
       .maybeSingle();
 
     if (settingsData) {
@@ -98,7 +97,6 @@ const AdminSettings = () => {
     const { data: macrosData } = await supabase
       .from("chat_macros")
       .select("id, title, content, shortcut, category")
-      .eq("user_id", userId)
       .order("created_at");
     setMacros(macrosData ?? []);
 
@@ -106,7 +104,6 @@ const AdminSettings = () => {
     const { data: hoursData } = await supabase
       .from("chat_business_hours")
       .select("id, day_of_week, start_time, end_time, is_active")
-      .eq("user_id", userId)
       .order("day_of_week");
 
     if (hoursData && hoursData.length > 0) {
@@ -126,7 +123,6 @@ const AdminSettings = () => {
     const { data: rulesData } = await supabase
       .from("chat_auto_rules")
       .select("id, rule_type, is_enabled, trigger_minutes, message_content")
-      .eq("user_id", userId)
       .order("created_at");
     setRules(rulesData ?? []);
 

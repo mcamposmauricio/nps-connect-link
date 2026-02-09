@@ -19,7 +19,6 @@ export default function CSHealthPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("id, name, trade_name, health_score, last_nps_score, cs_status, mrr")
-        .eq("user_id", user.id)
         .eq("is_company", true)
         .order("health_score", { ascending: true });
 

@@ -52,7 +52,6 @@ const People = () => {
       let query = supabase
         .from("company_contacts")
         .select("*")
-        .eq("user_id", user.id)
         .order("name");
 
       if (search.trim()) {
