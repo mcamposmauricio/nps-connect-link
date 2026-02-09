@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.submit-embedded-response]
 verify_jwt = false
+
+[functions.get-visitor-banners]
+verify_jwt = false
+
+[functions.vote-banner]
+verify_jwt = false

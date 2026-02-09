@@ -435,14 +435,11 @@ const AdminSettings = () => {
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded-md text-sm overflow-auto">
-{`<script>
-  (function() {
-    var w = document.createElement('iframe');
-    w.src = '${window.location.origin}/widget?embed=true&position=${settings.widget_position}&primaryColor=${encodeURIComponent(settings.widget_primary_color)}&companyName=${encodeURIComponent(settings.widget_company_name || "Suporte")}';
-    w.style = 'position:fixed;bottom:0;${settings.widget_position === "right" ? "right" : "left"}:0;width:420px;height:700px;border:none;z-index:99999;background:transparent;';
-    w.allow = 'clipboard-write';
-    document.body.appendChild(w);
-  })();
+{`<script src="${window.location.origin}/nps-chat-embed.js"
+  data-tenant-id="YOUR_TENANT_ID"
+  data-position="${settings.widget_position}"
+  data-primary-color="${settings.widget_primary_color}"
+  data-company-name="${settings.widget_company_name || "Suporte"}">
 </script>`}
                 </pre>
               </CardContent>
