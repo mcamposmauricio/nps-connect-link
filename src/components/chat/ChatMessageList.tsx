@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 
 interface ChatMessage {
@@ -15,6 +16,12 @@ interface ChatMessageListProps {
 }
 
 export function ChatMessageList({ messages, loading }: ChatMessageListProps) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    sentinelRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -64,6 +71,7 @@ export function ChatMessageList({ messages, loading }: ChatMessageListProps) {
           </div>
         </div>
       ))}
+      <div ref={sentinelRef} />
     </div>
   );
 }

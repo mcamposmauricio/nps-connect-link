@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -21,17 +21,10 @@ const AdminWorkspace = () => {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
   const { rooms, loading: roomsLoading } = useChatRooms(user?.id ?? null, { excludeClosed: true });
   const { messages, loading: messagesLoading } = useChatMessages(selectedRoomId);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (paramRoomId) setSelectedRoomId(paramRoomId);
   }, [paramRoomId]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
 
@@ -155,8 +148,8 @@ const AdminWorkspace = () => {
         {/* Center: Chat area */}
         <div className="flex-1 flex flex-col">
           {selectedRoom ? (
-            <>
-              <Card className="p-3 mb-2 flex items-center justify-between rounded-lg border bg-card shadow-sm">
+            <Card className="flex-1 flex flex-col rounded-lg border bg-card shadow-sm overflow-hidden">
+              <div className="p-3 flex items-center justify-between border-b">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary" />
                   <span className="font-medium text-sm">
@@ -182,16 +175,16 @@ const AdminWorkspace = () => {
                     </Button>
                   )}
                 </div>
-              </Card>
+              </div>
 
-              <div ref={scrollRef} className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-auto">
                 <ChatMessageList messages={messages} loading={messagesLoading} />
               </div>
 
               {selectedRoom.status !== "closed" && (
                 <ChatInput onSend={handleSendMessage} />
               )}
-            </>
+            </Card>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
               <div className="text-center space-y-2">
@@ -205,7 +198,12 @@ const AdminWorkspace = () => {
         {/* Right: Visitor info */}
         {selectedRoom && (
           <div className="w-72 shrink-0">
-            <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} />
+            <VisitorInfoPanel
+              roomId={selectedRoom.id}
+              visitorId={selectedRoom.visitor_id}
+              contactId={selectedRoom.contact_id}
+              companyContactId={selectedRoom.company_contact_id}
+            />
           </div>
         )}
       </div>
