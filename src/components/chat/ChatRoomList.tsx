@@ -79,7 +79,7 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-xs truncate max-w-[60%]">
+                  <span className="font-medium text-xs flex-1 min-w-0 truncate">
                     {room.visitor_name || `#${room.id.slice(0, 8)}`}
                   </span>
                   <Badge variant={statusColor(room.status)} className="text-[10px] gap-1 shrink-0">
