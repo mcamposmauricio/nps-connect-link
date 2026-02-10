@@ -1,48 +1,74 @@
 
+# Corrigir Layout de Scroll e Navegacao no Widget de Chat
 
-# Corrigir Overflow de Mensagens no Widget de Chat
+## Problema 1: Scroll nas mensagens
+O scroll esta aplicado no body inteiro do card (incluindo input, CSAT, etc). O input e botao de envio devem ficar sempre visiveis na base, e apenas a area de mensagens deve ter scroll.
 
-## Problema
-
-Quando o chat esta aberto com muitas mensagens, o conteudo ultrapassa os limites do card e cria um scroll externo ao componente, fazendo as mensagens "vazarem" para fora da area visivel (como mostra o screenshot). O widget deveria ter apenas 2 estados visuais: FAB fechado (80x80) e chat aberto (420x700) com scroll interno contido.
-
-## Causa Raiz
-
-O layout flexbox do Card nao esta restringindo corretamente o overflow. O div `flex-1 overflow-auto` precisa de `min-h-0` para que o flex item respeite o limite do container pai e ative o scroll interno. Alem disso, o wrapper externo (linha 708-715) precisa de `overflow: hidden` para garantir que nada vaze.
+## Problema 2: Voltar ao historico durante chat ativo
+Atualmente, so e possivel voltar ao historico fechando o chat. O usuario precisa de um botao de voltar no header quando estiver nas fases `chat` e `waiting`, mantendo a sala ativa.
 
 ## Mudancas
 
-### 1. `src/pages/ChatWidget.tsx`
+### `src/pages/ChatWidget.tsx`
 
-| Local | Mudanca |
-|-------|---------|
-| Wrapper do embed (linha ~708-715) | Adicionar `overflow: hidden` no style |
-| Body div (linha 493) | Adicionar `min-h-0` na className para forcar o flex item a respeitar o container |
-| Card (linha 460-462) | Adicionar `min-h-0` para garantir que o Card tambem respeite o flex container |
+**1. Separar scroll do body - mover input/CSAT/footer para fora do div scrollavel**
 
-**Wrapper embed (linha ~708):**
+Estrutura atual:
 ```
-- style={{ width: "100%", height: "100%" }}
-+ style={{ width: "100%", height: "100%", overflow: "hidden" }}
-```
-
-**Body div (linha 493):**
-```
-- <div className="flex-1 overflow-auto p-4" ref={scrollRef}>
-+ <div className="flex-1 overflow-auto p-4 min-h-0" ref={scrollRef}>
+Card (flex col)
+  Header
+  Body (flex-1, overflow-auto) ← scroll aqui
+    mensagens
+    csat form
+    closed msg
+  File preview bar
+  Input bar
 ```
 
-**Card (linha 461):**
+Nova estrutura:
 ```
-- className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl"
-+ className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl min-h-0"
+Card (flex col)
+  Header
+  Messages area (flex-1, overflow-auto, min-h-0) ← scroll APENAS aqui
+    mensagens
+  CSAT form (dentro do card, fora do scroll)
+  Closed msg (dentro do card, fora do scroll)
+  File preview bar
+  Input bar
 ```
 
-Essas mudancas garantem que o scroll de mensagens fique contido dentro do card, sem afetar o tamanho do iframe ou vazar conteudo.
+Concretamente:
+- O div do body (linha 493) passa a conter APENAS as mensagens (fases chat/viewTranscript) e as telas de form/history/waiting
+- Mover o bloco de CSAT (linhas 619-638) e closed (linhas 640-644) para FORA do div de body, como irmaos do body dentro do Card
+- O div de body mantem `flex-1 overflow-auto min-h-0` para scroll apenas nas mensagens
+
+**2. Adicionar botao de voltar no header para fases `chat` e `waiting`**
+
+Na condicao do botao de voltar no header (linha 469), alterar de:
+```tsx
+{(phase === "viewTranscript") && (
+```
+Para:
+```tsx
+{(phase === "viewTranscript" || phase === "chat" || phase === "waiting") && (
+```
+
+E ajustar o `onClick` para que nas fases `chat`/`waiting` volte ao historico sem fechar a sala:
+```tsx
+onClick={() => {
+  if (phase === "chat" || phase === "waiting") {
+    setPhase("history");
+    loadHistory();
+  } else {
+    handleBackToHistory();
+  }
+}}
+```
+
+Isso permite ao usuario navegar de volta ao historico enquanto a conversa ativa continua listada la (com badge "Ativo"/"Aguardando"), podendo retornar a ela clicando.
 
 ## Arquivos Modificados
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `src/pages/ChatWidget.tsx` | Adicionar `min-h-0` no Card e body div, `overflow: hidden` no wrapper embed |
-
+| 1 | `src/pages/ChatWidget.tsx` | Reestruturar layout para scroll apenas em mensagens; adicionar botao voltar no header durante chat/waiting |
