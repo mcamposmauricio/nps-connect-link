@@ -1,74 +1,69 @@
 
 
-# Formatacao Rica e Alinhamento nos Banners
+# Atualizar Preview do Banner e Permitir Segunda Linha
 
-## Resumo
+## Problema
 
-Adicionar suporte a texto rico (negrito, sublinhado, italico, cor de texto inline) e alinhamento (esquerda, centro, direita) na criacao de banners. O conteudo formatado sera armazenado como HTML sanitizado.
+1. O editor rico (`BannerRichEditor`) tem `max-h-[3.5rem]` com `overflow-hidden`, o que impede de visualizar/editar a segunda linha confortavelmente
+2. O preview (`BannerPreview`) mostra o HTML mas limita a `maxHeight: 2.8em` - precisa acomodar 2 linhas de forma clara
+3. Falta feedback visual no editor de que Enter cria a segunda linha
 
 ## Mudancas
 
-### 1. Banco de dados
+### 1. `src/components/chat/BannerRichEditor.tsx`
 
-Adicionar duas colunas na tabela `chat_banners`:
+- Aumentar `max-h` do editor de `3.5rem` para `4.5rem` para acomodar 2 linhas com folga
+- Adicionar logica de `onKeyDown` para limitar a 2 linhas: ao pressionar Enter, verificar se ja existem 2 linhas e prevenir a terceira
+- Atualizar o texto de ajuda para "Ate 2 linhas. Use Enter para quebrar linha."
 
-- `content_html` (text, nullable) - conteudo com HTML formatado
-- `text_align` (text, default `'left'`) - alinhamento: `left`, `center`, `right`
+### 2. `src/components/chat/BannerPreview.tsx`
 
-### 2. Formulario de criacao/edicao (`src/pages/AdminBanners.tsx`)
+- Ajustar `maxHeight` do span de conteudo de `2.8em` para `3em` para garantir que 2 linhas completas sejam visiveis
+- Adicionar `word-break: break-word` para textos longos nao estourarem o layout
+- Melhorar o preview para que o conteudo HTML respeite quebras de linha (`<br>`, `<div>`) geradas pelo contentEditable
 
-Substituir o `Textarea` do conteudo por um editor simples com barra de ferramentas:
+### 3. `public/nps-chat-embed.js`
 
-- Toolbar com botoes: **Negrito (B)**, *Italico (I)*, Sublinhado (U), Cor do texto (color picker inline)
-- Seletor de alinhamento: esquerda, centro, direita (3 botoes com icones)
-- O editor usara um `div` com `contentEditable=true` para capturar a formatacao
-- Ao salvar, o `innerHTML` do div sera armazenado em `content_html` e o `textContent` em `content` (fallback)
-- Limitado a 2 linhas visuais via `max-height` e indicacao no label
+- Ajustar o `max-height` do texto no banner real de `2.8em` para `3em`
+- Adicionar `word-break: break-word` no estilo do texto
 
-Novo estado no form:
+## Detalhes Tecnicos
+
+**Limitar a 2 linhas no editor:**
+```typescript
+const handleKeyDown = (e: React.KeyboardEvent) => {
+  if (e.key === "Enter") {
+    const el = editorRef.current;
+    if (!el) return;
+    // Contar linhas pelo numero de childNodes block-level ou <br>
+    const lines = el.innerHTML.split(/<br\s*\/?>|<\/div>|<\/p>/).filter(Boolean);
+    if (lines.length >= 2) {
+      e.preventDefault();
+    }
+  }
+};
 ```
-text_align: "left" | "center" | "right"
-content_html: string
+
+**Preview - estilo do conteudo:**
+```tsx
+<span
+  dangerouslySetInnerHTML={{ __html: contentHtml }}
+  style={{
+    maxHeight: "3em",
+    overflow: "hidden",
+    display: "block",
+    lineHeight: "1.4",
+    flex: 1,
+    wordBreak: "break-word",
+  }}
+/>
 ```
-
-### 3. Componente de toolbar rico (`src/components/chat/BannerRichEditor.tsx`)
-
-Novo componente encapsulando:
-- `contentEditable` div com estilo de input
-- Barra de formatacao acima com `document.execCommand` para bold, italic, underline, foreColor
-- Callback `onChange(html: string, text: string)` para o pai
-- Prop `initialHtml` para edicao
-- Limite visual de 2 linhas (altura maxima com overflow hidden)
-
-### 4. Preview (`src/components/chat/BannerPreview.tsx`)
-
-- Aceitar nova prop `contentHtml` (opcional) e `textAlign`
-- Se `contentHtml` existir, renderizar com `dangerouslySetInnerHTML` (conteudo vem do admin, nao de usuario externo)
-- Aplicar `text-align` no container do conteudo
-
-### 5. Edge function (`supabase/functions/get-visitor-banners/index.ts`)
-
-- Incluir `content_html` e `text_align` no select da query de banners
-- Retornar os campos no response
-
-### 6. Embed script (`public/nps-chat-embed.js`)
-
-- No `renderBanner`, usar `banner.content_html` se disponivel (via `innerHTML`) em vez de `textContent`
-- Aplicar `text-align` do banner no container de conteudo
-- Permitir ate 2 linhas de texto (remover `white-space: nowrap` se houver)
-
-## Seguranca
-
-O HTML e gerado apenas pelo admin via `contentEditable` com comandos limitados (bold, italic, underline, foreColor). Nao ha input de HTML bruto pelo usuario. O conteudo e exibido apenas em banners controlados, nao em contextos onde usuarios externos possam injetar conteudo.
 
 ## Arquivos
 
-| # | Arquivo | Tipo | Descricao |
-|---|---------|------|-----------|
-| 1 | Migration SQL | DB | Adicionar `content_html` e `text_align` |
-| 2 | `src/components/chat/BannerRichEditor.tsx` | Novo | Editor contentEditable com toolbar |
-| 3 | `src/pages/AdminBanners.tsx` | Editar | Usar BannerRichEditor, adicionar text_align ao form |
-| 4 | `src/components/chat/BannerPreview.tsx` | Editar | Renderizar HTML e alinhamento |
-| 5 | `supabase/functions/get-visitor-banners/index.ts` | Editar | Retornar content_html e text_align |
-| 6 | `public/nps-chat-embed.js` | Editar | Renderizar HTML e alinhamento |
+| # | Arquivo | Descricao |
+|---|---------|-----------|
+| 1 | `src/components/chat/BannerRichEditor.tsx` | Aumentar altura do editor, limitar Enter a 2 linhas, melhorar texto de ajuda |
+| 2 | `src/components/chat/BannerPreview.tsx` | Ajustar maxHeight para 3em, adicionar word-break |
+| 3 | `public/nps-chat-embed.js` | Ajustar max-height e word-break no banner real |
 
