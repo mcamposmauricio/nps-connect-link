@@ -458,8 +458,8 @@ const ChatWidget = () => {
 
   const widgetContent = (
     <Card
-      className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl min-h-0"
-      style={isEmbed ? { height: "100%", width: "100%" } : { width: "100%", maxWidth: "420px", height: "600px" }}
+      className={`flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl min-h-0 ${isEmbed ? "flex-1" : ""}`}
+      style={isEmbed ? { width: "100%", minHeight: 0 } : { width: "100%", maxWidth: "420px", height: "600px" }}
     >
       {/* Header */}
       <div
@@ -588,7 +588,7 @@ const ChatWidget = () => {
         )}
 
         {phase === "waiting" && (
-          <div className="flex flex-col items-center justify-center h-full space-y-4 py-12">
+          <div className="flex flex-col items-center justify-center flex-1 space-y-4">
             <div className="animate-pulse">
               <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
             </div>
@@ -722,6 +722,8 @@ const ChatWidget = () => {
             width: "100%",
             height: "100%",
             overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {widgetContent}
