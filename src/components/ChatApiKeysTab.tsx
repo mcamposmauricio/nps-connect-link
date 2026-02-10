@@ -159,9 +159,19 @@ const ChatApiKeysTab = () => {
 
   const getIntegrationCode = (apiKey: ApiKey) => {
     const baseUrl = window.location.origin;
+    const keyValue = apiKey.encrypted_key || `${apiKey.key_prefix}...`;
 
-    return `<script src="${baseUrl}/nps-chat-embed.js"
-  data-tenant-id="YOUR_TENANT_ID"
+    return `<!-- Com usuário identificado (recomendado) -->
+<script src="${baseUrl}/nps-chat-embed.js"
+  data-api-key="${keyValue}"
+  data-external-id="ID_DO_USUARIO_NO_SEU_SISTEMA"
+  data-position="right"
+  data-primary-color="#7C3AED"
+  data-company-name="Suporte">
+</script>
+
+<!-- Visitante anônimo (sem identificação) -->
+<script src="${baseUrl}/nps-chat-embed.js"
   data-position="right"
   data-primary-color="#7C3AED"
   data-company-name="Suporte">

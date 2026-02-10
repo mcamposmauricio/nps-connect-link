@@ -435,8 +435,17 @@ const AdminSettings = () => {
               </CardHeader>
               <CardContent>
                 <pre className="bg-muted p-4 rounded-md text-sm overflow-auto">
-{`<script src="${window.location.origin}/nps-chat-embed.js"
-  data-tenant-id="YOUR_TENANT_ID"
+{`<!-- Com usuário identificado -->
+<script src="${window.location.origin}/nps-chat-embed.js"
+  data-api-key="SUA_CHAT_API_KEY"
+  data-external-id="ID_DO_USUARIO_NO_SEU_SISTEMA"
+  data-position="${settings.widget_position}"
+  data-primary-color="${settings.widget_primary_color}"
+  data-company-name="${settings.widget_company_name || "Suporte"}">
+</script>
+
+<!-- Visitante anônimo -->
+<script src="${window.location.origin}/nps-chat-embed.js"
   data-position="${settings.widget_position}"
   data-primary-color="${settings.widget_primary_color}"
   data-company-name="${settings.widget_company_name || "Suporte"}">
