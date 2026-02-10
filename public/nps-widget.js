@@ -29,10 +29,12 @@
       border-radius: 16px;
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
       background: transparent;
-      width: 400px;
-      height: 450px;
+      width: 0;
+      height: 0;
+      overflow: hidden;
       max-width: calc(100vw - 32px);
       max-height: calc(100vh - 32px);
+      transition: width 0.3s ease, height 0.3s ease;
     }
     .nps-widget-overlay {
       position: fixed;
@@ -130,10 +132,19 @@
 
     setupMessageListener() {
       window.addEventListener('message', (event) => {
-        // Verify origin if needed
         const data = event.data;
 
-        if (data.type === 'nps-complete') {
+        if (data.type === 'nps-ready') {
+          if (this.iframe) {
+            this.iframe.style.width = '400px';
+            this.iframe.style.height = '450px';
+          }
+          if (this.overlay) {
+            this.overlay.style.display = 'block';
+          }
+        } else if (data.type === 'nps-no-survey') {
+          this.destroy();
+        } else if (data.type === 'nps-complete') {
           this.handleComplete(data.score);
         } else if (data.type === 'nps-dismiss') {
           this.dismiss();
