@@ -1,69 +1,129 @@
 
-# Painel Enriquecido + Melhorias de Usabilidade no Workspace de Chat
+
+# Layout Responsivo, Upload de Arquivos e Status de Resolucao no Workspace
 
 ## Resumo
 
-Duas frentes de trabalho: (1) enriquecer o painel lateral direito com dados da empresa/contato em abas, e (2) corrigir problemas de usabilidade na area de digitacao e layout geral do workspace.
+Tres frentes: (1) corrigir layout/responsividade do workspace, (2) adicionar envio e visualizacao de arquivos no chat, (3) solicitar status de resolucao ao encerrar conversa.
 
 ---
 
-## Parte 1: Painel Lateral Enriquecido (VisitorInfoPanel)
+## 1. Layout e Responsividade
 
-Quando o visitante esta vinculado a um contato/empresa, o painel lateral exibira abas com informacoes ricas, seguindo o mesmo padrao visual do `CompanyCSDetailsSheet`.
+### Problemas atuais
+- Lista de conversas: `w-80` fixo (320px) - estreita demais em desktop, quebra em telas menores
+- Painel de informacoes: `w-72` fixo (288px) - dados da empresa ficam comprimidos
+- Area de chat: `flex-1` comprime entre os dois paineis fixos
+- Sem tratamento mobile: os tres paineis ficam lado a lado mesmo em telas pequenas
 
-### Dados exibidos por aba
+### Solucao
 
-**Aba Contato (padrao)**
-- Nome, email, telefone, cargo, departamento
-- External ID
-- Metricas de chat (total de sessoes, CSAT medio)
+**`src/pages/AdminWorkspace.tsx`**
 
-**Aba Empresa**
-- Nome fantasia / Razao social
-- Health Score (barra de progresso com cor)
-- MRR e Valor de contrato
-- Data de renovacao
-- Ultimo NPS (score + badge promotor/neutro/detrator)
-- Cidade/Estado
-
-**Aba Timeline**
-- Ultimos 10 eventos da `timeline_events` usando o componente `TimelineComponent` ja existente
-
-**Fallback**: visitante anonimo (sem vinculo) mantem o layout simples atual.
-
-### Mudancas no arquivo
-
-| Arquivo | Mudanca |
+| Mudanca | Detalhe |
 |---------|---------|
-| `src/components/chat/VisitorInfoPanel.tsx` | Reescrever com abas (Tabs), queries para `contacts`, `company_contacts`, `timeline_events` |
-| `src/pages/AdminWorkspace.tsx` | Passar props `contactId` e `companyContactId` do `selectedRoom` |
+| Layout responsivo com `useIsMobile` | Em mobile: mostrar apenas um painel por vez (lista OU chat OU info) |
+| Larguras proporcionais em desktop | Lista: `w-72 xl:w-80`, Chat: `flex-1 min-w-0`, Info: `w-80 xl:w-96` |
+| Painel de info colapsavel | Botao toggle para mostrar/esconder o painel lateral direito, liberando espaco para o chat |
+| Overflow correto | Adicionar `min-w-0` no flex-1 central para evitar que conteudo force largura |
+| Altura total corrigida | Usar `h-[calc(100vh-3.5rem)]` (header de 14 = 3.5rem) em vez de `8rem` |
+
+**Mobile (< 768px)**:
+- Lista de conversas ocupa tela inteira
+- Ao selecionar conversa, mostra chat com botao de voltar
+- Painel de info acessivel via botao no header do chat (abre em sheet/drawer)
+
+**Desktop**:
+- Painel de info com largura aumentada para `w-80 xl:w-96` (320-384px)
+- Lista de conversas com `w-72 xl:w-80`
+- Botao para colapsar painel de info quando quiser mais espaco para chat
+
+### `src/components/chat/VisitorInfoPanel.tsx`
+- Remover largura fixa do container interno (deixar `w-full`)
+- Ajustar `MetricCard` para usar texto responsivo
+
+### `src/components/chat/ChatRoomList.tsx`
+- Remover `max-w-[60%]` do truncate do nome (usar `flex-1 min-w-0 truncate`)
+- Badge de status mais compacto em telas menores
 
 ---
 
-## Parte 2: Melhorias de Usabilidade
+## 2. Upload de Arquivos no Chat
 
-### 2.1 Foco automatico no input apos enviar mensagem
-- No `ChatInput`, adicionar `useRef` no campo de texto e chamar `inputRef.current?.focus()` apos o envio.
-- Tambem aplicar `autoFocus` no input para focar automaticamente ao abrir a conversa.
+### Infraestrutura
 
-### 2.2 Trocar Input por Textarea
-- Substituir o `<Input>` por `<Textarea>` no `ChatInput` para permitir mensagens multilinhas.
-- Configurar com `rows={1}` e auto-resize (max 4 linhas) para nao ocupar espaco desnecessario.
-- Envio com Enter (sem Shift). Shift+Enter para nova linha.
+**Nova migration: bucket de storage**
+```sql
+INSERT INTO storage.buckets (id, name, public) VALUES ('chat-attachments', 'chat-attachments', true);
+-- RLS: qualquer um pode fazer upload (visitantes nao autenticados)
+CREATE POLICY "Public upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'chat-attachments');
+CREATE POLICY "Public read" ON storage.objects FOR SELECT USING (bucket_id = 'chat-attachments');
+```
 
-### 2.3 Scroll automatico suave para ultima mensagem
-- Usar `scrollIntoView({ behavior: "smooth" })` em um elemento sentinela no final da lista, em vez do `scrollTop = scrollHeight` brusco atual.
-- Adicionar um `ref` de sentinela no `ChatMessageList` e usar `useEffect` no `AdminWorkspace`.
+### Fluxo de envio
 
-### 2.4 Area de chat com borda e fundo definidos
-- A area central de mensagens nao tem contorno visual claro. Envolver em um container com `rounded-lg border bg-card` para delimitar visualmente, igual ao header ja faz.
-- Isso cria uma "caixa de conversa" coesa: header + mensagens + input dentro de um unico card.
+A coluna `message_type` e `metadata` ja existem em `chat_messages`. Usaremos:
+- `message_type = 'file'` para mensagens com arquivo
+- `metadata = { file_url, file_name, file_type, file_size }` para os dados do arquivo
 
-### 2.5 Indicador de digitacao/enviando
-- Mostrar feedback visual enquanto a mensagem esta sendo enviada (o botao ja desabilita, mas adicionar um spinner pequeno no botao de envio durante o estado `sending`).
+### Mudancas nos componentes
 
-### 2.6 Atalho de teclado para nota interna
-- Adicionar `Ctrl+Shift+I` (ou `Cmd+Shift+I` no Mac) como atalho para alternar entre mensagem normal e nota interna, alem do botao.
+**`src/components/chat/ChatInput.tsx`** (workspace admin)
+
+| Mudanca | Detalhe |
+|---------|---------|
+| Botao de anexo (clip) | Ao lado do botao de nota interna, abre file picker |
+| Estado de upload | Mostrar progresso/preview antes de enviar |
+| Preview inline | Imagens mostram thumbnail; outros arquivos mostram icone + nome |
+| Prop `onSend` expandida | Aceitar `metadata` opcional com dados do arquivo |
+| Drag and drop | Aceitar arquivos arrastados para a area do input |
+
+**`src/components/chat/ChatMessageList.tsx`** (workspace admin)
+
+| Mudanca | Detalhe |
+|---------|---------|
+| Renderizar `message_type = 'file'` | Mostrar preview de imagem (se for imagem) ou card de download |
+| Suporte a tipos | Imagens: thumbnail clicavel; PDF/doc: icone + nome + tamanho + link download |
+| Lightbox simples | Clicar na imagem abre em tamanho maior (dialog) |
+
+**`src/pages/ChatWidget.tsx`** (widget do visitante)
+
+| Mudanca | Detalhe |
+|---------|---------|
+| Botao de anexo no input | Icone de clip no input de mensagem do visitante |
+| Upload para storage | Mesmo bucket `chat-attachments` |
+| Renderizar mensagens de arquivo | Preview de imagem / card de download |
+
+### Tipos de arquivo suportados
+- Imagens: jpg, png, gif, webp - preview inline
+- Documentos: pdf, doc, docx, xls, xlsx - icone + download
+- Outros: link de download generico
+- Limite: 10MB por arquivo
+
+---
+
+## 3. Status de Resolucao ao Encerrar Chat
+
+A coluna `resolution_status` ja existe em `chat_rooms` (default `'pending'`). Ja e usada no historico e dashboard, mas nunca e definida pelo atendente ao fechar.
+
+### Mudancas
+
+**`src/pages/AdminWorkspace.tsx`**
+
+| Mudanca | Detalhe |
+|---------|---------|
+| Dialog de confirmacao ao fechar | Em vez de fechar direto, abrir dialog perguntando o status |
+| Opcoes de status | "Resolvido" (`resolved`) ou "Com pendencia" (`pending`) |
+| Campo opcional de observacao | Textarea curta para o atendente anotar |
+| Salvar na sala | `resolution_status` e opcionalmente uma ultima mensagem interna |
+
+**Fluxo**:
+1. Atendente clica "Encerrar"
+2. Dialog aparece: "Como encerrar esta conversa?"
+3. Dois botoes: "Resolvido" (verde) e "Com pendencia" (amarelo)
+4. Campo opcional de observacao
+5. Ao confirmar, atualiza `chat_rooms.status = 'closed'`, `resolution_status` e `closed_at`
+6. Se houver observacao, insere como mensagem interna automatica
 
 ---
 
@@ -71,7 +131,11 @@ Quando o visitante esta vinculado a um contato/empresa, o painel lateral exibira
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `src/components/chat/VisitorInfoPanel.tsx` | Reescrever com abas, queries de empresa, contato e timeline |
-| 2 | `src/pages/AdminWorkspace.tsx` | Passar props extras ao painel + envolver chat em card coeso |
-| 3 | `src/components/chat/ChatInput.tsx` | Textarea com auto-resize, foco apos envio, spinner, atalho de teclado |
-| 4 | `src/components/chat/ChatMessageList.tsx` | Adicionar ref sentinela para scroll suave |
+| 1 | `src/pages/AdminWorkspace.tsx` | Layout responsivo, dialog de encerramento, mobile |
+| 2 | `src/components/chat/VisitorInfoPanel.tsx` | Remover larguras fixas internas |
+| 3 | `src/components/chat/ChatRoomList.tsx` | Ajustar truncate e layout responsivo |
+| 4 | `src/components/chat/ChatInput.tsx` | Botao de anexo, upload, preview, drag-and-drop |
+| 5 | `src/components/chat/ChatMessageList.tsx` | Renderizar mensagens de arquivo com preview |
+| 6 | `src/pages/ChatWidget.tsx` | Anexo no widget do visitante, renderizar arquivos |
+| 7 | Migration SQL | Criar bucket `chat-attachments` com policies publicas |
+
