@@ -1,115 +1,128 @@
 
 
-# Plano: Expor IDs da Empresa e Consolidar Visao de Detalhes
+# Plano: Chat e Banner com api_key + external_id (mesma estrutura do NPS)
 
-## Resumo
+## Problema
 
-Atualmente existem **duas visoes diferentes** para detalhes de empresa:
-- **Contacts page** (`Contacts.tsx`): Sheet simples com dados cadastrais + lista de contatos, sem historico/NPS/timeline
-- **CS Dashboard** (`CompanyCSDetailsSheet.tsx`): Sheet completo com overview, NPS, trilhas, timeline, mas sem mostrar IDs ou lista de contatos clicaveis
+O NPS usa `api_key` + `external_id` para autenticar e identificar o usuario. O chat e banner usam `tenant_id` + `visitor_token` sem validacao de chave e sem vinculo automatico com o contato cadastrado.
 
-O objetivo e **consolidar ambas** em um unico componente rico que:
-1. Mostra o **ID interno** (UUID) da empresa e o **external_id** dos contatos para facilitar integracao
-2. Tem **contatos clicaveis** que abrem o `PersonDetailsSheet`
-3. Inclui **todas as abas importantes**: Overview (com IDs), Contatos, NPS, Trilhas/Jornadas, Timeline
+## Solucao
 
----
+Adicionar ao chat e banner a mesma estrutura: `api_key` (prefixo `chat_`) + `external_id`. Quando fornecidos, o sistema valida a chave (mesmo algoritmo SHA-256 do NPS), busca o `company_contact` pelo `external_id`, e cria/reutiliza um `chat_visitor` vinculado. Quando nao fornecidos, funciona como visitante anonimo com formulario de nome.
 
 ## Mudancas
 
-### 1. Criar componente unificado `CompanyDetailsSheet`
+### 1. Nova edge function: `resolve-chat-visitor`
 
-**`src/components/CompanyDetailsSheet.tsx`** (novo)
+Funcao publica que replica a logica de autenticacao do `check-nps-pending`:
+- Recebe `{ api_key, external_id }` via POST
+- Valida api_key: extrai prefixo, busca na tabela `api_keys`, compara SHA-256 hash
+- Busca `company_contact` pelo `external_id` + `user_id` da chave
+- Se ja existe `chat_visitor` com `company_contact_id` correspondente, retorna o `visitor_token` existente
+- Se nao existe, cria um novo `chat_visitor` com nome/email do contato, vinculado ao `company_contact_id` e `contact_id`
+- Atualiza `last_used_at` da api_key
+- Retorna: `{ visitor_token, visitor_name, visitor_email, contact_id }`
+- Se `external_id` nao encontrado, retorna `{ visitor_token: null, error: "contact_not_found" }`
 
-Componente consolidado que une o melhor de ambas as visoes:
+### 2. Atualizar `get-visitor-banners`
 
-**Tab Overview:**
-- ID interno da empresa (UUID) com botao de copia
-- Dados cadastrais (email, telefone, endereco, CNPJ, setor)
-- Health Score e status CS
-- Dados financeiros (MRR, valor contrato, renovacao)
-- Ultimo NPS
+Adicionar suporte a `api_key` + `external_id` como alternativa ao `visitor_token`:
+- Se receber `api_key` + `external_id` nos query params: valida chave, busca contato, busca banners pelo `contact_id` da empresa
+- Se receber `visitor_token`: mantem fluxo atual
+- Isso permite que banners carreguem mesmo sem visitor_token no localStorage
 
-**Tab Contatos:**
-- Lista de contatos (`company_contacts`) **clicaveis**
-- Cada contato mostra: nome, email, cargo, departamento, `external_id`, `public_token`
-- Ao clicar em um contato, abre o `PersonDetailsSheet` existente
-- Botoes de acao (editar, excluir, definir primario) respeitando permissoes
+### 3. Atualizar `nps-chat-embed.js`
 
-**Tab NPS:**
-- Trilhas NPS ativas
-- Historico de respostas NPS com score e comentarios
+- Aceitar novos atributos: `data-api-key` e `data-external-id`
+- Na inicializacao, se ambos forem fornecidos:
+  1. Chamar `resolve-chat-visitor` para obter `visitor_token`
+  2. Salvar token no localStorage
+  3. Carregar banners com `api_key` + `external_id` (mais confiavel que visitor_token)
+  4. Passar `visitor_token` e nome resolvido como query params para o iframe do chat
+- Se nao fornecidos: manter fluxo atual (visitor_token do localStorage ou formulario)
 
-**Tab Timeline:**
-- Eventos da timeline da empresa
+### 4. Atualizar `ChatWidget.tsx`
 
-### 2. Atualizar Contacts page para usar o novo componente
+- Ler novos query params: `visitorToken`, `visitorName`
+- Se `visitorToken` estiver presente (vindo do resolve): pular formulario, usar token direto, checar room existente ou criar novo
+- Se nao tiver: mostrar formulario como hoje (visitante anonimo)
 
-**`src/pages/Contacts.tsx`**
-- Substituir o Sheet inline pelo `CompanyDetailsSheet`
-- Manter todos os dialogs de add/edit/delete como estao
+### 5. Atualizar `ChatApiKeysTab.tsx`
 
-### 3. Atualizar CS Dashboard para usar o novo componente
+- Atualizar o snippet de integracao para incluir `data-api-key` e `data-external-id`
+- Usar a api_key real da chave selecionada no snippet
 
-**`src/components/cs/CSKanbanBoard.tsx`** ou onde o `CompanyCSDetailsSheet` e usado
-- Substituir por `CompanyDetailsSheet`
+### 6. Atualizar `AdminSettings.tsx`
 
-### 4. Adicionar IDs ao CompanyCard
+- Atualizar o embed code na tab Widget para incluir os novos atributos
 
-**`src/components/CompanyCard.tsx`**
-- Mostrar o ID interno da empresa (UUID truncado) com botao de copia
-- Sutil, nao poluir visualmente
+### 7. Atualizar `supabase/config.toml`
 
-### 5. Mostrar external_id na lista de contatos
-
-**`src/components/CompanyContactsList.tsx`**
-- Exibir `external_id` quando presente, com icone e label "ID Externo"
-- Botao de copia para o external_id
-
----
+- Adicionar `resolve-chat-visitor` com `verify_jwt = false`
 
 ## Arquivos
 
 | # | Arquivo | Mudanca |
 |---|---------|---------|
-| 1 | `src/components/CompanyDetailsSheet.tsx` | **Novo** -- Componente unificado de detalhes da empresa |
-| 2 | `src/pages/Contacts.tsx` | Usar `CompanyDetailsSheet` no lugar do Sheet inline |
-| 3 | `src/components/cs/CompanyCSDetailsSheet.tsx` | Remover (substituido pelo componente unificado) |
-| 4 | `src/components/CompanyCard.tsx` | Adicionar ID interno com copia |
-| 5 | `src/components/CompanyContactsList.tsx` | Exibir `external_id` com copia |
-| 6 | `src/locales/pt-BR.ts` | Novas chaves de traducao |
-| 7 | `src/locales/en.ts` | Novas chaves de traducao |
-| 8 | Componentes CS que referenciam `CompanyCSDetailsSheet` | Atualizar imports |
-
----
+| 1 | `supabase/functions/resolve-chat-visitor/index.ts` | **Novo** -- Resolve api_key + external_id em visitor_token |
+| 2 | `supabase/functions/get-visitor-banners/index.ts` | Aceitar api_key + external_id como alternativa |
+| 3 | `public/nps-chat-embed.js` | Aceitar data-api-key + data-external-id |
+| 4 | `src/pages/ChatWidget.tsx` | Pular formulario quando visitor ja resolvido |
+| 5 | `src/components/ChatApiKeysTab.tsx` | Atualizar snippet com api_key + external_id |
+| 6 | `src/pages/AdminSettings.tsx` | Atualizar embed code |
+| 7 | `supabase/config.toml` | Adicionar resolve-chat-visitor |
 
 ## Secao Tecnica
 
-### CompanyDetailsSheet -- Dados carregados
+### Snippet de integracao final
 
-O componente recebera o `company.id` e fara queries para:
-- `contacts` (dados da empresa)
-- `company_contacts` (lista de pessoas vinculadas)
-- `trails` (trilhas/jornadas)
-- `responses` JOIN `campaigns` (historico NPS)
-- `timeline_events` (timeline)
+```text
+<!-- Com usuario identificado -->
+<script src="https://app.url/nps-chat-embed.js"
+  data-api-key="chat_abc123..."
+  data-external-id="USER_ID_DO_SISTEMA"
+  data-position="right"
+  data-primary-color="#7C3AED"
+  data-company-name="Suporte">
+</script>
 
-### IDs expostos
+<!-- Visitante anonimo (sem api_key/external_id) -->
+<script src="https://app.url/nps-chat-embed.js"
+  data-position="right"
+  data-primary-color="#7C3AED"
+  data-company-name="Suporte">
+</script>
+```
 
-| Campo | Origem | Exibicao |
-|-------|--------|----------|
-| ID Interno (empresa) | `contacts.id` (UUID) | Texto truncado + botao copiar na tab Overview e no CompanyCard |
-| External ID (pessoa) | `company_contacts.external_id` | Na lista de contatos e no PersonDetailsSheet |
+### Fluxo com external_id
 
-### Contatos clicaveis
+```text
+1. Script le data-api-key + data-external-id
+2. POST /resolve-chat-visitor { api_key, external_id }
+3. Edge function valida chave (SHA-256), busca company_contact, cria/reutiliza visitor
+4. Retorna { visitor_token, visitor_name, visitor_email, contact_id }
+5. Script salva visitor_token no localStorage
+6. Banners: GET /get-visitor-banners?api_key=...&external_id=...
+7. Chat iframe: /widget?embed=true&visitorToken=xxx&visitorName=xxx&...
+8. Widget detecta visitorToken → pula formulario → cria/reconecta room
+```
 
-Ao clicar em um contato na tab "Contatos", o componente abrira o `PersonDetailsSheet` passando os dados da pessoa. Como ambos sao Sheets, o `PersonDetailsSheet` sera aberto em uma segunda camada (overlay sobre o CompanyDetailsSheet).
+### Fluxo sem external_id
 
-### Snippet de integracao
+```text
+1. Script carrega SEM data-api-key / data-external-id
+2. Verifica localStorage por chat_visitor_token
+3. Se existe → carrega banners + reconecta chat
+4. Se nao → widget mostra formulario nome/email (Visitante)
+```
 
-Na tab Overview, alem do ID, havera uma secao "Integracao" que mostra o de-para:
-- ID da empresa no sistema: `contacts.id`
-- IDs externos dos contatos: lista de `company_contacts.external_id`
+### Validacao da API Key (identica ao NPS)
 
-Isso facilita o mapeamento para quem esta integrando via API/widget.
+```text
+1. Extrai prefixo: api_key.substring(0, 12)
+2. Busca em api_keys WHERE key_prefix = prefixo AND is_active = true
+3. Calcula SHA-256 da chave completa
+4. Compara com key_hash armazenado
+5. Se valido → retorna user_id do dono da chave
+```
 
