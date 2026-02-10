@@ -21,7 +21,7 @@ const BannerPreview = ({ content, contentHtml, textAlign = "left", bgColor, text
       >
         <div className="flex-1 flex items-center gap-3 flex-wrap" style={{ textAlign: textAlign as any }}>
           {contentHtml ? (
-            <span dangerouslySetInnerHTML={{ __html: contentHtml }} style={{ maxHeight: "2.8em", overflow: "hidden", display: "block", lineHeight: "1.4", flex: 1 }} />
+            <span dangerouslySetInnerHTML={{ __html: contentHtml }} style={{ maxHeight: "3em", overflow: "hidden", display: "block", lineHeight: "1.4", flex: 1, wordBreak: "break-word" }} />
           ) : (
             <span>{content || "Texto do banner aqui..."}</span>
           )}
