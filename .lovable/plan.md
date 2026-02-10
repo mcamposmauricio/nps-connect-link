@@ -1,52 +1,48 @@
 
 
-# Redimensionamento Dinamico do Widget NPS
+# Corrigir Overflow de Mensagens no Widget de Chat
 
 ## Problema
 
-O iframe do NPS widget (`nps-widget.js`) e criado com tamanho fixo de 400x450px imediatamente, mesmo durante o loading e quando nao ha pesquisa pendente. Isso bloqueia cliques na pagina hospedeira desnecessariamente.
+Quando o chat esta aberto com muitas mensagens, o conteudo ultrapassa os limites do card e cria um scroll externo ao componente, fazendo as mensagens "vazarem" para fora da area visivel (como mostra o screenshot). O widget deveria ter apenas 2 estados visuais: FAB fechado (80x80) e chat aberto (420x700) com scroll interno contido.
 
-## Solucao
+## Causa Raiz
 
-Iniciar o iframe invisivel/minimo e so expandir quando o `NPSEmbed` confirmar que ha pesquisa pendente (`nps-ready`). Esconder quando o usuario dispensar (`nps-dismiss`) ou concluir (`nps-complete`), ou quando nao houver pesquisa (`nps-no-survey`).
+O layout flexbox do Card nao esta restringindo corretamente o overflow. O div `flex-1 overflow-auto` precisa de `min-h-0` para que o flex item respeite o limite do container pai e ative o scroll interno. Alem disso, o wrapper externo (linha 708-715) precisa de `overflow: hidden` para garantir que nada vaze.
 
-### Mudancas
+## Mudancas
 
-**1. `public/nps-widget.js`**
+### 1. `src/pages/ChatWidget.tsx`
 
-| Mudanca | Detalhe |
-|---------|---------|
-| Iframe inicia com tamanho 0x0 | `width:0;height:0;overflow:hidden` - invisivel e sem bloqueio |
-| Escutar `nps-ready` | Expandir para 400x450px com transicao suave |
-| Escutar `nps-no-survey` | Manter 0x0 (ou destruir o widget) |
-| Escutar `nps-dismiss` e `nps-complete` | Ja existem e chamam `destroy()` - OK, nenhuma mudanca necessaria |
+| Local | Mudanca |
+|-------|---------|
+| Wrapper do embed (linha ~708-715) | Adicionar `overflow: hidden` no style |
+| Body div (linha 493) | Adicionar `min-h-0` na className para forcar o flex item a respeitar o container |
+| Card (linha 460-462) | Adicionar `min-h-0` para garantir que o Card tambem respeite o flex container |
 
-No `setupMessageListener`, adicionar tratamento para `nps-ready` e `nps-no-survey`:
-
-```javascript
-if (data.type === 'nps-ready') {
-  // Expandir iframe para tamanho real
-  this.iframe.style.width = '400px';
-  this.iframe.style.height = '450px';
-} else if (data.type === 'nps-no-survey') {
-  // Sem pesquisa: destruir widget
-  this.destroy();
-}
+**Wrapper embed (linha ~708):**
+```
+- style={{ width: "100%", height: "100%" }}
++ style={{ width: "100%", height: "100%", overflow: "hidden" }}
 ```
 
-**2. `src/pages/NPSEmbed.tsx`**
+**Body div (linha 493):**
+```
+- <div className="flex-1 overflow-auto p-4" ref={scrollRef}>
++ <div className="flex-1 overflow-auto p-4 min-h-0" ref={scrollRef}>
+```
 
-| Mudanca | Detalhe |
-|---------|---------|
-| Enviar `nps-no-survey` quando nao ha pendencia | Ja faz isso - OK |
-| Enviar `nps-no-survey` em caso de erro | Ja faz isso - OK |
-| Nenhuma mudanca necessaria | Os postMessages ja cobrem todos os cenarios |
+**Card (linha 461):**
+```
+- className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl"
++ className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl min-h-0"
+```
 
-O `NPSEmbed.tsx` nao precisa de alteracoes - ele ja envia os eventos corretos.
+Essas mudancas garantem que o scroll de mensagens fique contido dentro do card, sem afetar o tamanho do iframe ou vazar conteudo.
 
 ## Arquivos Modificados
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `public/nps-widget.js` | Iniciar iframe com 0x0, expandir ao receber `nps-ready`, destruir ao receber `nps-no-survey` |
+| 1 | `src/pages/ChatWidget.tsx` | Adicionar `min-h-0` no Card e body div, `overflow: hidden` no wrapper embed |
 
