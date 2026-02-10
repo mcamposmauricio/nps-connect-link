@@ -40,7 +40,7 @@
     contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
 
     var text = document.createElement("span");
-    text.style.cssText = "max-height:2.8em;overflow:hidden;display:block;line-height:1.4;flex:1;";
+    text.style.cssText = "max-height:3em;overflow:hidden;display:block;line-height:1.4;flex:1;word-break:break-word;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
     } else {

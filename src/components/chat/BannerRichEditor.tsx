@@ -144,11 +144,21 @@ const BannerRichEditor = ({
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const el = editorRef.current;
+            if (!el) return;
+            const lines = el.innerHTML.split(/<br\s*\/?>|<\/div>|<\/p>/).filter(Boolean);
+            if (lines.length >= 2) {
+              e.preventDefault();
+            }
+          }
+        }}
         data-placeholder={placeholder}
-        className="min-h-[2.5rem] max-h-[3.5rem] overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
+        className="min-h-[2.5rem] max-h-[4.5rem] overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
         style={{ textAlign, lineHeight: "1.4" }}
       />
-      <p className="text-[10px] text-muted-foreground">Máximo 2 linhas</p>
+      <p className="text-[10px] text-muted-foreground">Até 2 linhas. Use Enter para quebrar linha.</p>
     </div>
   );
 };
