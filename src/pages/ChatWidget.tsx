@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Send, Star, Loader2, X, Plus, ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
+import { MessageSquare, Send, Star, Loader2, X, Plus, ArrowLeft, Clock, CheckCircle2, Paperclip, FileText, Download } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 type WidgetPhase = "form" | "history" | "waiting" | "chat" | "csat" | "closed" | "viewTranscript";
 
@@ -16,6 +18,27 @@ interface HistoryRoom {
   created_at: string;
   closed_at: string | null;
   csat_score: number | null;
+}
+
+interface ChatMsg {
+  id: string;
+  content: string;
+  sender_type: string;
+  sender_name: string | null;
+  created_at: string;
+  message_type?: string | null;
+  metadata?: { file_url?: string; file_name?: string; file_type?: string; file_size?: number } | null;
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+function isImage(type: string) { return type.startsWith("image/"); }
+function formatFileSize(bytes?: number) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const ChatWidget = () => {
@@ -37,7 +60,7 @@ const ChatWidget = () => {
   const [visitorToken, setVisitorToken] = useState<string | null>(null);
   const [visitorId, setVisitorId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Array<{ id: string; content: string; sender_type: string; sender_name: string | null; created_at: string }>>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [csatScore, setCsatScore] = useState(0);
   const [csatComment, setCsatComment] = useState("");
@@ -45,7 +68,11 @@ const ChatWidget = () => {
   const [loading, setLoading] = useState(false);
   const [historyRooms, setHistoryRooms] = useState<HistoryRoom[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isRight = position !== "left";
 
@@ -53,7 +80,6 @@ const ChatWidget = () => {
     if (isEmbed) window.parent.postMessage({ type }, "*");
   };
 
-  // Fetch chat history for a visitor
   const fetchHistory = useCallback(async (vId: string) => {
     setHistoryLoading(true);
     const { data } = await supabase
@@ -66,14 +92,12 @@ const ChatWidget = () => {
     return data ?? [];
   }, []);
 
-  // Init: resolve visitor or check localStorage
   useEffect(() => {
     const init = async () => {
       if (paramVisitorToken) {
         setVisitorToken(paramVisitorToken);
         localStorage.setItem("chat_visitor_token", paramVisitorToken);
 
-        // Lookup visitor id
         const { data: visitor } = await supabase
           .from("chat_visitors")
           .select("id")
@@ -84,9 +108,7 @@ const ChatWidget = () => {
         setVisitorId(visitor.id);
 
         if (isResolvedVisitor) {
-          // Resolved visitor -> show history
           const rooms = await fetchHistory(visitor.id);
-          // Check for active room
           const activeRoom = rooms.find((r) => r.status === "waiting" || r.status === "active");
           if (activeRoom) {
             setRoomId(activeRoom.id);
@@ -95,7 +117,6 @@ const ChatWidget = () => {
             setPhase("history");
           }
         } else {
-          // Legacy token (no owner info) — check existing room
           const { data: room } = await supabase
             .from("chat_rooms")
             .select("id, status")
@@ -139,18 +160,17 @@ const ChatWidget = () => {
     init();
   }, []);
 
-  // Realtime messages
   useEffect(() => {
     if (!roomId) return;
 
     const fetchMessages = async () => {
       const { data } = await supabase
         .from("chat_messages")
-        .select("id, content, sender_type, sender_name, created_at")
+        .select("id, content, sender_type, sender_name, created_at, message_type, metadata")
         .eq("room_id", roomId)
         .eq("is_internal", false)
         .order("created_at", { ascending: true });
-      setMessages(data ?? []);
+      setMessages((data as ChatMsg[]) ?? []);
     };
 
     fetchMessages();
@@ -168,7 +188,6 @@ const ChatWidget = () => {
     return () => { supabase.removeChannel(channel); };
   }, [roomId]);
 
-  // Realtime room status
   useEffect(() => {
     if (!roomId) return;
 
@@ -188,12 +207,10 @@ const ChatWidget = () => {
     return () => { supabase.removeChannel(channel); };
   }, [roomId, phase]);
 
-  // Auto scroll
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Create a new room with proper linking
   const createLinkedRoom = async (vId: string) => {
     const insertData: any = {
       visitor_id: vId,
@@ -212,7 +229,6 @@ const ChatWidget = () => {
     return newRoom;
   };
 
-  // Handle "New Chat" from history
   const handleNewChat = async () => {
     if (!visitorId) return;
     setLoading(true);
@@ -229,14 +245,11 @@ const ChatWidget = () => {
     setLoading(false);
   };
 
-  // View transcript of a closed room
   const handleViewTranscript = async (rId: string) => {
     setRoomId(rId);
     setPhase("viewTranscript");
-    // Messages will be fetched by the realtime effect
   };
 
-  // Go back to history
   const handleBackToHistory = async () => {
     if (visitorId) await fetchHistory(visitorId);
     setRoomId(null);
@@ -289,10 +302,48 @@ const ChatWidget = () => {
     setLoading(false);
   };
 
+  const uploadFile = async (file: File) => {
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("chat-attachments")
+      .upload(path, file, { contentType: file.type });
+
+    if (error) {
+      toast.error("Erro ao enviar arquivo");
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("chat-attachments")
+      .getPublicUrl(path);
+
+    return {
+      file_url: urlData.publicUrl,
+      file_name: file.name,
+      file_type: file.type,
+      file_size: file.size,
+    };
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || !roomId) return;
-    const content = input;
+    const hasContent = input.trim() || pendingFile;
+    if (!hasContent || !roomId || uploading) return;
+
+    let metadata: any = undefined;
+
+    if (pendingFile) {
+      setUploading(true);
+      const result = await uploadFile(pendingFile);
+      setUploading(false);
+      if (!result) return;
+      metadata = result;
+    }
+
+    const content = input.trim() || metadata?.file_name || "";
     setInput("");
+    setPendingFile(null);
 
     await supabase.from("chat_messages").insert({
       room_id: roomId,
@@ -300,7 +351,16 @@ const ChatWidget = () => {
       sender_id: visitorToken,
       sender_name: formData.name || paramVisitorName || "Visitante",
       content,
+      ...(metadata ? { message_type: "file", metadata } : {}),
     });
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Arquivo muito grande. Limite: 10MB");
+      return;
+    }
+    setPendingFile(file);
   };
 
   const handleSubmitCsat = async () => {
@@ -313,7 +373,6 @@ const ChatWidget = () => {
 
     postMsg("chat-csat-submitted");
 
-    // If resolved visitor, go back to history; otherwise show closed
     if (isResolvedVisitor) {
       await handleBackToHistory();
     } else {
@@ -333,6 +392,31 @@ const ChatWidget = () => {
       case "closed": return "Encerrado";
       default: return status;
     }
+  };
+
+  const renderFileMessage = (msg: ChatMsg) => {
+    const meta = msg.metadata;
+    if (!meta?.file_url) return <p>{msg.content}</p>;
+
+    if (isImage(meta.file_type || "")) {
+      return (
+        <div className="space-y-1 cursor-pointer" onClick={() => setLightboxUrl(meta.file_url!)}>
+          <img src={meta.file_url} alt={meta.file_name} className="max-w-[200px] max-h-[160px] rounded-md object-cover" loading="lazy" />
+          <p className="text-[10px] opacity-60 truncate max-w-[200px]">{meta.file_name}</p>
+        </div>
+      );
+    }
+
+    return (
+      <a href={meta.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-md border p-2 hover:bg-muted/50 transition-colors">
+        <FileText className="h-6 w-6 shrink-0 opacity-60" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium truncate">{meta.file_name}</p>
+          {meta.file_size && <p className="text-[10px] opacity-60">{formatFileSize(meta.file_size)}</p>}
+        </div>
+        <Download className="h-3.5 w-3.5 shrink-0 opacity-60" />
+      </a>
+    );
   };
 
   // FAB button when closed (embed mode)
@@ -399,7 +483,6 @@ const ChatWidget = () => {
 
       {/* Body */}
       <div className="flex-1 overflow-auto p-4" ref={scrollRef}>
-        {/* Form phase (anonymous visitors) */}
         {phase === "form" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
@@ -422,7 +505,6 @@ const ChatWidget = () => {
           </div>
         )}
 
-        {/* History phase (resolved visitors) */}
         {phase === "history" && (
           <div className="space-y-3">
             <Button
@@ -496,7 +578,6 @@ const ChatWidget = () => {
           </div>
         )}
 
-        {/* Messages display (chat, csat, closed, viewTranscript) */}
         {(phase === "chat" || phase === "csat" || phase === "closed" || phase === "viewTranscript") && (
           <div className="space-y-3">
             {messages.map((msg) => (
@@ -513,7 +594,10 @@ const ChatWidget = () => {
                   {msg.sender_type !== "visitor" && (
                     <p className="text-xs font-medium mb-1 opacity-70">{msg.sender_name}</p>
                   )}
-                  <p>{msg.content}</p>
+                  {msg.message_type === "file" && msg.metadata?.file_url
+                    ? renderFileMessage(msg)
+                    : <p>{msg.content}</p>
+                  }
                 </div>
               </div>
             ))}
@@ -552,22 +636,45 @@ const ChatWidget = () => {
         )}
       </div>
 
+      {/* File preview bar */}
+      {phase === "chat" && pendingFile && (
+        <div className="border-t px-3 py-2 flex items-center gap-2 bg-muted/30">
+          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-xs truncate flex-1">{pendingFile.name}</span>
+          <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Input bar */}
       {phase === "chat" && (
         <div className="border-t p-3 flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileSelect(file);
+            }}
+          />
+          <Button size="icon" variant="ghost" className="shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Digite sua mensagem..."
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            disabled={uploading}
           />
-          <Button size="icon" onClick={handleSend} disabled={!input.trim()} style={{ backgroundColor: primaryColor }}>
-            <Send className="h-4 w-4" />
+          <Button size="icon" onClick={handleSend} disabled={(!input.trim() && !pendingFile) || uploading} style={{ backgroundColor: primaryColor }}>
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       )}
 
-      {/* Back button for transcript view */}
       {phase === "viewTranscript" && (
         <div className="border-t p-3">
           <Button variant="outline" className="w-full gap-2" onClick={handleBackToHistory}>
@@ -578,29 +685,42 @@ const ChatWidget = () => {
     </Card>
   );
 
-  // Embed mode: floating panel
+  // Lightbox dialog
+  const lightboxDialog = (
+    <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
+      <DialogContent className="max-w-3xl p-2">
+        {lightboxUrl && <img src={lightboxUrl} alt="Preview" className="w-full h-auto max-h-[80vh] object-contain rounded" />}
+      </DialogContent>
+    </Dialog>
+  );
+
   if (isEmbed) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          ...(isRight ? { right: "20px" } : { left: "20px" }),
-          width: "400px",
-          height: "600px",
-          zIndex: 99999,
-        }}
-      >
-        {widgetContent}
-      </div>
+      <>
+        <div
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            ...(isRight ? { right: "20px" } : { left: "20px" }),
+            width: "400px",
+            height: "600px",
+            zIndex: 99999,
+          }}
+        >
+          {widgetContent}
+        </div>
+        {lightboxDialog}
+      </>
     );
   }
 
-  // Standalone mode: centered
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted p-4">
-      {widgetContent}
-    </div>
+    <>
+      <div className="min-h-screen flex items-center justify-center bg-muted p-4">
+        {widgetContent}
+      </div>
+      {lightboxDialog}
+    </>
   );
 };
 
