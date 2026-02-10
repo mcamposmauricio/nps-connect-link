@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.vote-banner]
 verify_jwt = false
+
+[functions.resolve-chat-visitor]
+verify_jwt = false

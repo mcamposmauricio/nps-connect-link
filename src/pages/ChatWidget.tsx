@@ -16,7 +16,8 @@ const ChatWidget = () => {
   const companyName = searchParams.get("companyName") ?? "Suporte";
   const position = searchParams.get("position") ?? "right";
   const primaryColor = searchParams.get("primaryColor") ?? "#7C3AED";
-  const tenantId = searchParams.get("tenantId");
+  const paramVisitorToken = searchParams.get("visitorToken");
+  const paramVisitorName = searchParams.get("visitorName");
 
   const [isOpen, setIsOpen] = useState(!isEmbed);
   const [phase, setPhase] = useState<WidgetPhase>("form");
@@ -26,14 +27,23 @@ const ChatWidget = () => {
   const [input, setInput] = useState("");
   const [csatScore, setCsatScore] = useState(0);
   const [csatComment, setCsatComment] = useState("");
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
+  const [formData, setFormData] = useState({ name: paramVisitorName || "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
+  const [resolvedVisitor, setResolvedVisitor] = useState(!!paramVisitorToken);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isRight = position !== "left";
 
-  // Check localStorage for returning visitor
+  // Check for resolved visitor (from embed script) or localStorage
   useEffect(() => {
+    if (paramVisitorToken) {
+      // Visitor was resolved via api_key + external_id - skip form
+      setVisitorToken(paramVisitorToken);
+      localStorage.setItem("chat_visitor_token", paramVisitorToken);
+      checkExistingRoomOrCreate(paramVisitorToken, paramVisitorName || "Visitante");
+      return;
+    }
+
     const savedToken = localStorage.getItem("chat_visitor_token");
     if (savedToken) {
       setVisitorToken(savedToken);
@@ -122,6 +132,46 @@ const ChatWidget = () => {
     }
   };
 
+  // For resolved visitors: check existing room or create one automatically
+  const checkExistingRoomOrCreate = async (token: string, visitorName: string) => {
+    const { data: visitor } = await supabase
+      .from("chat_visitors")
+      .select("id")
+      .eq("visitor_token", token)
+      .maybeSingle();
+
+    if (!visitor) return;
+
+    const { data: room } = await supabase
+      .from("chat_rooms")
+      .select("id, status")
+      .eq("visitor_id", visitor.id)
+      .in("status", ["waiting", "active"])
+      .maybeSingle();
+
+    if (room) {
+      setRoomId(room.id);
+      setPhase(room.status === "active" ? "chat" : "waiting");
+    } else {
+      // Auto-create room for resolved visitor
+      const { data: newRoom } = await supabase
+        .from("chat_rooms")
+        .insert({
+          visitor_id: visitor.id,
+          owner_user_id: "00000000-0000-0000-0000-000000000000",
+          status: "waiting",
+        })
+        .select("id")
+        .single();
+
+      if (newRoom) {
+        setRoomId(newRoom.id);
+        setPhase("waiting");
+        postMsg("chat-ready");
+      }
+    }
+  };
+
   const handleStartChat = async () => {
     if (!formData.name.trim()) return;
     setLoading(true);
@@ -173,7 +223,7 @@ const ChatWidget = () => {
       room_id: roomId,
       sender_type: "visitor",
       sender_id: visitorToken,
-      sender_name: formData.name || "Visitante",
+      sender_name: formData.name || paramVisitorName || "Visitante",
       content,
     });
   };

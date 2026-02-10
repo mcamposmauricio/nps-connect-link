@@ -1,11 +1,16 @@
 (function () {
   var script = document.currentScript;
-  var tenantId = script.getAttribute("data-tenant-id") || "";
+  var apiKey = script.getAttribute("data-api-key") || "";
+  var externalId = script.getAttribute("data-external-id") || "";
   var position = script.getAttribute("data-position") || "right";
   var primaryColor = script.getAttribute("data-primary-color") || "#7C3AED";
   var companyName = script.getAttribute("data-company-name") || "Suporte";
   var baseUrl = script.src.replace(/\/nps-chat-embed\.js.*$/, "");
   var supabaseUrl = "https://mfmkxpdufcbwydixbbbe.supabase.co";
+
+  // Resolved visitor data
+  var resolvedToken = null;
+  var resolvedName = null;
 
   // --- Banner Logic ---
   var bannerContainer = null;
@@ -28,7 +33,6 @@
       banner.text_color +
       ";";
 
-    // Content
     var contentDiv = document.createElement("div");
     contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
 
@@ -43,15 +47,12 @@
       link.rel = "noopener noreferrer";
       link.textContent = banner.link_label || "Saiba mais";
       link.style.cssText =
-        "color:" +
-        banner.text_color +
-        ";text-decoration:underline;font-size:13px;opacity:0.9;";
+        "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
       contentDiv.appendChild(link);
     }
 
     div.appendChild(contentDiv);
 
-    // Actions
     var actions = document.createElement("div");
     actions.style.cssText = "display:flex;align-items:center;gap:6px;";
 
@@ -61,8 +62,7 @@
       upBtn.title = "Like";
       upBtn.style.cssText =
         "background:none;border:none;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;opacity:" +
-        (banner.vote === "up" ? "1" : "0.6") +
-        ";";
+        (banner.vote === "up" ? "1" : "0.6") + ";";
       upBtn.onclick = function () {
         voteBanner(banner.assignment_id, "up");
         upBtn.style.opacity = "1";
@@ -75,8 +75,7 @@
       downBtn.title = "Dislike";
       downBtn.style.cssText =
         "background:none;border:none;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;opacity:" +
-        (banner.vote === "down" ? "1" : "0.6") +
-        ";";
+        (banner.vote === "down" ? "1" : "0.6") + ";";
       downBtn.onclick = function () {
         voteBanner(banner.assignment_id, "down");
         downBtn.style.opacity = "1";
@@ -85,25 +84,17 @@
       actions.appendChild(downBtn);
     }
 
-    // Close button
     var closeBtn = document.createElement("button");
     closeBtn.innerHTML = "✕";
     closeBtn.style.cssText =
       "background:none;border:none;cursor:pointer;color:" +
       banner.text_color +
       ";font-size:16px;padding:4px 6px;border-radius:4px;opacity:0.7;";
-    closeBtn.onmouseover = function () {
-      closeBtn.style.opacity = "1";
-    };
-    closeBtn.onmouseout = function () {
-      closeBtn.style.opacity = "0.7";
-    };
+    closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
+    closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
     closeBtn.onclick = function () {
       div.remove();
-      if (
-        bannerContainer &&
-        bannerContainer.children.length === 0
-      ) {
+      if (bannerContainer && bannerContainer.children.length === 0) {
         bannerContainer.remove();
       }
     };
@@ -122,17 +113,27 @@
   }
 
   function loadBanners() {
-    var token = localStorage.getItem("chat_visitor_token");
-    if (!token) return;
+    var bannerUrl;
 
-    fetch(
-      supabaseUrl +
+    // Prefer api_key + external_id path
+    if (apiKey && externalId) {
+      bannerUrl =
+        supabaseUrl +
+        "/functions/v1/get-visitor-banners?api_key=" +
+        encodeURIComponent(apiKey) +
+        "&external_id=" +
+        encodeURIComponent(externalId);
+    } else {
+      var token = resolvedToken || localStorage.getItem("chat_visitor_token");
+      if (!token) return;
+      bannerUrl =
+        supabaseUrl +
         "/functions/v1/get-visitor-banners?visitor_token=" +
-        encodeURIComponent(token)
-    )
-      .then(function (r) {
-        return r.json();
-      })
+        encodeURIComponent(token);
+    }
+
+    fetch(bannerUrl)
+      .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.banners && data.banners.length > 0) {
           createBannerContainer();
@@ -144,19 +145,52 @@
       .catch(function () {});
   }
 
+  // --- Resolve visitor via api_key + external_id ---
+  function resolveVisitor(callback) {
+    if (!apiKey || !externalId) {
+      callback();
+      return;
+    }
+
+    fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey, external_id: externalId }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.visitor_token) {
+          resolvedToken = data.visitor_token;
+          resolvedName = data.visitor_name || "";
+          localStorage.setItem("chat_visitor_token", data.visitor_token);
+        }
+        callback();
+      })
+      .catch(function () {
+        callback();
+      });
+  }
+
   // --- Chat Widget Iframe ---
   function createChatWidget() {
     var iframe = document.createElement("iframe");
-    iframe.src =
+    var iframeSrc =
       baseUrl +
       "/widget?embed=true&position=" +
       encodeURIComponent(position) +
       "&primaryColor=" +
       encodeURIComponent(primaryColor) +
       "&companyName=" +
-      encodeURIComponent(companyName) +
-      "&tenantId=" +
-      encodeURIComponent(tenantId);
+      encodeURIComponent(companyName);
+
+    // Pass resolved visitor info to skip form
+    if (resolvedToken) {
+      iframeSrc +=
+        "&visitorToken=" + encodeURIComponent(resolvedToken) +
+        "&visitorName=" + encodeURIComponent(resolvedName || "");
+    }
+
+    iframe.src = iframeSrc;
     iframe.style.cssText =
       "position:fixed;bottom:0;" +
       (position === "left" ? "left" : "right") +
@@ -165,14 +199,17 @@
     document.body.appendChild(iframe);
   }
 
-  // Init
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
+  // Init: resolve visitor first (if api_key + external_id provided), then load banners + chat
+  function init() {
+    resolveVisitor(function () {
       loadBanners();
       createChatWidget();
     });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    loadBanners();
-    createChatWidget();
+    init();
   }
 })();
