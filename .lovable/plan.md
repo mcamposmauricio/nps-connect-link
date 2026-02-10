@@ -1,78 +1,77 @@
 
-# Widget de Chat: Historico + Novo Chat + Vinculacao de Dados
+# Painel Enriquecido + Melhorias de Usabilidade no Workspace de Chat
 
 ## Resumo
 
-Adicionar ao widget embarcado a mesma experiencia do portal externo (`/portal/:token`): historico de conversas, botao de novo chat, e vinculacao completa de dados para que triggers de timeline e metricas funcionem.
+Duas frentes de trabalho: (1) enriquecer o painel lateral direito com dados da empresa/contato em abas, e (2) corrigir problemas de usabilidade na area de digitacao e layout geral do workspace.
 
-## Mudancas
+---
 
-### 1. Edge Function `resolve-chat-visitor/index.ts`
+## Parte 1: Painel Lateral Enriquecido (VisitorInfoPanel)
 
-Adicionar `user_id` (do dono da API key) na resposta JSON. Esse campo ja existe internamente (`apiKeyData.user_id`) mas nao e retornado. Sera adicionado nas duas respostas (visitante existente e visitante novo).
+Quando o visitante esta vinculado a um contato/empresa, o painel lateral exibira abas com informacoes ricas, seguindo o mesmo padrao visual do `CompanyCSDetailsSheet`.
 
-### 2. Embed Script `public/nps-chat-embed.js`
+### Dados exibidos por aba
 
-Capturar os campos extras da resposta do `resolve-chat-visitor` e passa-los como parametros na URL do iframe:
+**Aba Contato (padrao)**
+- Nome, email, telefone, cargo, departamento
+- External ID
+- Metricas de chat (total de sessoes, CSAT medio)
 
-- `ownerUserId` - UUID do dono da API key (para `owner_user_id` na sala)
-- `companyContactId` - UUID do company_contact
-- `contactId` - UUID da empresa (contacts)
+**Aba Empresa**
+- Nome fantasia / Razao social
+- Health Score (barra de progresso com cor)
+- MRR e Valor de contrato
+- Data de renovacao
+- Ultimo NPS (score + badge promotor/neutro/detrator)
+- Cidade/Estado
 
-### 3. Widget Principal `src/pages/ChatWidget.tsx`
+**Aba Timeline**
+- Ultimos 10 eventos da `timeline_events` usando o componente `TimelineComponent` ja existente
 
-Refatoracao completa do fluxo para visitantes resolvidos (com `external_id`):
+**Fallback**: visitante anonimo (sem vinculo) mantem o layout simples atual.
 
-| Mudanca | Detalhe |
+### Mudancas no arquivo
+
+| Arquivo | Mudanca |
 |---------|---------|
-| Nova fase `history` | Lista de conversas anteriores do visitante, com status e data |
-| Botao "Novo Chat" | Cria nova sala com dados completos de vinculacao |
-| Fase `viewTranscript` | Permite ver mensagens de conversas encerradas |
-| Parametros extras da URL | Ler `ownerUserId`, `companyContactId`, `contactId` |
-| Criacao de sala com dados reais | Usar `owner_user_id`, `company_contact_id`, `contact_id` reais em vez do placeholder `00000000-...` |
-| Retorno ao historico apos CSAT | Apos enviar avaliacao, voltar para a lista em vez de ficar preso |
+| `src/components/chat/VisitorInfoPanel.tsx` | Reescrever com abas (Tabs), queries para `contacts`, `company_contacts`, `timeline_events` |
+| `src/pages/AdminWorkspace.tsx` | Passar props `contactId` e `companyContactId` do `selectedRoom` |
 
-#### Fluxo para visitantes resolvidos (external_id):
+---
 
-```text
-Visitante identificado
-      |
-      v
-  [Historico]  -- lista + botao "Novo Chat"
-   /        \
-  v          v
-[Chat ativo]  [Ver transcrito]
-  |
-  v
-[CSAT] --> volta ao [Historico]
-```
+## Parte 2: Melhorias de Usabilidade
 
-#### Fluxo para visitantes anonimos (sem external_id):
+### 2.1 Foco automatico no input apos enviar mensagem
+- No `ChatInput`, adicionar `useRef` no campo de texto e chamar `inputRef.current?.focus()` apos o envio.
+- Tambem aplicar `autoFocus` no input para focar automaticamente ao abrir a conversa.
 
-Permanece igual ao atual: formulario -> aguardando -> chat -> CSAT -> botao novo chat.
+### 2.2 Trocar Input por Textarea
+- Substituir o `<Input>` por `<Textarea>` no `ChatInput` para permitir mensagens multilinhas.
+- Configurar com `rows={1}` e auto-resize (max 4 linhas) para nao ocupar espaco desnecessario.
+- Envio com Enter (sem Shift). Shift+Enter para nova linha.
 
-## Detalhes Tecnicos
+### 2.3 Scroll automatico suave para ultima mensagem
+- Usar `scrollIntoView({ behavior: "smooth" })` em um elemento sentinela no final da lista, em vez do `scrollTop = scrollHeight` brusco atual.
+- Adicionar um `ref` de sentinela no `ChatMessageList` e usar `useEffect` no `AdminWorkspace`.
 
-**Consulta de historico:**
-```sql
-SELECT id, status, created_at, closed_at, csat_score
-FROM chat_rooms
-WHERE visitor_id = :visitorId
-ORDER BY created_at DESC
-```
+### 2.4 Area de chat com borda e fundo definidos
+- A area central de mensagens nao tem contorno visual claro. Envolver em um container com `rounded-lg border bg-card` para delimitar visualmente, igual ao header ja faz.
+- Isso cria uma "caixa de conversa" coesa: header + mensagens + input dentro de um unico card.
 
-**Criacao de sala vinculada:**
-```sql
-INSERT INTO chat_rooms (visitor_id, owner_user_id, company_contact_id, contact_id, status)
-VALUES (:visitorId, :ownerUserId, :companyContactId, :contactId, 'waiting')
-```
+### 2.5 Indicador de digitacao/enviando
+- Mostrar feedback visual enquanto a mensagem esta sendo enviada (o botao ja desabilita, mas adicionar um spinner pequeno no botao de envio durante o estado `sending`).
 
-Isso garante que as triggers `create_chat_timeline_event` e `update_company_contact_chat_metrics` disparem corretamente.
+### 2.6 Atalho de teclado para nota interna
+- Adicionar `Ctrl+Shift+I` (ou `Cmd+Shift+I` no Mac) como atalho para alternar entre mensagem normal e nota interna, alem do botao.
+
+---
 
 ## Arquivos Modificados
 
-| # | Arquivo | Tipo |
-|---|---------|------|
-| 1 | `supabase/functions/resolve-chat-visitor/index.ts` | Adicionar `user_id` na resposta |
-| 2 | `public/nps-chat-embed.js` | Passar campos extras na URL do iframe |
-| 3 | `src/pages/ChatWidget.tsx` | Historico, novo chat, vinculacao, transcrito |
+| # | Arquivo | Descricao |
+|---|---------|-----------|
+| 1 | `src/components/chat/VisitorInfoPanel.tsx` | Reescrever com abas, queries de empresa, contato e timeline |
+| 2 | `src/pages/AdminWorkspace.tsx` | Passar props extras ao painel + envolver chat em card coeso |
+| 3 | `src/components/chat/ChatInput.tsx` | Textarea com auto-resize, foco apos envio, spinner, atalho de teclado |
+| 4 | `src/components/chat/ChatMessageList.tsx` | Adicionar ref sentinela para scroll suave |
