@@ -466,8 +466,19 @@ const ChatWidget = () => {
         className="p-4 flex items-center gap-3"
         style={{ backgroundColor: primaryColor, color: "#fff" }}
       >
-        {(phase === "viewTranscript") && (
-          <button onClick={handleBackToHistory} className="p-1 rounded-full hover:bg-white/20" style={{ color: "#fff" }}>
+      {(phase === "viewTranscript" || phase === "chat" || phase === "waiting") && (
+          <button
+            onClick={() => {
+              if (phase === "chat" || phase === "waiting") {
+                setPhase("history");
+                if (visitorId) fetchHistory(visitorId);
+              } else {
+                handleBackToHistory();
+              }
+            }}
+            className="p-1 rounded-full hover:bg-white/20"
+            style={{ color: "#fff" }}
+          >
             <ArrowLeft className="h-4 w-4" />
           </button>
         )}
@@ -616,33 +627,34 @@ const ChatWidget = () => {
           </div>
         )}
 
-        {phase === "csat" && (
-          <div className="mt-6 space-y-4 border-t pt-4">
-            <p className="text-sm font-medium text-center">Avalie o atendimento</p>
-            <div className="flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((v) => (
-                <button key={v} onClick={() => setCsatScore(v)} className="focus:outline-none">
-                  <Star className={`h-8 w-8 ${v <= csatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />
-                </button>
-              ))}
-            </div>
-            <Textarea
-              placeholder="Comentário (opcional)"
-              value={csatComment}
-              onChange={(e) => setCsatComment(e.target.value)}
-            />
-            <Button className="w-full" onClick={handleSubmitCsat} disabled={csatScore === 0} style={{ backgroundColor: primaryColor }}>
-              Enviar Avaliação
-            </Button>
-          </div>
-        )}
-
-        {phase === "closed" && (
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Obrigado pelo feedback! Esta conversa foi encerrada.</p>
-          </div>
-        )}
       </div>
+
+      {phase === "csat" && (
+        <div className="p-4 space-y-4 border-t">
+          <p className="text-sm font-medium text-center">Avalie o atendimento</p>
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((v) => (
+              <button key={v} onClick={() => setCsatScore(v)} className="focus:outline-none">
+                <Star className={`h-8 w-8 ${v <= csatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />
+              </button>
+            ))}
+          </div>
+          <Textarea
+            placeholder="Comentário (opcional)"
+            value={csatComment}
+            onChange={(e) => setCsatComment(e.target.value)}
+          />
+          <Button className="w-full" onClick={handleSubmitCsat} disabled={csatScore === 0} style={{ backgroundColor: primaryColor }}>
+            Enviar Avaliação
+          </Button>
+        </div>
+      )}
+
+      {phase === "closed" && (
+        <div className="p-4 text-center text-sm text-muted-foreground border-t">
+          <p>Obrigado pelo feedback! Esta conversa foi encerrada.</p>
+        </div>
+      )}
 
       {/* File preview bar */}
       {phase === "chat" && pendingFile && (
