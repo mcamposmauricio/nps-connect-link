@@ -1,62 +1,52 @@
 
-# Corrigir Container do Widget de Chat Embed
+
+# Redimensionamento Dinamico do Widget NPS
 
 ## Problema
 
-O iframe do chat embed (`nps-chat-embed.js`) e criado com tamanho fixo de `420x700px` e permanece assim o tempo todo, mesmo quando o chat esta fechado e apenas o botao flutuante (FAB) e exibido. Isso cria uma area invisivel que bloqueia cliques e interacoes com o conteudo da pagina por tras.
+O iframe do NPS widget (`nps-widget.js`) e criado com tamanho fixo de 400x450px imediatamente, mesmo durante o loading e quando nao ha pesquisa pendente. Isso bloqueia cliques na pagina hospedeira desnecessariamente.
 
 ## Solucao
 
-Comunicar o estado aberto/fechado do widget via `postMessage` e redimensionar o iframe dinamicamente no script embed.
+Iniciar o iframe invisivel/minimo e so expandir quando o `NPSEmbed` confirmar que ha pesquisa pendente (`nps-ready`). Esconder quando o usuario dispensar (`nps-dismiss`) ou concluir (`nps-complete`), ou quando nao houver pesquisa (`nps-no-survey`).
 
 ### Mudancas
 
-**1. `src/pages/ChatWidget.tsx`**
+**1. `public/nps-widget.js`**
 
-- Enviar `postMessage` com tipo `chat-toggle` e o estado `isOpen` sempre que o widget abrir ou fechar
-- Quando `isOpen = false`: notificar o parent para encolher o iframe ao tamanho do FAB (~80x80px)
-- Quando `isOpen = true`: notificar o parent para expandir ao tamanho do chat (420x700px)
+| Mudanca | Detalhe |
+|---------|---------|
+| Iframe inicia com tamanho 0x0 | `width:0;height:0;overflow:hidden` - invisivel e sem bloqueio |
+| Escutar `nps-ready` | Expandir para 400x450px com transicao suave |
+| Escutar `nps-no-survey` | Manter 0x0 (ou destruir o widget) |
+| Escutar `nps-dismiss` e `nps-complete` | Ja existem e chamam `destroy()` - OK, nenhuma mudanca necessaria |
 
-Adicionar `useEffect` que observa `isOpen`:
-```tsx
-useEffect(() => {
-  if (isEmbed) {
-    window.parent.postMessage({ type: "chat-toggle", isOpen }, "*");
-  }
-}, [isOpen, isEmbed]);
-```
+No `setupMessageListener`, adicionar tratamento para `nps-ready` e `nps-no-survey`:
 
-**2. `public/nps-chat-embed.js`**
-
-- Ao criar o iframe, iniciar com tamanho pequeno (80x80px) em vez de 420x700px
-- Configurar `pointer-events: none` no iframe quando estiver no tamanho do FAB (o botao tera `pointer-events: auto`)
-- Escutar mensagens `chat-toggle` do iframe para redimensionar:
-  - `isOpen = true`: 420px x 700px, pointer-events: auto
-  - `isOpen = false`: 80px x 80px, pointer-events: auto (apenas a area do botao)
-
-Listener no embed:
 ```javascript
-window.addEventListener("message", function(event) {
-  if (event.data && event.data.type === "chat-toggle") {
-    if (event.data.isOpen) {
-      iframe.style.width = "420px";
-      iframe.style.height = "700px";
-    } else {
-      iframe.style.width = "80px";
-      iframe.style.height = "80px";
-    }
-  }
-});
+if (data.type === 'nps-ready') {
+  // Expandir iframe para tamanho real
+  this.iframe.style.width = '400px';
+  this.iframe.style.height = '450px';
+} else if (data.type === 'nps-no-survey') {
+  // Sem pesquisa: destruir widget
+  this.destroy();
+}
 ```
 
-**3. Ajuste no FAB dentro do `ChatWidget.tsx`**
+**2. `src/pages/NPSEmbed.tsx`**
 
-- O FAB (botao flutuante) atualmente usa `position: fixed` dentro do iframe. Como o iframe sera pequeno (80x80px), o botao deve preencher o iframe sem posicionamento fixo:
-  - Mudar de `position: fixed; bottom: 20px; right: 20px` para posicionamento relativo simples, centralizado no iframe
+| Mudanca | Detalhe |
+|---------|---------|
+| Enviar `nps-no-survey` quando nao ha pendencia | Ja faz isso - OK |
+| Enviar `nps-no-survey` em caso de erro | Ja faz isso - OK |
+| Nenhuma mudanca necessaria | Os postMessages ja cobrem todos os cenarios |
+
+O `NPSEmbed.tsx` nao precisa de alteracoes - ele ja envia os eventos corretos.
 
 ## Arquivos Modificados
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `src/pages/ChatWidget.tsx` | Enviar postMessage ao toggle, ajustar FAB para preencher iframe |
-| 2 | `public/nps-chat-embed.js` | Iniciar iframe pequeno, escutar chat-toggle para redimensionar |
+| 1 | `public/nps-widget.js` | Iniciar iframe com 0x0, expandir ao receber `nps-ready`, destruir ao receber `nps-no-survey` |
+
