@@ -1,55 +1,74 @@
 
 
-# Corrigir Layout Full-Height e Botao "Carregar Anteriores" no Widget
+# Formatacao Rica e Alinhamento nos Banners
 
-## Problemas Identificados
+## Resumo
 
-### 1. Widget nao preenche a altura do iframe
-O Card tem `height: "100%"` mas o `html` e `body` do iframe nao tem `height: 100%` definido. Isso faz com que o Card encolha ao conteudo em vez de preencher os 700px do iframe. E necessario garantir que a cadeia completa de containers tenha altura 100%.
+Adicionar suporte a texto rico (negrito, sublinhado, italico, cor de texto inline) e alinhamento (esquerda, centro, direita) na criacao de banners. O conteudo formatado sera armazenado como HTML sanitizado.
 
-### 2. Botao "Carregar anteriores" nao aparece
-O `fetchMessages` para `viewTranscript` e chamado pelo `useEffect` na linha 208 que depende de `roomId`, mas o filtro do botao na linha 634 exclui `viewTranscript`. Alem disso, quando o usuario entra na fase `chat`, o `fetchMessages` e chamado corretamente, porem a condicao `hasMoreMessages && phase !== "viewTranscript"` esta correta para `chat`. O problema pode estar em que o `hasMoreMessages` nao esta sendo setado corretamente - preciso verificar se a query retorna `PAGE_SIZE + 1` items. A logica parece correta. O botao deve aparecer se houver mais de 10 mensagens. Pode ser que o estilo do botao nao esteja visivel (texto `text-primary` sem fundo pode nao se destacar).
+## Mudancas
 
-## Solucao
+### 1. Banco de dados
 
-### Arquivo: `src/pages/ChatWidget.tsx`
+Adicionar duas colunas na tabela `chat_banners`:
 
-**1. Garantir altura 100% em toda a cadeia**
+- `content_html` (text, nullable) - conteudo com HTML formatado
+- `text_align` (text, default `'left'`) - alinhamento: `left`, `center`, `right`
 
-O wrapper embed (linha 762-771) ja tem `height: 100%`, mas o Card na linha 490 precisa ter `height: "100%"` garantido. Verificando o codigo, o Card ja tem `height: "100%"` no style do embed. O problema e que o container React root (`#root`) e o `body`/`html` do iframe provavelmente nao tem `height: 100%`.
+### 2. Formulario de criacao/edicao (`src/pages/AdminBanners.tsx`)
 
-### Arquivo: `src/index.css`
+Substituir o `Textarea` do conteudo por um editor simples com barra de ferramentas:
 
-Adicionar regras CSS globais para garantir que `html`, `body` e `#root` tenham `height: 100%`:
+- Toolbar com botoes: **Negrito (B)**, *Italico (I)*, Sublinhado (U), Cor do texto (color picker inline)
+- Seletor de alinhamento: esquerda, centro, direita (3 botoes com icones)
+- O editor usara um `div` com `contentEditable=true` para capturar a formatacao
+- Ao salvar, o `innerHTML` do div sera armazenado em `content_html` e o `textContent` em `content` (fallback)
+- Limitado a 2 linhas visuais via `max-height` e indicacao no label
 
-```css
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
+Novo estado no form:
+```
+text_align: "left" | "center" | "right"
+content_html: string
 ```
 
-Isso garante que a cadeia `html > body > #root > div embed wrapper > Card` tenha 100% de altura em todos os niveis.
+### 3. Componente de toolbar rico (`src/components/chat/BannerRichEditor.tsx`)
 
-### Arquivo: `src/pages/ChatWidget.tsx`
+Novo componente encapsulando:
+- `contentEditable` div com estilo de input
+- Barra de formatacao acima com `document.execCommand` para bold, italic, underline, foreColor
+- Callback `onChange(html: string, text: string)` para o pai
+- Prop `initialHtml` para edicao
+- Limite visual de 2 linhas (altura maxima com overflow hidden)
 
-**2. Melhorar visibilidade do botao "Carregar anteriores"**
+### 4. Preview (`src/components/chat/BannerPreview.tsx`)
 
-O botao existe mas pode nao estar visivel. Vou melhorar o estilo para ficar mais claro e garantir que o `hasMoreMessages` tambem funcione na fase `viewTranscript`:
+- Aceitar nova prop `contentHtml` (opcional) e `textAlign`
+- Se `contentHtml` existir, renderizar com `dangerouslySetInnerHTML` (conteudo vem do admin, nao de usuario externo)
+- Aplicar `text-align` no container do conteudo
 
-- Remover a condicao `phase !== "viewTranscript"` do botao de carregar mais (para que transcripts antigos tambem possam paginar)
-- Estilizar o botao com borda e padding para ficar mais visivel
-- Garantir que `fetchMessages` na fase `viewTranscript` tambem use paginacao
+### 5. Edge function (`supabase/functions/get-visitor-banners/index.ts`)
 
-**3. Garantir que a rota `/widget` renderize sem layout extra**
+- Incluir `content_html` e `text_align` no select da query de banners
+- Retornar os campos no response
 
-Verificar se o componente `ChatWidget` e renderizado sem wrappers que adicionem padding/margin que impedem o preenchimento total.
+### 6. Embed script (`public/nps-chat-embed.js`)
 
-## Mudancas Concretas
+- No `renderBanner`, usar `banner.content_html` se disponivel (via `innerHTML`) em vez de `textContent`
+- Aplicar `text-align` do banner no container de conteudo
+- Permitir ate 2 linhas de texto (remover `white-space: nowrap` se houver)
 
-| # | Arquivo | Descricao |
-|---|---------|-----------|
-| 1 | `src/index.css` | Adicionar `html, body, #root { height: 100%; margin: 0; padding: 0; }` |
-| 2 | `src/pages/ChatWidget.tsx` | Remover filtro `phase !== "viewTranscript"` do botao carregar mais; melhorar estilo do botao para ser visivel |
+## Seguranca
+
+O HTML e gerado apenas pelo admin via `contentEditable` com comandos limitados (bold, italic, underline, foreColor). Nao ha input de HTML bruto pelo usuario. O conteudo e exibido apenas em banners controlados, nao em contextos onde usuarios externos possam injetar conteudo.
+
+## Arquivos
+
+| # | Arquivo | Tipo | Descricao |
+|---|---------|------|-----------|
+| 1 | Migration SQL | DB | Adicionar `content_html` e `text_align` |
+| 2 | `src/components/chat/BannerRichEditor.tsx` | Novo | Editor contentEditable com toolbar |
+| 3 | `src/pages/AdminBanners.tsx` | Editar | Usar BannerRichEditor, adicionar text_align ao form |
+| 4 | `src/components/chat/BannerPreview.tsx` | Editar | Renderizar HTML e alinhamento |
+| 5 | `supabase/functions/get-visitor-banners/index.ts` | Editar | Retornar content_html e text_align |
+| 6 | `public/nps-chat-embed.js` | Editar | Renderizar HTML e alinhamento |
 
