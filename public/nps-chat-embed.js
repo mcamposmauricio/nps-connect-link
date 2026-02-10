@@ -40,8 +40,16 @@
     contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
 
     var text = document.createElement("span");
-    text.textContent = banner.content;
+    text.style.cssText = "max-height:2.8em;overflow:hidden;display:block;line-height:1.4;flex:1;";
+    if (banner.content_html) {
+      text.innerHTML = banner.content_html;
+    } else {
+      text.textContent = banner.content;
+    }
     contentDiv.appendChild(text);
+    if (banner.text_align) {
+      contentDiv.style.textAlign = banner.text_align;
+    }
 
     if (banner.link_url) {
       var link = document.createElement("a");

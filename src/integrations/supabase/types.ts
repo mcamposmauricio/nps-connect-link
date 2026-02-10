@@ -461,6 +461,7 @@ export type Database = {
         Row: {
           bg_color: string | null
           content: string
+          content_html: string | null
           created_at: string | null
           has_voting: boolean | null
           id: string
@@ -468,6 +469,7 @@ export type Database = {
           link_label: string | null
           link_url: string | null
           tenant_id: string | null
+          text_align: string
           text_color: string | null
           title: string
           updated_at: string | null
@@ -476,6 +478,7 @@ export type Database = {
         Insert: {
           bg_color?: string | null
           content: string
+          content_html?: string | null
           created_at?: string | null
           has_voting?: boolean | null
           id?: string
@@ -483,6 +486,7 @@ export type Database = {
           link_label?: string | null
           link_url?: string | null
           tenant_id?: string | null
+          text_align?: string
           text_color?: string | null
           title: string
           updated_at?: string | null
@@ -491,6 +495,7 @@ export type Database = {
         Update: {
           bg_color?: string | null
           content?: string
+          content_html?: string | null
           created_at?: string | null
           has_voting?: boolean | null
           id?: string
@@ -498,6 +503,7 @@ export type Database = {
           link_label?: string | null
           link_url?: string | null
           tenant_id?: string | null
+          text_align?: string
           text_color?: string | null
           title?: string
           updated_at?: string | null
