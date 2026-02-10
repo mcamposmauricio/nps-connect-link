@@ -182,7 +182,7 @@ const AdminWorkspace = () => {
   if (isMobile) {
     return (
       <SidebarLayout>
-        <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+        <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
           {mobileView === "list" && (
             <ChatRoomList
               rooms={rooms}
@@ -262,7 +262,7 @@ const AdminWorkspace = () => {
   // Desktop layout
   return (
     <SidebarLayout>
-      <div className="h-[calc(100vh-3.5rem)] flex gap-3 p-3">
+      <div className="-m-6 h-[calc(100vh-3.5rem)] flex gap-3 p-3 bg-transparent">
         {/* Left: Room list */}
         <div className="w-72 xl:w-80 shrink-0">
           <ChatRoomList
