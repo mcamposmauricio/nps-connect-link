@@ -104,7 +104,7 @@ const ChatApiKeysTab = () => {
           user_id: user.id,
           name: newKeyName.trim(),
           key_hash: keyHash,
-          key_prefix: rawKey.substring(0, 13),
+          key_prefix: rawKey.substring(0, 12),
           encrypted_key: rawKey,
         });
 
