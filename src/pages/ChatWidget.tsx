@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Send, Star, Loader2, X } from "lucide-react";
+import { MessageSquare, Send, Star, Loader2, X, Plus, ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
 
-type WidgetPhase = "form" | "waiting" | "chat" | "csat" | "closed";
+type WidgetPhase = "form" | "history" | "waiting" | "chat" | "csat" | "closed" | "viewTranscript";
+
+interface HistoryRoom {
+  id: string;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+  csat_score: number | null;
+}
 
 const ChatWidget = () => {
   const [searchParams] = useSearchParams();
@@ -18,10 +26,16 @@ const ChatWidget = () => {
   const primaryColor = searchParams.get("primaryColor") ?? "#7C3AED";
   const paramVisitorToken = searchParams.get("visitorToken");
   const paramVisitorName = searchParams.get("visitorName");
+  const paramOwnerUserId = searchParams.get("ownerUserId");
+  const paramCompanyContactId = searchParams.get("companyContactId");
+  const paramContactId = searchParams.get("contactId");
+
+  const isResolvedVisitor = !!paramVisitorToken && !!paramOwnerUserId;
 
   const [isOpen, setIsOpen] = useState(!isEmbed);
   const [phase, setPhase] = useState<WidgetPhase>("form");
   const [visitorToken, setVisitorToken] = useState<string | null>(null);
+  const [visitorId, setVisitorId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Array<{ id: string; content: string; sender_type: string; sender_name: string | null; created_at: string }>>([]);
   const [input, setInput] = useState("");
@@ -29,26 +43,100 @@ const ChatWidget = () => {
   const [csatComment, setCsatComment] = useState("");
   const [formData, setFormData] = useState({ name: paramVisitorName || "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
-  const [resolvedVisitor, setResolvedVisitor] = useState(!!paramVisitorToken);
+  const [historyRooms, setHistoryRooms] = useState<HistoryRoom[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isRight = position !== "left";
 
-  // Check for resolved visitor (from embed script) or localStorage
-  useEffect(() => {
-    if (paramVisitorToken) {
-      // Visitor was resolved via api_key + external_id - skip form
-      setVisitorToken(paramVisitorToken);
-      localStorage.setItem("chat_visitor_token", paramVisitorToken);
-      checkExistingRoomOrCreate(paramVisitorToken, paramVisitorName || "Visitante");
-      return;
-    }
+  const postMsg = (type: string) => {
+    if (isEmbed) window.parent.postMessage({ type }, "*");
+  };
 
-    const savedToken = localStorage.getItem("chat_visitor_token");
-    if (savedToken) {
-      setVisitorToken(savedToken);
-      checkExistingRoom(savedToken);
-    }
+  // Fetch chat history for a visitor
+  const fetchHistory = useCallback(async (vId: string) => {
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("chat_rooms")
+      .select("id, status, created_at, closed_at, csat_score")
+      .eq("visitor_id", vId)
+      .order("created_at", { ascending: false });
+    setHistoryRooms(data ?? []);
+    setHistoryLoading(false);
+    return data ?? [];
+  }, []);
+
+  // Init: resolve visitor or check localStorage
+  useEffect(() => {
+    const init = async () => {
+      if (paramVisitorToken) {
+        setVisitorToken(paramVisitorToken);
+        localStorage.setItem("chat_visitor_token", paramVisitorToken);
+
+        // Lookup visitor id
+        const { data: visitor } = await supabase
+          .from("chat_visitors")
+          .select("id")
+          .eq("visitor_token", paramVisitorToken)
+          .maybeSingle();
+
+        if (!visitor) return;
+        setVisitorId(visitor.id);
+
+        if (isResolvedVisitor) {
+          // Resolved visitor -> show history
+          const rooms = await fetchHistory(visitor.id);
+          // Check for active room
+          const activeRoom = rooms.find((r) => r.status === "waiting" || r.status === "active");
+          if (activeRoom) {
+            setRoomId(activeRoom.id);
+            setPhase(activeRoom.status === "active" ? "chat" : "waiting");
+          } else {
+            setPhase("history");
+          }
+        } else {
+          // Legacy token (no owner info) — check existing room
+          const { data: room } = await supabase
+            .from("chat_rooms")
+            .select("id, status")
+            .eq("visitor_id", visitor.id)
+            .in("status", ["waiting", "active"])
+            .maybeSingle();
+
+          if (room) {
+            setRoomId(room.id);
+            setPhase(room.status === "active" ? "chat" : "waiting");
+          }
+        }
+        return;
+      }
+
+      const savedToken = localStorage.getItem("chat_visitor_token");
+      if (savedToken) {
+        setVisitorToken(savedToken);
+        const { data: visitor } = await supabase
+          .from("chat_visitors")
+          .select("id")
+          .eq("visitor_token", savedToken)
+          .maybeSingle();
+
+        if (visitor) {
+          setVisitorId(visitor.id);
+          const { data: room } = await supabase
+            .from("chat_rooms")
+            .select("id, status")
+            .eq("visitor_id", visitor.id)
+            .in("status", ["waiting", "active"])
+            .maybeSingle();
+
+          if (room) {
+            setRoomId(room.id);
+            setPhase(room.status === "active" ? "chat" : "waiting");
+          }
+        }
+      }
+    };
+    init();
   }, []);
 
   // Realtime messages
@@ -105,71 +193,57 @@ const ChatWidget = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  const postMsg = (type: string) => {
-    if (isEmbed) window.parent.postMessage({ type }, "*");
-  };
+  // Create a new room with proper linking
+  const createLinkedRoom = async (vId: string) => {
+    const insertData: any = {
+      visitor_id: vId,
+      owner_user_id: paramOwnerUserId || "00000000-0000-0000-0000-000000000000",
+      status: "waiting",
+    };
+    if (paramCompanyContactId) insertData.company_contact_id = paramCompanyContactId;
+    if (paramContactId) insertData.contact_id = paramContactId;
 
-  const checkExistingRoom = async (token: string) => {
-    const { data: visitor } = await supabase
-      .from("chat_visitors")
-      .select("id")
-      .eq("visitor_token", token)
-      .maybeSingle();
-
-    if (visitor) {
-      const { data: room } = await supabase
-        .from("chat_rooms")
-        .select("id, status")
-        .eq("visitor_id", visitor.id)
-        .in("status", ["waiting", "active"])
-        .maybeSingle();
-
-      if (room) {
-        setRoomId(room.id);
-        setPhase(room.status === "active" ? "chat" : "waiting");
-        return;
-      }
-    }
-  };
-
-  // For resolved visitors: check existing room or create one automatically
-  const checkExistingRoomOrCreate = async (token: string, visitorName: string) => {
-    const { data: visitor } = await supabase
-      .from("chat_visitors")
-      .select("id")
-      .eq("visitor_token", token)
-      .maybeSingle();
-
-    if (!visitor) return;
-
-    const { data: room } = await supabase
+    const { data: newRoom } = await supabase
       .from("chat_rooms")
-      .select("id, status")
-      .eq("visitor_id", visitor.id)
-      .in("status", ["waiting", "active"])
-      .maybeSingle();
+      .insert(insertData)
+      .select("id")
+      .single();
 
-    if (room) {
-      setRoomId(room.id);
-      setPhase(room.status === "active" ? "chat" : "waiting");
-    } else {
-      // Auto-create room for resolved visitor
-      const { data: newRoom } = await supabase
-        .from("chat_rooms")
-        .insert({
-          visitor_id: visitor.id,
-          owner_user_id: "00000000-0000-0000-0000-000000000000",
-          status: "waiting",
-        })
-        .select("id")
-        .single();
+    return newRoom;
+  };
 
-      if (newRoom) {
-        setRoomId(newRoom.id);
-        setPhase("waiting");
-        postMsg("chat-ready");
-      }
+  // Handle "New Chat" from history
+  const handleNewChat = async () => {
+    if (!visitorId) return;
+    setLoading(true);
+
+    const newRoom = await createLinkedRoom(visitorId);
+    if (newRoom) {
+      setRoomId(newRoom.id);
+      setMessages([]);
+      setCsatScore(0);
+      setCsatComment("");
+      setPhase("waiting");
+      postMsg("chat-ready");
     }
+    setLoading(false);
+  };
+
+  // View transcript of a closed room
+  const handleViewTranscript = async (rId: string) => {
+    setRoomId(rId);
+    setPhase("viewTranscript");
+    // Messages will be fetched by the realtime effect
+  };
+
+  // Go back to history
+  const handleBackToHistory = async () => {
+    if (visitorId) await fetchHistory(visitorId);
+    setRoomId(null);
+    setMessages([]);
+    setCsatScore(0);
+    setCsatComment("");
+    setPhase("history");
   };
 
   const handleStartChat = async () => {
@@ -194,6 +268,7 @@ const ChatWidget = () => {
 
     localStorage.setItem("chat_visitor_token", visitor.visitor_token);
     setVisitorToken(visitor.visitor_token);
+    setVisitorId(visitor.id);
 
     const { data: room } = await supabase
       .from("chat_rooms")
@@ -237,7 +312,27 @@ const ChatWidget = () => {
       .eq("id", roomId);
 
     postMsg("chat-csat-submitted");
-    setPhase("closed");
+
+    // If resolved visitor, go back to history; otherwise show closed
+    if (isResolvedVisitor) {
+      await handleBackToHistory();
+    } else {
+      setPhase("closed");
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "waiting": return "Aguardando";
+      case "active": return "Em andamento";
+      case "closed": return "Encerrado";
+      default: return status;
+    }
   };
 
   // FAB button when closed (embed mode)
@@ -279,11 +374,16 @@ const ChatWidget = () => {
         className="p-4 flex items-center gap-3"
         style={{ backgroundColor: primaryColor, color: "#fff" }}
       >
+        {(phase === "viewTranscript") && (
+          <button onClick={handleBackToHistory} className="p-1 rounded-full hover:bg-white/20" style={{ color: "#fff" }}>
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
         <MessageSquare className="h-5 w-5" />
         <div className="flex-1">
           <p className="font-semibold text-sm">{companyName}</p>
           <p className="text-xs opacity-80">
-            {phase === "chat" ? "Chat ativo" : phase === "waiting" ? "Aguardando..." : "Suporte"}
+            {phase === "chat" ? "Chat ativo" : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
           </p>
         </div>
         {isEmbed && (
@@ -299,6 +399,7 @@ const ChatWidget = () => {
 
       {/* Body */}
       <div className="flex-1 overflow-auto p-4" ref={scrollRef}>
+        {/* Form phase (anonymous visitors) */}
         {phase === "form" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
@@ -321,6 +422,70 @@ const ChatWidget = () => {
           </div>
         )}
 
+        {/* History phase (resolved visitors) */}
+        {phase === "history" && (
+          <div className="space-y-3">
+            <Button
+              className="w-full gap-2"
+              onClick={handleNewChat}
+              disabled={loading || historyRooms.some((r) => r.status === "waiting" || r.status === "active")}
+              style={{ backgroundColor: primaryColor }}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Novo Chat
+            </Button>
+
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : historyRooms.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conversa anterior.</p>
+            ) : (
+              historyRooms.map((room) => {
+                const isActive = room.status === "waiting" || room.status === "active";
+                return (
+                  <button
+                    key={room.id}
+                    onClick={() => {
+                      if (isActive) {
+                        setRoomId(room.id);
+                        setPhase(room.status === "active" ? "chat" : "waiting");
+                      } else {
+                        handleViewTranscript(room.id);
+                      }
+                    }}
+                    className="w-full text-left border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        {isActive ? (
+                          <Clock className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
+                          {statusLabel(room.status)}
+                        </span>
+                      </div>
+                      {room.csat_score != null && (
+                        <div className="flex items-center gap-0.5">
+                          <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                          <span className="text-xs text-muted-foreground">{room.csat_score}/5</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(room.created_at)}
+                      {room.closed_at && ` — ${formatDate(room.closed_at)}`}
+                    </p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+
         {phase === "waiting" && (
           <div className="flex flex-col items-center justify-center h-full space-y-4 py-12">
             <div className="animate-pulse">
@@ -331,7 +496,8 @@ const ChatWidget = () => {
           </div>
         )}
 
-        {(phase === "chat" || phase === "csat" || phase === "closed") && (
+        {/* Messages display (chat, csat, closed, viewTranscript) */}
+        {(phase === "chat" || phase === "csat" || phase === "closed" || phase === "viewTranscript") && (
           <div className="space-y-3">
             {messages.map((msg) => (
               <div
@@ -351,6 +517,10 @@ const ChatWidget = () => {
                 </div>
               </div>
             ))}
+
+            {phase === "viewTranscript" && messages.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem nesta conversa.</p>
+            )}
           </div>
         )}
 
@@ -393,6 +563,15 @@ const ChatWidget = () => {
           />
           <Button size="icon" onClick={handleSend} disabled={!input.trim()} style={{ backgroundColor: primaryColor }}>
             <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Back button for transcript view */}
+      {phase === "viewTranscript" && (
+        <div className="border-t p-3">
+          <Button variant="outline" className="w-full gap-2" onClick={handleBackToHistory}>
+            <ArrowLeft className="h-4 w-4" /> Voltar ao histórico
           </Button>
         </div>
       )}

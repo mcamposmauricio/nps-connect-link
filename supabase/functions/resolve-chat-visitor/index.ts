@@ -94,6 +94,7 @@ Deno.serve(async (req) => {
           visitor_email: existingVisitor.email,
           company_contact_id: companyContact.id,
           contact_id: companyContact.company_id,
+          user_id: userId,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -127,6 +128,7 @@ Deno.serve(async (req) => {
         visitor_email: newVisitor.email,
         company_contact_id: companyContact.id,
         contact_id: companyContact.company_id,
+        user_id: userId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

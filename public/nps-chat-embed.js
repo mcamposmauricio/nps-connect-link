@@ -11,6 +11,9 @@
   // Resolved visitor data
   var resolvedToken = null;
   var resolvedName = null;
+  var resolvedOwnerUserId = null;
+  var resolvedCompanyContactId = null;
+  var resolvedContactId = null;
 
   // --- Banner Logic ---
   var bannerContainer = null;
@@ -162,6 +165,9 @@
         if (data.visitor_token) {
           resolvedToken = data.visitor_token;
           resolvedName = data.visitor_name || "";
+          resolvedOwnerUserId = data.user_id || "";
+          resolvedCompanyContactId = data.company_contact_id || "";
+          resolvedContactId = data.contact_id || "";
           localStorage.setItem("chat_visitor_token", data.visitor_token);
         }
         callback();
@@ -187,7 +193,10 @@
     if (resolvedToken) {
       iframeSrc +=
         "&visitorToken=" + encodeURIComponent(resolvedToken) +
-        "&visitorName=" + encodeURIComponent(resolvedName || "");
+        "&visitorName=" + encodeURIComponent(resolvedName || "") +
+        "&ownerUserId=" + encodeURIComponent(resolvedOwnerUserId || "") +
+        "&companyContactId=" + encodeURIComponent(resolvedCompanyContactId || "") +
+        "&contactId=" + encodeURIComponent(resolvedContactId || "");
     }
 
     iframe.src = iframeSrc;
