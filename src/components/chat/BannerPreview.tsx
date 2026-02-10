@@ -2,6 +2,8 @@ import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare } from "lucide-rea
 
 interface BannerPreviewProps {
   content: string;
+  contentHtml?: string;
+  textAlign?: string;
   bgColor: string;
   textColor: string;
   linkUrl?: string;
@@ -9,7 +11,7 @@ interface BannerPreviewProps {
   hasVoting: boolean;
 }
 
-const BannerPreview = ({ content, bgColor, textColor, linkUrl, linkLabel, hasVoting }: BannerPreviewProps) => {
+const BannerPreview = ({ content, contentHtml, textAlign = "left", bgColor, textColor, linkUrl, linkLabel, hasVoting }: BannerPreviewProps) => {
   return (
     <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
       {/* Banner - full width bar at top */}
@@ -17,8 +19,12 @@ const BannerPreview = ({ content, bgColor, textColor, linkUrl, linkLabel, hasVot
         className="px-4 py-3 text-sm relative flex items-center justify-between gap-3"
         style={{ backgroundColor: bgColor, color: textColor }}
       >
-        <div className="flex-1 flex items-center gap-3 flex-wrap">
-          <span>{content || "Texto do banner aqui..."}</span>
+        <div className="flex-1 flex items-center gap-3 flex-wrap" style={{ textAlign: textAlign as any }}>
+          {contentHtml ? (
+            <span dangerouslySetInnerHTML={{ __html: contentHtml }} style={{ maxHeight: "2.8em", overflow: "hidden", display: "block", lineHeight: "1.4", flex: 1 }} />
+          ) : (
+            <span>{content || "Texto do banner aqui..."}</span>
+          )}
           {linkUrl && (
             <span className="inline-flex items-center gap-1 text-xs underline opacity-90" style={{ color: textColor }}>
               {linkLabel || "Saiba mais"}

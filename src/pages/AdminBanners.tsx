@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -14,11 +13,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search } from "lucide-react";
 import BannerPreview from "@/components/chat/BannerPreview";
+import BannerRichEditor from "@/components/chat/BannerRichEditor";
 
 interface Banner {
   id: string;
   title: string;
   content: string;
+  content_html: string | null;
+  text_align: string;
   bg_color: string;
   text_color: string;
   link_url: string | null;
@@ -62,6 +64,8 @@ const AdminBanners = () => {
   const [form, setForm] = useState({
     title: "",
     content: "",
+    content_html: "",
+    text_align: "left" as "left" | "center" | "right",
     bg_color: "#3B82F6",
     text_color: "#FFFFFF",
     link_url: "",
@@ -107,6 +111,8 @@ const AdminBanners = () => {
       setForm({
         title: banner.title,
         content: banner.content,
+        content_html: banner.content_html ?? "",
+        text_align: (banner.text_align as "left" | "center" | "right") || "left",
         bg_color: banner.bg_color,
         text_color: banner.text_color,
         link_url: banner.link_url ?? "",
@@ -119,6 +125,8 @@ const AdminBanners = () => {
       setForm({
         title: "",
         content: "",
+        content_html: "",
+        text_align: "left",
         bg_color: "#3B82F6",
         text_color: "#FFFFFF",
         link_url: "",
@@ -137,6 +145,8 @@ const AdminBanners = () => {
     const payload = {
       title: form.title,
       content: form.content,
+      content_html: form.content_html || null,
+      text_align: form.text_align,
       bg_color: form.bg_color,
       text_color: form.text_color,
       link_url: form.link_url || null,
@@ -335,7 +345,13 @@ const AdminBanners = () => {
               </div>
               <div className="space-y-2">
                 <Label>{t("banners.contentLabel")}</Label>
-                <Textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="Texto visível no widget (emojis OK)" rows={3} />
+                <BannerRichEditor
+                  initialHtml={form.content_html || undefined}
+                  textAlign={form.text_align}
+                  onChangeAlign={(align) => setForm({ ...form, text_align: align })}
+                  onChange={(html, text) => setForm({ ...form, content_html: html, content: text })}
+                  placeholder="Texto visível no widget (emojis OK)"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -376,6 +392,8 @@ const AdminBanners = () => {
               <Label className="text-sm font-medium">Preview</Label>
               <BannerPreview
                 content={form.content}
+                contentHtml={form.content_html || undefined}
+                textAlign={form.text_align}
                 bgColor={form.bg_color}
                 textColor={form.text_color}
                 linkUrl={form.link_url || undefined}

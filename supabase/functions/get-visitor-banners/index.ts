@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     const bannerIds = assignments.map((a: any) => a.banner_id);
     const { data: bannersData } = await supabase
       .from("chat_banners")
-      .select("id, content, bg_color, text_color, link_url, link_label, has_voting")
+      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting")
       .in("id", bannerIds)
       .eq("is_active", true);
 
@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
         return {
           assignment_id: assignment.id,
           content: banner.content,
+          content_html: banner.content_html ?? null,
+          text_align: banner.text_align ?? "left",
           bg_color: banner.bg_color ?? "#3B82F6",
           text_color: banner.text_color ?? "#FFFFFF",
           link_url: banner.link_url,
