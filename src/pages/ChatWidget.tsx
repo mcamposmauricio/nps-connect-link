@@ -71,6 +71,8 @@ const ChatWidget = () => {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,20 +169,46 @@ const ChatWidget = () => {
     init();
   }, []);
 
+  const PAGE_SIZE = 10;
+
+  const fetchMessages = useCallback(async (roomIdToFetch: string, before?: string) => {
+    let query = supabase
+      .from("chat_messages")
+      .select("id, content, sender_type, sender_name, created_at, message_type, metadata")
+      .eq("room_id", roomIdToFetch)
+      .eq("is_internal", false)
+      .order("created_at", { ascending: false })
+      .limit(PAGE_SIZE + 1);
+
+    if (before) {
+      query = query.lt("created_at", before);
+    }
+
+    const { data } = await query;
+    const items = (data as ChatMsg[]) ?? [];
+    const hasMore = items.length > PAGE_SIZE;
+    if (hasMore) items.pop();
+    items.reverse();
+
+    if (before) {
+      setMessages(prev => [...items, ...prev]);
+    } else {
+      setMessages(items);
+    }
+    setHasMoreMessages(hasMore);
+  }, []);
+
+  const loadMore = async () => {
+    if (messages.length === 0 || loadingMore || !roomId) return;
+    setLoadingMore(true);
+    await fetchMessages(roomId, messages[0].created_at);
+    setLoadingMore(false);
+  };
+
   useEffect(() => {
     if (!roomId) return;
 
-    const fetchMessages = async () => {
-      const { data } = await supabase
-        .from("chat_messages")
-        .select("id, content, sender_type, sender_name, created_at, message_type, metadata")
-        .eq("room_id", roomId)
-        .eq("is_internal", false)
-        .order("created_at", { ascending: true });
-      setMessages((data as ChatMsg[]) ?? []);
-    };
-
-    fetchMessages();
+    fetchMessages(roomId);
 
     const channel = supabase
       .channel(`widget-messages-${roomId}`)
@@ -193,7 +221,7 @@ const ChatWidget = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [roomId]);
+  }, [roomId, fetchMessages]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -459,7 +487,7 @@ const ChatWidget = () => {
   const widgetContent = (
     <Card
       className={`flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl min-h-0 ${isEmbed ? "flex-1" : ""}`}
-      style={isEmbed ? { width: "100%", minHeight: 0 } : { width: "100%", maxWidth: "420px", height: "600px" }}
+      style={isEmbed ? { width: "100%", height: "100%", minHeight: 0 } : { width: "100%", maxWidth: "420px", height: "600px" }}
     >
       {/* Header */}
       <div
@@ -501,132 +529,146 @@ const ChatWidget = () => {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-4 min-h-0" ref={scrollRef}>
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {phase === "form" && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
-            <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Seu nome" />
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Seu nome" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" type="email" />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
+              </div>
+              <Button className="w-full" onClick={handleStartChat} disabled={loading || !formData.name.trim()} style={{ backgroundColor: primaryColor }}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Iniciar Conversa
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" type="email" />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
-            </div>
-            <Button className="w-full" onClick={handleStartChat} disabled={loading || !formData.name.trim()} style={{ backgroundColor: primaryColor }}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Iniciar Conversa
-            </Button>
           </div>
         )}
 
         {phase === "history" && (
-          <div className="space-y-3">
-            <Button
-              className="w-full gap-2"
-              onClick={handleNewChat}
-              disabled={loading || historyRooms.some((r) => r.status === "waiting" || r.status === "active")}
-              style={{ backgroundColor: primaryColor }}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Novo Chat
-            </Button>
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            <div className="space-y-3">
+              <Button
+                className="w-full gap-2"
+                onClick={handleNewChat}
+                disabled={loading || historyRooms.some((r) => r.status === "waiting" || r.status === "active")}
+                style={{ backgroundColor: primaryColor }}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Novo Chat
+              </Button>
 
-            {historyLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : historyRooms.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conversa anterior.</p>
-            ) : (
-              historyRooms.map((room) => {
-                const isActive = room.status === "waiting" || room.status === "active";
-                return (
-                  <button
-                    key={room.id}
-                    onClick={() => {
-                      if (isActive) {
-                        setRoomId(room.id);
-                        setPhase(room.status === "active" ? "chat" : "waiting");
-                      } else {
-                        handleViewTranscript(room.id);
-                      }
-                    }}
-                    className="w-full text-left border rounded-lg p-3 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        {isActive ? (
-                          <Clock className="h-3.5 w-3.5" style={{ color: primaryColor }} />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                        <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
-                          {statusLabel(room.status)}
-                        </span>
-                      </div>
-                      {room.csat_score != null && (
-                        <div className="flex items-center gap-0.5">
-                          <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                          <span className="text-xs text-muted-foreground">{room.csat_score}/5</span>
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : historyRooms.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conversa anterior.</p>
+              ) : (
+                historyRooms.map((room) => {
+                  const isActive = room.status === "waiting" || room.status === "active";
+                  return (
+                    <button
+                      key={room.id}
+                      onClick={() => {
+                        if (isActive) {
+                          setRoomId(room.id);
+                          setPhase(room.status === "active" ? "chat" : "waiting");
+                        } else {
+                          handleViewTranscript(room.id);
+                        }
+                      }}
+                      className="w-full text-left border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          {isActive ? (
+                            <Clock className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                          <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
+                            {statusLabel(room.status)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(room.created_at)}
-                      {room.closed_at && ` — ${formatDate(room.closed_at)}`}
-                    </p>
-                  </button>
-                );
-              })
-            )}
+                        {room.csat_score != null && (
+                          <div className="flex items-center gap-0.5">
+                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                            <span className="text-xs text-muted-foreground">{room.csat_score}/5</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(room.created_at)}
+                        {room.closed_at && ` — ${formatDate(room.closed_at)}`}
+                      </p>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 
         {phase === "waiting" && (
-          <div className="flex flex-col items-center justify-center flex-1 space-y-4">
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
             <div className="animate-pulse">
               <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
             </div>
-            <p className="text-sm text-muted-foreground text-center">Aguardando atendimento...</p>
-            <p className="text-xs text-muted-foreground">Você será conectado em breve.</p>
+            <p className="text-sm text-muted-foreground text-center mt-4">Aguardando atendimento...</p>
+            <p className="text-xs text-muted-foreground mt-1">Você será conectado em breve.</p>
           </div>
         )}
 
         {(phase === "chat" || phase === "csat" || phase === "closed" || phase === "viewTranscript") && (
-          <div className="space-y-3">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.sender_type === "visitor" ? "justify-end" : "justify-start"}`}
+          <div className="flex-1 overflow-y-auto p-4 min-h-0" ref={scrollRef}>
+            {hasMoreMessages && phase !== "viewTranscript" && (
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="w-full text-xs text-primary mb-3 py-1 hover:underline disabled:opacity-50"
               >
-                <div
-                  className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
-                    msg.sender_type === "visitor" ? "text-white" : "bg-muted"
-                  }`}
-                  style={msg.sender_type === "visitor" ? { backgroundColor: primaryColor } : {}}
-                >
-                  {msg.sender_type !== "visitor" && (
-                    <p className="text-xs font-medium mb-1 opacity-70">{msg.sender_name}</p>
-                  )}
-                  {msg.message_type === "file" && msg.metadata?.file_url
-                    ? renderFileMessage(msg)
-                    : <p>{msg.content}</p>
-                  }
-                </div>
-              </div>
-            ))}
-
-            {phase === "viewTranscript" && messages.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem nesta conversa.</p>
+                {loadingMore ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : "Carregar anteriores"}
+              </button>
             )}
+            <div className="space-y-3">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.sender_type === "visitor" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
+                      msg.sender_type === "visitor" ? "text-white" : "bg-muted"
+                    }`}
+                    style={msg.sender_type === "visitor" ? { backgroundColor: primaryColor } : {}}
+                  >
+                    {msg.sender_type !== "visitor" && (
+                      <p className="text-xs font-medium mb-1 opacity-70">{msg.sender_name}</p>
+                    )}
+                    {msg.message_type === "file" && msg.metadata?.file_url
+                      ? renderFileMessage(msg)
+                      : <p>{msg.content}</p>
+                    }
+                  </div>
+                </div>
+              ))}
+
+              {phase === "viewTranscript" && messages.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem nesta conversa.</p>
+              )}
+            </div>
           </div>
         )}
-
       </div>
 
       {phase === "csat" && (
