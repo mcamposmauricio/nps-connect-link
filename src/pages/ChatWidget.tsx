@@ -458,7 +458,7 @@ const ChatWidget = () => {
 
   const widgetContent = (
     <Card
-      className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl"
+      className="flex flex-col overflow-hidden border-0 rounded-xl shadow-2xl min-h-0"
       style={isEmbed ? { height: "100%", width: "100%" } : { width: "100%", maxWidth: "420px", height: "600px" }}
     >
       {/* Header */}
@@ -490,7 +490,7 @@ const ChatWidget = () => {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-4" ref={scrollRef}>
+      <div className="flex-1 overflow-auto p-4 min-h-0" ref={scrollRef}>
         {phase === "form" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
@@ -709,6 +709,7 @@ const ChatWidget = () => {
           style={{
             width: "100%",
             height: "100%",
+            overflow: "hidden",
           }}
         >
           {widgetContent}
