@@ -200,12 +200,30 @@
     }
 
     iframe.src = iframeSrc;
+    // Start small (FAB size only) to avoid blocking clicks on the host page
     iframe.style.cssText =
-      "position:fixed;bottom:0;" +
-      (position === "left" ? "left" : "right") +
-      ":0;width:420px;height:700px;border:none;z-index:99998;background:transparent;";
+      "position:fixed;bottom:20px;" +
+      (position === "left" ? "left:20px" : "right:20px") +
+      ";width:80px;height:80px;border:none;z-index:99998;background:transparent;";
     iframe.allow = "clipboard-write";
     document.body.appendChild(iframe);
+
+    // Listen for chat open/close to resize iframe dynamically
+    window.addEventListener("message", function (event) {
+      if (event.data && event.data.type === "chat-toggle") {
+        if (event.data.isOpen) {
+          iframe.style.width = "420px";
+          iframe.style.height = "700px";
+          iframe.style.bottom = "0";
+          iframe.style[position === "left" ? "left" : "right"] = "0";
+        } else {
+          iframe.style.width = "80px";
+          iframe.style.height = "80px";
+          iframe.style.bottom = "20px";
+          iframe.style[position === "left" ? "left" : "right"] = "20px";
+        }
+      }
+    });
   }
 
   // Init: resolve visitor first (if api_key + external_id provided), then load banners + chat

@@ -80,6 +80,13 @@ const ChatWidget = () => {
     if (isEmbed) window.parent.postMessage({ type }, "*");
   };
 
+  // Notify parent iframe about open/close state for dynamic resizing
+  useEffect(() => {
+    if (isEmbed) {
+      window.parent.postMessage({ type: "chat-toggle", isOpen }, "*");
+    }
+  }, [isOpen, isEmbed]);
+
   const fetchHistory = useCallback(async (vId: string) => {
     setHistoryLoading(true);
     const { data } = await supabase
@@ -419,15 +426,16 @@ const ChatWidget = () => {
     );
   };
 
-  // FAB button when closed (embed mode)
+  // FAB button when closed (embed mode) - fills the small iframe entirely
   if (isEmbed && !isOpen) {
     return (
       <div
         style={{
-          position: "fixed",
-          bottom: "20px",
-          ...(isRight ? { right: "20px" } : { left: "20px" }),
-          zIndex: 99999,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <button
@@ -699,12 +707,8 @@ const ChatWidget = () => {
       <>
         <div
           style={{
-            position: "fixed",
-            bottom: "20px",
-            ...(isRight ? { right: "20px" } : { left: "20px" }),
-            width: "400px",
-            height: "600px",
-            zIndex: 99999,
+            width: "100%",
+            height: "100%",
           }}
         >
           {widgetContent}
