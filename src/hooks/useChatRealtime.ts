@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
@@ -35,6 +35,8 @@ interface ChatRoom {
   visitor_email?: string;
   last_message?: string;
   last_message_at?: string;
+  last_message_sender_type?: string;
+  unread_count?: number;
 }
 
 interface AttendantQueue {
@@ -103,6 +105,7 @@ export function useChatMessages(roomId: string | null) {
 export function useChatRooms(ownerUserId: string | null, options?: { excludeClosed?: boolean }) {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(false);
+  const selectedRoomIdRef = useRef<string | null>(null);
 
   const fetchRooms = useCallback(async () => {
     if (!ownerUserId) return;
@@ -125,27 +128,55 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
       return;
     }
 
-    // Get last message for each room
     const roomIds = data.map((r: Record<string, unknown>) => (r as { id: string }).id);
-    let lastMessages: Record<string, { content: string; created_at: string }> = {};
+    let lastMessages: Record<string, { content: string; created_at: string; sender_type: string }> = {};
+    let unreadCounts: Record<string, number> = {};
 
     if (roomIds.length > 0) {
-      // Fetch the most recent message per room
+      // Fetch the most recent message per room (including sender_type)
       const { data: msgs } = await supabase
         .from("chat_messages")
-        .select("room_id, content, created_at")
+        .select("room_id, content, created_at, sender_type")
         .in("room_id", roomIds)
         .eq("is_internal", false)
         .order("created_at", { ascending: false });
 
       if (msgs) {
         const seen = new Set<string>();
-        for (const m of msgs as { room_id: string; content: string; created_at: string }[]) {
+        for (const m of msgs as { room_id: string; content: string; created_at: string; sender_type: string }[]) {
           if (!seen.has(m.room_id)) {
             seen.add(m.room_id);
-            lastMessages[m.room_id] = { content: m.content, created_at: m.created_at };
+            lastMessages[m.room_id] = { content: m.content, created_at: m.created_at, sender_type: m.sender_type };
           }
         }
+      }
+
+      // Fetch unread counts using chat_room_reads
+      const { data: reads } = await supabase
+        .from("chat_room_reads")
+        .select("room_id, last_read_at")
+        .eq("user_id", ownerUserId)
+        .in("room_id", roomIds);
+
+      const readMap: Record<string, string> = {};
+      if (reads) {
+        for (const r of reads as { room_id: string; last_read_at: string }[]) {
+          readMap[r.room_id] = r.last_read_at;
+        }
+      }
+
+      // Count unread visitor messages per room
+      for (const roomId of roomIds) {
+        const lastReadAt = readMap[roomId] || "1970-01-01T00:00:00Z";
+        const { count } = await supabase
+          .from("chat_messages")
+          .select("*", { count: "exact", head: true })
+          .eq("room_id", roomId)
+          .eq("sender_type", "visitor")
+          .eq("is_internal", false)
+          .gt("created_at", lastReadAt);
+
+        unreadCounts[roomId] = count ?? 0;
       }
     }
 
@@ -160,7 +191,18 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
         visitor_email: visitor?.email ?? undefined,
         last_message: lm?.content,
         last_message_at: lm?.created_at,
+        last_message_sender_type: lm?.sender_type,
+        unread_count: unreadCounts[roomId] ?? 0,
       } as ChatRoom;
+    });
+
+    // Smart sort: unread first, then by most recent activity
+    enrichedRooms.sort((a, b) => {
+      if ((a.unread_count ?? 0) > 0 && (b.unread_count ?? 0) === 0) return -1;
+      if ((a.unread_count ?? 0) === 0 && (b.unread_count ?? 0) > 0) return 1;
+      const aTime = a.last_message_at || a.created_at;
+      const bTime = b.last_message_at || b.created_at;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
 
     setRooms(enrichedRooms);
@@ -187,12 +229,60 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
       )
       .subscribe();
 
+    // Listen for new messages to trigger sound notification and refresh
+    const msgChannel = supabase
+      .channel("chat-messages-notification")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+        },
+        (payload) => {
+          const msg = payload.new as ChatMessage;
+          if (msg.sender_type === "visitor" && msg.room_id !== selectedRoomIdRef.current) {
+            // Play notification sound
+            try {
+              const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczGjlqj8Lb1LRiQhY0YYa95+3UdFQmLFl7p+Xj2p6MiWpXdZqXh3FxOBImWVhzl5KCcHM1EjhWX3eVkYBxcjURO1hdepCSfm5pJytRVnqNjoFyey8lRE55lYd5ciwnNk55ioJ3ay0vQU94jXlwYSAyREhqfG9eLjAqI0E=");
+              audio.volume = 0.3;
+              audio.play().catch(() => {});
+            } catch {}
+          }
+          // Refresh rooms to update unread counts
+          fetchRooms();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(msgChannel);
     };
   }, [ownerUserId, fetchRooms]);
 
-  return { rooms, loading, refetch: fetchRooms };
+  const markRoomAsRead = useCallback(async (roomId: string) => {
+    if (!ownerUserId) return;
+    selectedRoomIdRef.current = roomId;
+
+    await supabase
+      .from("chat_room_reads")
+      .upsert(
+        { room_id: roomId, user_id: ownerUserId, last_read_at: new Date().toISOString() },
+        { onConflict: "room_id,user_id" }
+      );
+
+    // Update local state immediately
+    setRooms((prev) =>
+      prev.map((r) => (r.id === roomId ? { ...r, unread_count: 0 } : r))
+    );
+  }, [ownerUserId]);
+
+  const setSelectedRoomRef = useCallback((roomId: string | null) => {
+    selectedRoomIdRef.current = roomId;
+  }, []);
+
+  return { rooms, loading, refetch: fetchRooms, markRoomAsRead, setSelectedRoomRef };
 }
 
 export function useAttendantQueues() {
@@ -203,12 +293,10 @@ export function useAttendantQueues() {
   const fetchQueues = useCallback(async () => {
     setLoading(true);
 
-    // Fetch attendant profiles
     const { data: profiles } = await supabase
       .from("attendant_profiles")
       .select("id, user_id, display_name, status, max_conversations");
 
-    // Fetch active/waiting rooms
     const { data: rooms } = await supabase
       .from("chat_rooms")
       .select("id, attendant_id, status, visitor_id, created_at, chat_visitors!visitor_id(name)")
@@ -223,7 +311,6 @@ export function useAttendantQueues() {
       chat_visitors: { name: string } | null;
     }>;
 
-    // Count rooms by attendant
     const activeByAttendant: Record<string, number> = {};
     const waitingByAttendant: Record<string, number> = {};
     const unassigned: UnassignedRoom[] = [];
