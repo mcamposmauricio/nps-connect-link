@@ -7,6 +7,9 @@ export interface HistoryFilter {
   tagId?: string | null;
   search?: string;
   page: number;
+  csatFilter?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface ClosedRoom {
@@ -49,6 +52,19 @@ export function useChatHistory(filters: HistoryFilter) {
     }
     if (filters.attendantId) {
       query = query.eq("attendant_id", filters.attendantId);
+    }
+    if (filters.dateFrom) {
+      query = query.gte("closed_at", filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      query = query.lte("closed_at", filters.dateTo);
+    }
+    if (filters.csatFilter === "low") {
+      query = query.lte("csat_score", 2).not("csat_score", "is", null);
+    } else if (filters.csatFilter === "neutral") {
+      query = query.eq("csat_score", 3);
+    } else if (filters.csatFilter === "good") {
+      query = query.gte("csat_score", 4);
     }
 
     const { data: roomsData, count } = await query;
@@ -141,25 +157,31 @@ export function useChatHistory(filters: HistoryFilter) {
 
     setRooms(enriched);
     setLoading(false);
-  }, [filters.page, filters.resolutionStatus, filters.attendantId, filters.tagId, filters.search]);
+  }, [filters.page, filters.resolutionStatus, filters.attendantId, filters.tagId, filters.search, filters.csatFilter, filters.dateFrom, filters.dateTo]);
 
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
 
   const exportToCSV = useCallback(() => {
-    const headers = ["ID", "Cliente", "Atendente", "Status", "Resolução", "CSAT", "Início", "Encerramento", "Tags"];
-    const rows = rooms.map((r) => [
-      r.id.slice(0, 8),
-      r.visitor_name ?? "—",
-      r.attendant_name ?? "—",
-      r.status,
-      r.resolution_status ?? "—",
-      r.csat_score != null ? `${r.csat_score}/5` : "—",
-      r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "—",
-      r.closed_at ? new Date(r.closed_at).toLocaleString("pt-BR") : "—",
-      r.tags.map((t) => t.name).join(", ") || "—",
-    ]);
+    const headers = ["ID", "Cliente", "Atendente", "Status", "Resolução", "CSAT", "Duração (min)", "Início", "Encerramento", "Tags"];
+    const rows = rooms.map((r) => {
+      const dur = r.closed_at && r.created_at
+        ? Math.floor((new Date(r.closed_at).getTime() - new Date(r.created_at).getTime()) / 60000)
+        : "";
+      return [
+        r.id.slice(0, 8),
+        r.visitor_name ?? "—",
+        r.attendant_name ?? "—",
+        r.status,
+        r.resolution_status ?? "—",
+        r.csat_score != null ? `${r.csat_score}/5` : "—",
+        String(dur),
+        r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "—",
+        r.closed_at ? new Date(r.closed_at).toLocaleString("pt-BR") : "—",
+        r.tags.map((t) => t.name).join(", ") || "—",
+      ];
+    });
 
     const csv = [headers, ...rows].map((row) => row.map((v) => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

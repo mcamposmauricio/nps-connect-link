@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -14,10 +14,16 @@ import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock } from "lucide-react";
+import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type MobileView = "list" | "chat" | "info";
+
+interface ReplyTarget {
+  id: string;
+  content: string;
+  sender_name: string | null;
+}
 
 function durationLabel(startedAt: string): string {
   const diff = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
@@ -39,6 +45,7 @@ const AdminWorkspace = () => {
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closingRoomId, setClosingRoomId] = useState<string | null>(null);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
 
   useEffect(() => {
     if (paramRoomId) setSelectedRoomId(paramRoomId);
@@ -54,6 +61,7 @@ const AdminWorkspace = () => {
   const handleSelectRoom = (id: string) => {
     setSelectedRoomId(id);
     markRoomAsRead(id);
+    setReplyTarget(null);
     if (isMobile) setMobileView("chat");
   };
 
@@ -170,6 +178,10 @@ const AdminWorkspace = () => {
     toast.success(resolutionStatus === "resolved" ? "Conversa encerrada como resolvida" : "Conversa encerrada com pendência");
   };
 
+  const handleReply = useCallback((msg: { id: string; content: string; sender_name: string | null }) => {
+    setReplyTarget({ id: msg.id, content: msg.content, sender_name: msg.sender_name });
+  }, []);
+
   const handleSendMessage = async (
     content: string,
     isInternal = false,
@@ -177,18 +189,29 @@ const AdminWorkspace = () => {
   ) => {
     if (!selectedRoomId || !user) return;
 
+    let finalContent = content;
+    if (replyTarget && !isInternal) {
+      const quotedLines = replyTarget.content.split("\n").map((l) => `> ${l}`).join("\n");
+      finalContent = `${quotedLines}\n\n${content}`;
+    }
+
     await supabase.from("chat_messages").insert({
       room_id: selectedRoomId,
       sender_type: "attendant",
       sender_id: user.id,
       sender_name: user.email?.split("@")[0] ?? "Atendente",
-      content,
+      content: finalContent,
       is_internal: isInternal,
       ...(metadata
         ? { message_type: "file", metadata: metadata as any }
         : {}),
     });
+
+    setReplyTarget(null);
   };
+
+  // Message count for header
+  const msgCount = messages.length;
 
   // Duration timer in header
   const renderDuration = (room: typeof selectedRoom) => {
@@ -198,6 +221,22 @@ const AdminWorkspace = () => {
         <Clock className="h-3 w-3" />
         {durationLabel(room.started_at)}
       </span>
+    );
+  };
+
+  const renderReplyBanner = () => {
+    if (!replyTarget) return null;
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b text-xs">
+        <div className="flex-1 min-w-0">
+          <span className="text-muted-foreground">Respondendo a </span>
+          <span className="font-medium">{replyTarget.sender_name ?? "Visitante"}</span>
+          <p className="truncate text-muted-foreground">{replyTarget.content.slice(0, 80)}</p>
+        </div>
+        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setReplyTarget(null)}>
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
     );
   };
 
@@ -233,6 +272,7 @@ const AdminWorkspace = () => {
                     {selectedRoom.status}
                   </span>
                   {renderDuration(selectedRoom)}
+                  <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
                 </div>
                 <div className="flex gap-1">
                   <Sheet>
@@ -264,11 +304,14 @@ const AdminWorkspace = () => {
               </div>
 
               <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} />
+                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
               </div>
 
               {selectedRoom.status !== "closed" && (
-                <ChatInput onSend={handleSendMessage} />
+                <>
+                  {renderReplyBanner()}
+                  <ChatInput onSend={handleSendMessage} />
+                </>
               )}
             </Card>
           )}
@@ -315,6 +358,7 @@ const AdminWorkspace = () => {
                     {selectedRoom.status}
                   </span>
                   {renderDuration(selectedRoom)}
+                  <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   {selectedRoom.status === "waiting" && (
@@ -340,11 +384,14 @@ const AdminWorkspace = () => {
               </div>
 
               <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} />
+                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
               </div>
 
               {selectedRoom.status !== "closed" && (
-                <ChatInput onSend={handleSendMessage} />
+                <>
+                  {renderReplyBanner()}
+                  <ChatInput onSend={handleSendMessage} />
+                </>
               )}
             </Card>
           ) : (
