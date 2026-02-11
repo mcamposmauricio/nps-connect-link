@@ -129,6 +129,8 @@ export type Database = {
           created_at: string
           id: string
           logo_url: string | null
+          nps_widget_position: string | null
+          nps_widget_primary_color: string | null
           primary_color: string | null
           secondary_color: string | null
           tenant_id: string | null
@@ -142,6 +144,8 @@ export type Database = {
           created_at?: string
           id?: string
           logo_url?: string | null
+          nps_widget_position?: string | null
+          nps_widget_primary_color?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           tenant_id?: string | null
@@ -155,6 +159,8 @@ export type Database = {
           created_at?: string
           id?: string
           logo_url?: string | null
+          nps_widget_position?: string | null
+          nps_widget_primary_color?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           tenant_id?: string | null
