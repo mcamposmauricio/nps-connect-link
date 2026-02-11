@@ -1,145 +1,195 @@
 
-# Melhorias de Usabilidade no Workspace de Atendimento
 
-Revisao completa do workspace com base em boas praticas de atendimento ao cliente, focando em agilidade, visibilidade de informacoes criticas e reducao de fricao operacional.
+# Melhorias Detalhadas: Dashboard, Workspace e Historico
 
----
-
-## Melhorias Identificadas
-
-### 1. Contador de Mensagens Nao Lidas na Lista de Conversas
-**Problema:** O atendente nao sabe quais conversas tem mensagens novas do visitante sem clicar em cada uma.
-
-**Solucao:** Adicionar um badge numerico com a contagem de mensagens do visitante recebidas desde a ultima visualizacao do atendente. Ao selecionar a sala, marcar como "lida".
-
-- Criar uma tabela `chat_room_reads` com `room_id`, `user_id`, `last_read_at` (timestamp)
-- No `useChatRooms`, buscar a contagem de mensagens `sender_type = 'visitor'` com `created_at > last_read_at`
-- No `ChatRoomList`, exibir badge vermelho com numero quando `unread_count > 0`
-- Ao selecionar uma sala no workspace, fazer upsert em `chat_room_reads` com `now()`
-
-### 2. Ordenacao Inteligente da Lista de Conversas
-**Problema:** A lista ordena por `created_at` da sala, nao pela atividade mais recente. Conversas com mensagens novas podem ficar no final.
-
-**Solucao:** Ordenar por `last_message_at` (descendente), com salas que tem mensagens nao lidas no topo.
-
-- Alterar a query no `useChatRooms` para usar a data da ultima mensagem como criterio de ordenacao
-- No `ChatRoomList`, priorizar: 1) salas com unread > 0, 2) por last_message_at desc
-
-### 3. Indicador de Tempo de Espera na Fila (SLA Visual)
-**Problema:** Salas com status "waiting" nao mostram ha quanto tempo o visitante esta esperando. Nao ha urgencia visual.
-
-**Solucao:** Adicionar indicador colorido de tempo de espera nas salas "waiting":
-- Verde: < 5min
-- Amarelo: 5-15min
-- Vermelho: > 15min
-
-Exibir no `ChatRoomList` como um dot colorido ou texto com cor ao lado do status.
-
-### 4. Preview da Ultima Mensagem com Indicacao de Remetente
-**Problema:** A preview da ultima mensagem nao indica se foi enviada pelo visitante ou pelo atendente, dificultando saber se requer acao.
-
-**Solucao:** Prefixar a preview com "Voce: " quando o `sender_type` da ultima mensagem nao e "visitor". Buscar o `sender_type` junto com a ultima mensagem no `useChatRooms`.
-
-### 5. Notificacao Sonora para Novas Mensagens
-**Problema:** Se o atendente esta em outra aba ou conversa, nao percebe novas mensagens.
-
-**Solucao:** Emitir um som curto (`new Audio()`) quando uma mensagem de visitante chega via realtime e a sala nao e a atualmente selecionada.
-
-### 6. Atalho de Macros Visivel no Input
-**Problema:** O sistema tem macros (`chat_macros`) mas nao ha indicacao visual ou acesso rapido no campo de input.
-
-**Solucao:** Adicionar um botao de "/" ou icone de macros no `ChatInput`. Ao digitar "/" no inicio, abrir um dropdown com as macros disponiveis filtraveis por texto.
-
-### 7. Indicador de Prioridade na Lista de Conversas
-**Problema:** A prioridade da sala (`priority: normal | high | urgent`) nao e exibida na lista.
-
-**Solucao:** Mostrar um indicador visual (icone ou borda colorida) para salas com prioridade `high` ou `urgent`.
-
-### 8. Tempo de Conversa Ativa no Header
-**Problema:** O header da conversa nao mostra ha quanto tempo a conversa esta em andamento.
-
-**Solucao:** Exibir no header do chat a duracao desde `started_at` (ex: "32min" ou "1h45min") para ajudar o atendente a gerenciar o tempo.
+Revisao completa das tres abas principais do modulo de atendimento, com foco em usabilidade, agilidade e visibilidade de informacoes criticas.
 
 ---
 
-## Priorizacao e Escopo Sugerido
+## A. DASHBOARD (Painel de Atendimento)
+
+### A1. Auto-refresh periodico dos KPIs
+**Problema:** Os KPIs (conversas ativas, na fila, CSAT) so atualizam no carregamento inicial. O supervisor precisa recarregar a pagina manualmente para ver dados atualizados.
+
+**Solucao:** Adicionar um `setInterval` de 30 segundos no `useDashboardStats` para refazer o fetch automaticamente. Exibir um indicador "Atualizado ha Xmin" no canto do header.
+
+### A2. Variacao percentual nos KPIs (delta)
+**Problema:** Os cards de metricas mostram apenas o valor absoluto, sem contexto de tendencia. O supervisor nao sabe se esta melhorando ou piorando.
+
+**Solucao:** Calcular a variacao em relacao ao periodo anterior (ex: "hoje vs ontem", "semana vs semana anterior") e exibir um badge de seta verde (melhora) ou vermelha (piora) ao lado do valor.
+
+### A3. Conversas por atendente com link para o room
+**Problema:** A tabela de Status em Tempo Real mostra contadores de conversas ativas por atendente, mas nao permite acessar as salas. O supervisor precisa navegar ate o workspace para encontrar a conversa.
+
+**Solucao:** Adicionar uma sub-lista expansivel em cada linha de atendente mostrando as salas ativas/na fila com nome do visitante, tempo de espera e botao "Ver" (que abre no ReadOnlyChatDialog ou navega para o workspace se for a propria).
+
+### A4. Barra de capacidade visual nos atendentes
+**Problema:** A tabela mostra "Ativas" e "Capacidade" como numeros separados. A leitura e lenta para identificar quem esta sobrecarregado.
+
+**Solucao:** Substituir as colunas "Ativas" e "Capacidade" por uma barra de progresso (ex: `3/5`) com cor: verde (< 60%), amarelo (60-80%), vermelho (> 80%).
+
+### A5. Filtro de periodo nao afeta a tabela de tempo real
+**Problema:** Os filtros de periodo/status/prioridade afetam os KPIs mas a tabela de "Status em Tempo Real" e a "Fila Geral" sempre mostram dados atuais. Isso pode confundir o supervisor.
+
+**Solucao:** Adicionar uma separacao visual clara (titulo de secao ou divider) entre "Metricas do Periodo" e "Status em Tempo Real", deixando explicito que sao dados de contextos diferentes.
+
+---
+
+## B. WORKSPACE (Atendimento)
+
+### B1. Busca de conversas na lista
+**Problema:** Com muitas conversas abertas, o atendente nao tem como buscar por nome do visitante. Precisa rolar a lista inteira.
+
+**Solucao:** Adicionar um campo de busca no topo do `ChatRoomList`, filtrando por `visitor_name` localmente.
+
+### B2. Separador visual entre "waiting" e "active"
+**Problema:** Salas com status "waiting" e "active" estao misturadas na mesma lista (ordenadas por unread e atividade recente). O atendente nao consegue distinguir rapidamente o que precisa de acao.
+
+**Solucao:** Agrupar as salas em duas secoes visuais: "Na Fila" (waiting) no topo e "Ativas" abaixo, cada uma com um header leve. Manter a ordenacao inteligente dentro de cada grupo.
+
+### B3. Indicador de digitacao ("typing")
+**Problema:** O atendente nao sabe se o visitante esta digitando, o que causa respostas sobrepostas ou esperas desnecessarias.
+
+**Solucao:** Implementar um canal de presenca Supabase Realtime. Quando o visitante digita, enviar um evento de "typing". Exibir "digitando..." na lista de salas e na area de mensagens com animacao de tres pontos.
+
+### B4. Timestamps agrupados por dia nas mensagens
+**Problema:** A lista de mensagens (`ChatMessageList`) mostra timestamps individuais em cada mensagem, mas sem separadores de dia. Em conversas longas, e dificil saber quando algo aconteceu.
+
+**Solucao:** Inserir separadores visuais entre mensagens de dias diferentes (ex: "Hoje", "Ontem", "10/02/2026") como badges centralizados entre as mensagens.
+
+### B5. Resposta rapida citando mensagem
+**Problema:** Em conversas longas, o atendente nao consegue referenciar uma mensagem especifica do visitante para responder com contexto.
+
+**Solucao:** Adicionar um botao de "Responder" (reply) ao hover de cada mensagem do visitante. Ao clicar, exibir um preview da mensagem citada acima do campo de input, que sera incluida no conteudo enviado como blockquote.
+
+### B6. Contagem de mensagens totais no header
+**Problema:** O header do chat mostra nome, status e duracao, mas nao da uma nocao do volume da conversa.
+
+**Solucao:** Adicionar um contador discreto de mensagens (ex: "24 msgs") no header da conversa.
+
+---
+
+## C. HISTORICO
+
+### C1. Visualizar transcricao completa
+**Problema:** A tabela de historico mostra metadata das salas (ID, cliente, atendente, CSAT, datas) mas nao permite visualizar as mensagens da conversa. O unico jeito e copiar o ID e buscar de outra forma.
+
+**Solucao:** Tornar cada linha clicavel (ou adicionar um botao "Ver") que abre o `ReadOnlyChatDialog` com as mensagens daquela sala. Isso ja existe no Dashboard e pode ser reutilizado.
+
+### C2. Filtro por data (range)
+**Problema:** O historico nao tem filtro por intervalo de datas. Se o supervisor quer ver conversas de uma semana especifica, nao consegue.
+
+**Solucao:** Adicionar um DateRangePicker (usando o `Calendar` do shadcn) que filtra por `closed_at` ou `created_at`. Adicionar os campos `dateFrom` e `dateTo` ao `HistoryFilter`.
+
+### C3. Coluna de duracao da conversa
+**Problema:** A tabela mostra "Inicio" e "Encerramento" separados. Para calcular quanto tempo levou, o supervisor precisa fazer a conta mentalmente.
+
+**Solucao:** Adicionar uma coluna "Duracao" calculada como `closed_at - created_at`, exibida como "32min" ou "1h45min".
+
+### C4. Filtro por CSAT score
+**Problema:** Nao ha como filtrar conversas por nota de CSAT. O supervisor que quer revisar atendimentos com CSAT baixo precisa percorrer tudo.
+
+**Solucao:** Adicionar um Select com opcoes: "Todos", "1-2 (Ruim)", "3 (Neutro)", "4-5 (Bom)" que filtra pelo range de `csat_score`.
+
+### C5. Destaque visual para CSAT baixo
+**Problema:** A coluna CSAT mostra "3/5" como texto simples. Notas baixas (1-2) nao se destacam visualmente.
+
+**Solucao:** Colorir o valor de CSAT: vermelho para 1-2, amarelo para 3, verde para 4-5. Adicionar um icone de estrela preenchida proporcional.
+
+### C6. Exportacao paginada
+**Problema:** O botao "Exportar CSV" exporta apenas os rooms carregados na pagina atual (20 por pagina). Se o supervisor quer exportar todos, nao consegue.
+
+**Solucao:** Ao clicar em exportar, buscar TODAS as salas fechadas (respeitando filtros) em lotes de 100 e gerar o CSV completo. Exibir feedback de progresso durante a exportacao.
+
+---
+
+## Priorizacao
 
 | # | Melhoria | Impacto | Esforco |
 |---|---------|---------|---------|
-| 1 | Mensagens nao lidas (badge) | Alto | Medio |
-| 2 | Ordenacao por atividade recente | Alto | Baixo |
-| 3 | SLA visual na fila | Alto | Baixo |
-| 4 | Remetente na preview | Medio | Baixo |
-| 5 | Notificacao sonora | Medio | Baixo |
-| 6 | Acesso rapido a macros | Medio | Medio |
-| 7 | Indicador de prioridade | Baixo | Baixo |
-| 8 | Duracao no header | Baixo | Baixo |
+| C1 | Visualizar transcricao no historico | Alto | Baixo |
+| B1 | Busca na lista de conversas | Alto | Baixo |
+| B2 | Separar waiting/active na lista | Alto | Baixo |
+| A1 | Auto-refresh dos KPIs | Alto | Baixo |
+| C3 | Coluna de duracao | Medio | Baixo |
+| C5 | Destaque visual CSAT | Medio | Baixo |
+| A4 | Barra de capacidade visual | Medio | Baixo |
+| C2 | Filtro por data | Alto | Medio |
+| B4 | Timestamps agrupados por dia | Medio | Baixo |
+| A2 | Variacao percentual (delta) | Medio | Medio |
+| C4 | Filtro por CSAT | Medio | Baixo |
+| C6 | Exportacao completa | Medio | Medio |
+| A3 | Conversas por atendente expansivel | Medio | Medio |
+| B6 | Contagem de msgs no header | Baixo | Baixo |
+| A5 | Separacao visual metricas vs realtime | Baixo | Baixo |
+| B3 | Indicador de digitacao | Alto | Alto |
+| B5 | Resposta citando mensagem | Medio | Alto |
 
 ---
 
 ## Detalhes Tecnicos
 
-### Tabela `chat_room_reads` (nova)
-
-```sql
-CREATE TABLE chat_room_reads (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id uuid NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL,
-  last_read_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(room_id, user_id)
-);
-ALTER TABLE chat_room_reads ENABLE ROW LEVEL SECURITY;
--- RLS: users can manage their own reads
-```
-
-### Contagem de nao lidas no `useChatRooms`
-
-Apos buscar os rooms, fazer uma query adicional:
-```sql
-SELECT room_id, COUNT(*) as unread
-FROM chat_messages
-WHERE room_id IN (...) AND sender_type = 'visitor' AND is_internal = false
-  AND created_at > COALESCE(
-    (SELECT last_read_at FROM chat_room_reads WHERE room_id = chat_messages.room_id AND user_id = $userId),
-    '1970-01-01'
-  )
-GROUP BY room_id
-```
-
-### Ordenacao
-
-No `ChatRoomList`, ordenar o array de rooms no frontend:
-```typescript
-const sorted = [...rooms].sort((a, b) => {
-  // Unread first
-  if ((a.unread_count ?? 0) > 0 && (b.unread_count ?? 0) === 0) return -1;
-  if ((a.unread_count ?? 0) === 0 && (b.unread_count ?? 0) > 0) return 1;
-  // Then by most recent activity
-  const aTime = a.last_message_at || a.created_at;
-  const bTime = b.last_message_at || b.created_at;
-  return new Date(bTime).getTime() - new Date(aTime).getTime();
-});
-```
-
-### Macros dropdown
-
-Buscar `chat_macros` ao montar o `ChatInput`. Ao digitar "/" no campo, filtrar e exibir um `Command` dropdown (usando o componente cmdk ja instalado).
-
-### Notificacao sonora
-
-No listener realtime de `chat_messages`, quando `payload.new.sender_type === 'visitor'` e `payload.new.room_id !== selectedRoomId`:
-```typescript
-new Audio('/notification.mp3').play().catch(() => {});
-```
-
 ### Arquivos a serem modificados
 
-| # | Arquivo | Descricao |
+| # | Arquivo | Melhorias |
 |---|---------|-----------|
-| 1 | Migration SQL | Criar tabela `chat_room_reads` |
-| 2 | `src/hooks/useChatRealtime.ts` | Adicionar unread_count, sender_type da ultima msg, ordenacao, notificacao sonora |
-| 3 | `src/components/chat/ChatRoomList.tsx` | Badge de nao lidas, SLA visual, indicador de prioridade, remetente na preview |
-| 4 | `src/components/chat/ChatInput.tsx` | Dropdown de macros com "/" |
-| 5 | `src/pages/AdminWorkspace.tsx` | Marcar como lido ao selecionar sala, duracao no header, listener de notificacao |
-| 6 | `public/notification.mp3` | Arquivo de audio para notificacao (som curto) |
+| 1 | `src/hooks/useDashboardStats.ts` | A1 (auto-refresh), A2 (variacao) |
+| 2 | `src/pages/AdminDashboard.tsx` | A1, A2, A3, A4, A5 |
+| 3 | `src/components/chat/ChatRoomList.tsx` | B1 (busca), B2 (agrupamento) |
+| 4 | `src/components/chat/ChatMessageList.tsx` | B4 (timestamps), B5 (reply) |
+| 5 | `src/pages/AdminWorkspace.tsx` | B3, B5, B6 |
+| 6 | `src/pages/AdminChatHistory.tsx` | C1, C2, C3, C4, C5, C6 |
+| 7 | `src/hooks/useChatHistory.ts` | C2 (dateRange), C4 (csatFilter), C6 (full export) |
+| 8 | `src/hooks/useChatRealtime.ts` | B3 (typing channel) |
+
+### C1 - Reutilizar ReadOnlyChatDialog
+
+O componente `ReadOnlyChatDialog` ja existe e funciona. Basta adicionar estado local no `AdminChatHistory` e abrir o dialog ao clicar em uma linha:
+
+```typescript
+const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
+// Na TableRow: onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name })}
+```
+
+### B2 - Agrupamento no ChatRoomList
+
+```typescript
+const waitingRooms = rooms.filter(r => r.status === "waiting");
+const activeRooms = rooms.filter(r => r.status === "active");
+
+return (
+  <>
+    {waitingRooms.length > 0 && (
+      <>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-1">
+          Na Fila ({waitingRooms.length})
+        </p>
+        {waitingRooms.map(room => <RoomItem ... />)}
+      </>
+    )}
+    <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-1">
+      Ativas ({activeRooms.length})
+    </p>
+    {activeRooms.map(room => <RoomItem ... />)}
+  </>
+);
+```
+
+### A1 - Auto-refresh
+
+```typescript
+useEffect(() => {
+  const interval = setInterval(fetchStats, 30000);
+  return () => clearInterval(interval);
+}, [fetchStats]);
+```
+
+### C3 - Duracao calculada
+
+```typescript
+const duration = room.closed_at && room.created_at
+  ? Math.floor((new Date(room.closed_at).getTime() - new Date(room.created_at).getTime()) / 60000)
+  : null;
+// Exibir: duration < 60 ? `${duration}min` : `${Math.floor(duration/60)}h${duration%60}min`
+```
+
