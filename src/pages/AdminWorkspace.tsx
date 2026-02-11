@@ -14,10 +14,18 @@ import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info } from "lucide-react";
+import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type MobileView = "list" | "chat" | "info";
+
+function durationLabel(startedAt: string): string {
+  const diff = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
+  if (diff < 60) return `${diff}min`;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return m > 0 ? `${h}h${m}min` : `${h}h`;
+}
 
 const AdminWorkspace = () => {
   const { roomId: paramRoomId } = useParams();
@@ -25,7 +33,7 @@ const AdminWorkspace = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
-  const { rooms, loading: roomsLoading } = useChatRooms(user?.id ?? null, { excludeClosed: true });
+  const { rooms, loading: roomsLoading, markRoomAsRead, setSelectedRoomRef } = useChatRooms(user?.id ?? null, { excludeClosed: true });
   const { messages, loading: messagesLoading } = useChatMessages(selectedRoomId);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
   const [mobileView, setMobileView] = useState<MobileView>("list");
@@ -36,11 +44,16 @@ const AdminWorkspace = () => {
     if (paramRoomId) setSelectedRoomId(paramRoomId);
   }, [paramRoomId]);
 
+  // Keep the ref in sync
+  useEffect(() => {
+    setSelectedRoomRef(selectedRoomId);
+  }, [selectedRoomId, setSelectedRoomRef]);
+
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
 
-  // Mobile: when selecting a room, switch to chat view
   const handleSelectRoom = (id: string) => {
     setSelectedRoomId(id);
+    markRoomAsRead(id);
     if (isMobile) setMobileView("chat");
   };
 
@@ -133,7 +146,6 @@ const AdminWorkspace = () => {
   const handleConfirmClose = async (resolutionStatus: "resolved" | "pending", note?: string) => {
     if (!closingRoomId || !user) return;
 
-    // If there's a note, insert it as an internal message first
     if (note) {
       await supabase.from("chat_messages").insert({
         room_id: closingRoomId,
@@ -178,6 +190,17 @@ const AdminWorkspace = () => {
     });
   };
 
+  // Duration timer in header
+  const renderDuration = (room: typeof selectedRoom) => {
+    if (!room || !room.started_at || room.status !== "active") return null;
+    return (
+      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Clock className="h-3 w-3" />
+        {durationLabel(room.started_at)}
+      </span>
+    );
+  };
+
   // Mobile layout
   if (isMobile) {
     return (
@@ -209,6 +232,7 @@ const AdminWorkspace = () => {
                   }`}>
                     {selectedRoom.status}
                   </span>
+                  {renderDuration(selectedRoom)}
                 </div>
                 <div className="flex gap-1">
                   <Sheet>
@@ -290,6 +314,7 @@ const AdminWorkspace = () => {
                   }`}>
                     {selectedRoom.status}
                   </span>
+                  {renderDuration(selectedRoom)}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   {selectedRoom.status === "waiting" && (
