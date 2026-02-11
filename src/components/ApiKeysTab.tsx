@@ -424,6 +424,10 @@ const ApiKeysTab = () => {
           </DialogContent>
         </Dialog>
 
+        <p className="text-xs text-muted-foreground">
+          💡 Veja a aba <strong>Widget</strong> para opções de integração completas com preview visual.
+        </p>
+
         {/* Delete Confirmation */}
         <AlertDialog open={!!keyToDelete} onOpenChange={() => setKeyToDelete(null)}>
           <AlertDialogContent>
