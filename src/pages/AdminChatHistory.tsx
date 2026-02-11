@@ -1,16 +1,36 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useCallback } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useAttendants } from "@/hooks/useAttendants";
+import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
 import { format } from "date-fns";
-import { Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Search, ChevronLeft, ChevronRight, Eye, CalendarIcon, Star, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+function formatDuration(minutes: number | null): string {
+  if (minutes == null) return "—";
+  if (minutes < 60) return `${minutes}min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h${m}min` : `${h}h`;
+}
+
+function csatColor(score: number | null): string {
+  if (score == null) return "";
+  if (score <= 2) return "text-red-500";
+  if (score === 3) return "text-yellow-500";
+  return "text-green-500";
+}
 
 const AdminChatHistory = () => {
   const { t } = useLanguage();
@@ -19,12 +39,22 @@ const AdminChatHistory = () => {
   const [resolutionStatus, setResolutionStatus] = useState<string | null>(null);
   const [attendantId, setAttendantId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [csatFilter, setCsatFilter] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [exporting, setExporting] = useState(false);
+
+  // ReadOnly dialog
+  const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
 
   const { rooms, loading, totalCount, totalPages, exportToCSV } = useChatHistory({
     page,
     resolutionStatus,
     attendantId,
     search,
+    csatFilter: csatFilter ?? undefined,
+    dateFrom: dateFrom?.toISOString(),
+    dateTo: dateTo ? new Date(dateTo.getTime() + 86400000).toISOString() : undefined,
   });
 
   const resolutionBadge = (status: string | null) => {
@@ -44,6 +74,87 @@ const AdminChatHistory = () => {
     setPage(0);
   };
 
+  // Full export
+  const handleFullExport = async () => {
+    setExporting(true);
+    try {
+      const PAGE_SIZE = 100;
+      let allRooms: any[] = [];
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase
+          .from("chat_rooms")
+          .select("id, status, resolution_status, created_at, closed_at, csat_score, visitor_id, attendant_id")
+          .eq("status", "closed")
+          .order("closed_at", { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (resolutionStatus) query = query.eq("resolution_status", resolutionStatus);
+        if (attendantId) query = query.eq("attendant_id", attendantId);
+        if (dateFrom) query = query.gte("closed_at", dateFrom.toISOString());
+        if (dateTo) query = query.lte("closed_at", new Date(dateTo.getTime() + 86400000).toISOString());
+        if (csatFilter === "low") query = query.lte("csat_score", 2).not("csat_score", "is", null);
+        else if (csatFilter === "neutral") query = query.eq("csat_score", 3);
+        else if (csatFilter === "good") query = query.gte("csat_score", 4);
+
+        const { data } = await query;
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allRooms = [...allRooms, ...data];
+          from += PAGE_SIZE;
+          if (data.length < PAGE_SIZE) hasMore = false;
+        }
+      }
+
+      // Get visitor/attendant names
+      const visitorIds = [...new Set(allRooms.map((r) => r.visitor_id))];
+      const { data: visitors } = await supabase.from("chat_visitors").select("id, name").in("id", visitorIds);
+      const visitorMap = new Map(visitors?.map((v) => [v.id, v.name]) ?? []);
+
+      const attIds = [...new Set(allRooms.filter((r) => r.attendant_id).map((r) => r.attendant_id!))];
+      let attMap = new Map<string, string>();
+      if (attIds.length > 0) {
+        const { data: atts } = await supabase.from("attendant_profiles").select("id, display_name").in("id", attIds);
+        attMap = new Map(atts?.map((a) => [a.id, a.display_name]) ?? []);
+      }
+
+      const headers = ["ID", "Cliente", "Atendente", "Resolução", "CSAT", "Duração (min)", "Início", "Encerramento"];
+      const rows = allRooms.map((r) => {
+        const dur = r.closed_at && r.created_at
+          ? Math.floor((new Date(r.closed_at).getTime() - new Date(r.created_at).getTime()) / 60000)
+          : "";
+        return [
+          r.id.slice(0, 8),
+          visitorMap.get(r.visitor_id) ?? "—",
+          r.attendant_id ? (attMap.get(r.attendant_id) ?? "—") : "—",
+          r.resolution_status ?? "—",
+          r.csat_score != null ? `${r.csat_score}/5` : "—",
+          String(dur),
+          r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "—",
+          r.closed_at ? new Date(r.closed_at).toLocaleString("pt-BR") : "—",
+        ];
+      });
+
+      const csv = [headers, ...rows].map((row) => row.map((v) => `"${v}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `historico-completo-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success(`${allRooms.length} conversas exportadas`);
+    } catch {
+      toast.error("Erro ao exportar");
+    }
+    setExporting(false);
+  };
+
   return (
     <SidebarLayout>
       <div className="space-y-6">
@@ -54,10 +165,16 @@ const AdminChatHistory = () => {
               {totalCount} {t("chat.history.total_closed")}
             </p>
           </div>
-          <Button onClick={exportToCSV} variant="outline" disabled={rooms.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            {t("chat.history.export_csv")}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={exportToCSV} variant="outline" size="sm" disabled={rooms.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Página
+            </Button>
+            <Button onClick={handleFullExport} variant="outline" size="sm" disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Exportar Tudo
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -99,6 +216,57 @@ const AdminChatHistory = () => {
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={csatFilter ?? "all"}
+            onValueChange={(v) => { setCsatFilter(v === "all" ? null : v); handleFilterChange(); }}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="CSAT" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos CSAT</SelectItem>
+              <SelectItem value="low">1-2 (Ruim)</SelectItem>
+              <SelectItem value="neutral">3 (Neutro)</SelectItem>
+              <SelectItem value="good">4-5 (Bom)</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Date range */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 h-10">
+                <CalendarIcon className="h-4 w-4" />
+                {dateFrom ? format(dateFrom, "dd/MM") : "De"} — {dateTo ? format(dateTo, "dd/MM") : "Até"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <div className="flex gap-2 p-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">De</p>
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={(d) => { setDateFrom(d); handleFilterChange(); }}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Até</p>
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={(d) => { setDateTo(d); handleFilterChange(); }}
+                  />
+                </div>
+              </div>
+              {(dateFrom || dateTo) && (
+                <div className="p-2 border-t">
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); handleFilterChange(); }}>
+                    Limpar datas
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Table */}
@@ -117,47 +285,68 @@ const AdminChatHistory = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[40px]"></TableHead>
                       <TableHead>ID</TableHead>
                       <TableHead>{t("chat.history.client")}</TableHead>
                       <TableHead>{t("chat.history.attendant")}</TableHead>
                       <TableHead>{t("chat.history.resolution")}</TableHead>
                       <TableHead>{t("chat.history.csat")}</TableHead>
+                      <TableHead>Duração</TableHead>
                       <TableHead>{t("chat.history.tags")}</TableHead>
                       <TableHead>{t("chat.history.started_at")}</TableHead>
                       <TableHead>{t("chat.history.closed_at")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rooms.map((room) => (
-                      <TableRow key={room.id}>
-                        <TableCell className="font-mono text-xs">{room.id.slice(0, 8)}</TableCell>
-                        <TableCell>{room.visitor_name ?? "—"}</TableCell>
-                        <TableCell>{room.attendant_name ?? "—"}</TableCell>
-                        <TableCell>{resolutionBadge(room.resolution_status)}</TableCell>
-                        <TableCell>
-                          {room.csat_score != null ? `${room.csat_score}/5` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 flex-wrap">
-                            {room.tags.length > 0
-                              ? room.tags.map((tag, i) => (
-                                  <Badge key={i} variant="outline" style={{ borderColor: tag.color, color: tag.color }}>
-                                    {tag.name}
-                                  </Badge>
-                                ))
+                    {rooms.map((room) => {
+                      const duration = room.closed_at && room.created_at
+                        ? Math.floor((new Date(room.closed_at).getTime() - new Date(room.created_at).getTime()) / 60000)
+                        : null;
+
+                      return (
+                        <TableRow
+                          key={room.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante" })}
+                        >
+                          <TableCell>
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{room.id.slice(0, 8)}</TableCell>
+                          <TableCell>{room.visitor_name ?? "—"}</TableCell>
+                          <TableCell>{room.attendant_name ?? "—"}</TableCell>
+                          <TableCell>{resolutionBadge(room.resolution_status)}</TableCell>
+                          <TableCell>
+                            {room.csat_score != null ? (
+                              <span className={`flex items-center gap-1 font-medium ${csatColor(room.csat_score)}`}>
+                                <Star className="h-3 w-3 fill-current" />
+                                {room.csat_score}/5
+                              </span>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm">{formatDuration(duration)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 flex-wrap">
+                              {room.tags.length > 0
+                                ? room.tags.map((tag, i) => (
+                                    <Badge key={i} variant="outline" style={{ borderColor: tag.color, color: tag.color }}>
+                                      {tag.name}
+                                    </Badge>
+                                  ))
+                                : "—"}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {room.closed_at
+                              ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm")
                               : "—"}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {room.closed_at
-                            ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm")
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
 
@@ -192,6 +381,13 @@ const AdminChatHistory = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ReadOnlyChatDialog
+        roomId={readOnlyRoom?.id ?? null}
+        visitorName={readOnlyRoom?.name ?? ""}
+        open={!!readOnlyRoom}
+        onOpenChange={(open) => !open && setReadOnlyRoom(null)}
+      />
     </SidebarLayout>
   );
 };

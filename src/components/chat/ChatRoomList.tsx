@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Clock, AlertTriangle, Flame } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MessageSquare, Clock, AlertTriangle, Flame, Search } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ChatRoom {
@@ -49,24 +51,81 @@ function durationLabel(startedAt: string): string {
   return m > 0 ? `${h}h${m}min` : `${h}h`;
 }
 
+function RoomItem({
+  room,
+  selectedRoomId,
+  onSelectRoom,
+}: {
+  room: ChatRoom;
+  selectedRoomId: string | null;
+  onSelectRoom: (id: string) => void;
+}) {
+  const unread = room.unread_count ?? 0;
+  const isHighPriority = room.priority === "high" || room.priority === "urgent";
+
+  return (
+    <button
+      key={room.id}
+      onClick={() => onSelectRoom(room.id)}
+      className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
+        selectedRoomId === room.id
+          ? "bg-primary/10 border border-primary/20"
+          : unread > 0
+            ? "bg-accent/50 hover:bg-accent/70"
+            : "hover:bg-muted/50"
+      } ${isHighPriority ? "border-l-2 border-l-destructive" : ""}`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          {isHighPriority && (
+            room.priority === "urgent"
+              ? <Flame className="h-3 w-3 text-destructive shrink-0" />
+              : <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
+          )}
+          <span className={`font-medium text-xs flex-1 min-w-0 truncate ${unread > 0 ? "font-bold" : ""}`}>
+            {room.visitor_name || `#${room.id.slice(0, 8)}`}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {unread > 0 && (
+            <span className="bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
+          <Badge variant={room.status === "active" ? "default" : room.status === "waiting" ? "secondary" : "outline"} className="text-[10px] gap-1 shrink-0">
+            {room.status === "waiting" && (
+              <span className={`h-1.5 w-1.5 rounded-full ${getWaitingSlaColor(room.created_at)}`} />
+            )}
+            {room.status === "waiting" ? <Clock className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
+            {room.status}
+          </Badge>
+        </div>
+      </div>
+      {room.last_message && (
+        <p className={`text-xs text-muted-foreground truncate ${unread > 0 ? "font-medium text-foreground" : ""}`}>
+          {room.last_message_sender_type && room.last_message_sender_type !== "visitor"
+            ? "Você: "
+            : ""}
+          {room.last_message.slice(0, 60)}{room.last_message.length > 60 ? "..." : ""}
+        </p>
+      )}
+      <div className="flex items-center justify-between mt-1">
+        <p className="text-[10px] text-muted-foreground">
+          {room.last_message_at ? timeAgo(room.last_message_at) : timeAgo(room.created_at)}
+        </p>
+        {room.status === "active" && room.started_at && (
+          <p className="text-[10px] text-muted-foreground">
+            ⏱ {durationLabel(room.started_at)}
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: ChatRoomListProps) {
   const { t } = useLanguage();
-
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "active": return "default";
-      case "waiting": return "secondary";
-      case "closed": return "outline";
-      default: return "secondary";
-    }
-  };
-
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case "waiting": return <Clock className="h-3 w-3" />;
-      default: return <MessageSquare className="h-3 w-3" />;
-    }
-  };
+  const [search, setSearch] = useState("");
 
   if (loading) {
     return (
@@ -76,80 +135,57 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
     );
   }
 
+  const filtered = search
+    ? rooms.filter((r) => (r.visitor_name ?? "").toLowerCase().includes(search.toLowerCase()))
+    : rooms;
+
+  const waitingRooms = filtered.filter((r) => r.status === "waiting");
+  const activeRooms = filtered.filter((r) => r.status === "active");
+
   return (
     <div className="glass-card h-full flex flex-col">
-      <div className="p-3 border-b border-border">
-        <h3 className="font-semibold text-sm">{t("chat.workspace.conversations")}</h3>
-        <p className="text-xs text-muted-foreground">{rooms.length} {t("chat.workspace.total")}</p>
+      <div className="p-3 border-b border-border space-y-2">
+        <div>
+          <h3 className="font-semibold text-sm">{t("chat.workspace.conversations")}</h3>
+          <p className="text-xs text-muted-foreground">{rooms.length} {t("chat.workspace.total")}</p>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar conversa..."
+            className="h-8 text-xs pl-8"
+          />
+        </div>
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
-          {rooms.length === 0 ? (
+          {filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t("chat.workspace.no_conversations")}</p>
           ) : (
-            rooms.map((room) => {
-              const unread = room.unread_count ?? 0;
-              const isHighPriority = room.priority === "high" || room.priority === "urgent";
-
-              return (
-                <button
-                  key={room.id}
-                  onClick={() => onSelectRoom(room.id)}
-                  className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
-                    selectedRoomId === room.id
-                      ? "bg-primary/10 border border-primary/20"
-                      : unread > 0
-                        ? "bg-accent/50 hover:bg-accent/70"
-                        : "hover:bg-muted/50"
-                  } ${isHighPriority ? "border-l-2 border-l-destructive" : ""}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      {isHighPriority && (
-                        room.priority === "urgent"
-                          ? <Flame className="h-3 w-3 text-destructive shrink-0" />
-                          : <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
-                      )}
-                      <span className={`font-medium text-xs flex-1 min-w-0 truncate ${unread > 0 ? "font-bold" : ""}`}>
-                        {room.visitor_name || `#${room.id.slice(0, 8)}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {unread > 0 && (
-                        <span className="bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
-                          {unread > 99 ? "99+" : unread}
-                        </span>
-                      )}
-                      <Badge variant={statusColor(room.status)} className="text-[10px] gap-1 shrink-0">
-                        {room.status === "waiting" && (
-                          <span className={`h-1.5 w-1.5 rounded-full ${getWaitingSlaColor(room.created_at)}`} />
-                        )}
-                        {statusIcon(room.status)}
-                        {room.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  {room.last_message && (
-                    <p className={`text-xs text-muted-foreground truncate ${unread > 0 ? "font-medium text-foreground" : ""}`}>
-                      {room.last_message_sender_type && room.last_message_sender_type !== "visitor"
-                        ? "Você: "
-                        : ""}
-                      {room.last_message.slice(0, 60)}{room.last_message.length > 60 ? "..." : ""}
-                    </p>
-                  )}
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-[10px] text-muted-foreground">
-                      {room.last_message_at ? timeAgo(room.last_message_at) : timeAgo(room.created_at)}
-                    </p>
-                    {room.status === "active" && room.started_at && (
-                      <p className="text-[10px] text-muted-foreground">
-                        ⏱ {durationLabel(room.started_at)}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })
+            <>
+              {waitingRooms.length > 0 && (
+                <>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground px-3 py-1">
+                    Na Fila ({waitingRooms.length})
+                  </p>
+                  {waitingRooms.map((room) => (
+                    <RoomItem key={room.id} room={room} selectedRoomId={selectedRoomId} onSelectRoom={onSelectRoom} />
+                  ))}
+                </>
+              )}
+              {activeRooms.length > 0 && (
+                <>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground px-3 py-1 mt-2">
+                    Ativas ({activeRooms.length})
+                  </p>
+                  {activeRooms.map((room) => (
+                    <RoomItem key={room.id} room={room} selectedRoomId={selectedRoomId} onSelectRoom={onSelectRoom} />
+                  ))}
+                </>
+              )}
+            </>
           )}
         </div>
       </ScrollArea>
