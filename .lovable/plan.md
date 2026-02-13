@@ -1,97 +1,86 @@
 
 
-# Simplificar Landing Page - Tom "Em Breve" + Inscricao para Atualizacoes
+# Tornar a Landing Page mais dinamica com imagem de apoio
 
 ## Objetivo
 
-Transformar a landing page atual (6 secoes) em uma pagina minimalista com tom de "coming soon" / early access, focada em captar inscritos que querem ser os primeiros a receber novidades sobre Chat in-app e NPS.
+Adicionar dinamismo visual a landing page mantendo o tom "Early Access / Em Breve", com animacoes de entrada (fade-in + slide-up), uma imagem ilustrativa de apoio (dashboard mockup) e elementos visuais animados (pulso nos badges, gradiente animado no fundo).
 
-## O que muda
+## Mudancas
 
-### Secoes removidas
-- **Features** (grid de 4 cards) - removida
-- **Como Funciona** (3 passos) - removida
-- **Social Proof** (metricas) - removida
-- **CTA Final** (botao scroll) - removida
+### 1. Animacoes CSS (`src/index.css`)
 
-### Secoes que ficam (3 no total)
-1. **Navbar** - simplificado (logo + botao Entrar, sem links de ancora)
-2. **Hero** - reescrito com tom "em breve", badges de "Coming Soon" para Chat e NPS, formulario simplificado (apenas nome, email, empresa)
-3. **Footer** - mantido como esta
+Adicionar keyframes e classes utilitarias:
+- `animate-fade-in-up` - elementos surgem de baixo com fade (hero text, badges, form)
+- `animate-pulse-soft` - pulso suave nos badges "Em breve"
+- `animate-float` - flutuacao sutil na imagem de apoio
+- Delays escalonados para os elementos do hero (stagger effect)
 
-### Mudanca de tom
+### 2. Imagem de apoio (`src/pages/LandingPage.tsx`)
 
-| Antes | Depois |
-|-------|--------|
-| "Transforme a experiencia do seu cliente" | "Algo novo esta chegando" |
-| "Solicitar Demonstracao" | "Quero ser o primeiro a saber" |
-| Grid de features completas | Badges "Em breve" com icones de Chat e NPS |
-| Formulario com 5 campos | Formulario com 3 campos (nome, email, empresa) |
+No lado esquerdo do hero (texto), adicionar abaixo dos badges "Em breve" uma imagem ilustrativa que simula um dashboard/interface do produto:
+- Usar uma imagem SVG inline ou um mockup estilizado com divs que representam um painel com graficos e metricas (sem dependencia externa)
+- Alternativa: um "browser frame" estilizado com CSS mostrando uma interface mockada do Journey CS
+- A imagem tera animacao `float` para dar vida
 
-### Formulario simplificado
-- Remove campos **telefone** e **cargo** (opcionais que adicionam atrito)
-- Mantém nome, email e empresa (obrigatorios)
-- CTA: "Inscrever-se" / "Quero receber atualizacoes"
-- Tracking UTM continua funcionando normalmente
+**Abordagem escolhida**: Criar um componente visual inline que simula uma janela de navegador com um mini-dashboard dentro (barras de graficos, cards de metricas), tudo em CSS/Tailwind. Isso evita dependencias externas e fica alinhado com o design system.
 
-## Mudancas tecnicas
+### 3. Layout reestruturado
 
-### Arquivo 1: `src/pages/LandingPage.tsx`
-- Remover secoes Features, How it Works, Social Proof, CTA
-- Remover links de ancora do navbar (nao ha mais secoes para navegar)
-- Reescrever Hero com tom "em breve"
-- Adicionar badges visuais "Em breve" para Chat in-app e NPS
-- Simplificar formulario para 3 campos
-- Remover imports nao utilizados (Users, Clock, TrendingUp, Route, BarChart3)
-
-### Arquivo 2: `src/locales/pt-BR.ts`
-- Atualizar chaves de traducao:
-  - `landing.hero.title`: "Algo novo esta chegando"
-  - `landing.hero.subtitle`: "Uma plataforma completa de Customer Success com NPS inteligente e chat in-app. Inscreva-se para ser o primeiro a saber."
-  - `landing.form.title`: "Seja o primeiro a saber"
-  - `landing.form.submit`: "Quero receber atualizacoes"
-  - `landing.form.success`: "Inscricao confirmada!"
-  - `landing.form.successDesc`: "Voce sera o primeiro a receber novidades."
-  - Novas chaves: `landing.comingSoon` ("Em breve"), `landing.hero.badge` ("Early Access")
-
-### Arquivo 3: `src/locales/en.ts`
-- Equivalentes em ingles para as chaves acima
-
-### Nenhuma mudanca no banco
-- A tabela `leads` continua igual (campos phone e role sao nullable, entao o formulario simplificado envia null para eles)
-- RLS e tracking UTM inalterados
-
-## Layout final da LP
-
-```text
-+-----------------------------------------------+
-| [Zap] Journey CS              [Entrar]        |
-+-----------------------------------------------+
-|                                                |
-|   [Early Access]                               |
-|   Algo novo esta chegando                      |
-|   Uma plataforma completa de CS...             |
-|                                                |
-|   [NPS - Em breve] [Chat - Em breve]           |
-|                                                |
-|   +-----------------------------------+        |
-|   | Seja o primeiro a saber           |        |
-|   | [Nome]                            |        |
-|   | [Email]                           |        |
-|   | [Empresa]                         |        |
-|   | [Quero receber atualizacoes ->]   |        |
-|   +-----------------------------------+        |
-|                                                |
-+-----------------------------------------------+
-| [Zap] Journey CS    (c) 2026 Todos os direitos|
-+-----------------------------------------------+
 ```
+Desktop (lg:grid-cols-2):
++--------------------------------+---------------------------+
+| [Early Access badge]           |                           |
+| Titulo animado                 |  +---------------------+  |
+| Subtitulo animado              |  | [Browser frame]     |  |
+|                                |  | Mini dashboard mock |  |
+| [NPS - Em breve] [Chat]       |  | com graficos e KPIs |  |
+|   (badges com pulso)           |  +---------------------+  |
+|                                |     (animacao float)      |
+| +------------------------+    |                           |
+| | Formulario de lead     |    |                           |
+| | Nome / Email / Empresa |    |                           |
+| | [CTA button]           |    |                           |
+| +------------------------+    |                           |
++--------------------------------+---------------------------+
+
+Mobile:
+Texto -> Imagem -> Formulario (empilhados)
+```
+
+### 4. Elementos dinamicos adicionados
+
+| Elemento | Animacao | Descricao |
+|----------|----------|-----------|
+| Badge "Early Access" | fade-in-up (delay 0ms) | Surge primeiro |
+| Titulo h1 | fade-in-up (delay 100ms) | Surge em seguida |
+| Subtitulo | fade-in-up (delay 200ms) | Efeito cascata |
+| Badges "Em breve" | fade-in-up (delay 300ms) + pulse-soft | Chamam atencao com pulso |
+| Imagem mockup | fade-in-up (delay 400ms) + float | Flutuacao constante |
+| Card formulario | fade-in-up (delay 500ms) | Ultimo a surgir |
+| Fundo gradient | animacao de cor suave | Gradiente que se movimenta lentamente |
+
+### 5. Mockup visual do dashboard (componente inline)
+
+Um "browser frame" estilizado contendo:
+- Barra de titulo com 3 bolinhas (vermelho, amarelo, verde)
+- Mini sidebar com itens
+- Area principal com:
+  - 3 mini cards de KPI (NPS Score, Clientes Ativos, CSAT)
+  - Mini grafico de barras estilizado em CSS
+- Tudo em cores do design system (primary green, muted, border)
+- Sombra e rounded para parecer uma janela real
 
 ## Arquivos modificados
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `src/pages/LandingPage.tsx` | Simplificar para hero + form + footer |
-| 2 | `src/locales/pt-BR.ts` | Atualizar textos para tom "em breve" |
-| 3 | `src/locales/en.ts` | Equivalentes em ingles |
+| 1 | `src/pages/LandingPage.tsx` | Adicionar mockup visual, animacoes via classes, reestruturar layout |
+| 2 | `src/index.css` | Adicionar keyframes e classes de animacao |
 
+## O que NAO muda
+- Logica do formulario e tracking UTM
+- Traducoes (chaves i18n permanecem as mesmas)
+- Banco de dados e RLS
+- Tom "Early Access / Em breve"
+- Estrutura de 3 secoes (navbar, hero, footer)
