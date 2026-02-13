@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import DashboardMockup from "@/components/DashboardMockup";
 import {
   Zap,
   MessageSquare,
@@ -133,97 +134,102 @@ const LandingPage = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: messaging */}
+            {/* Left: messaging + form */}
             <div className="space-y-6">
-              <Badge variant="secondary" className="text-sm px-3 py-1">
+              <Badge variant="secondary" className="text-sm px-3 py-1 animate-fade-in-up delay-0">
                 {t("landing.hero.badge")}
               </Badge>
 
-              <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+              <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight animate-fade-in-up delay-100">
                 {t("landing.hero.title")}
               </h1>
 
-              <p className="text-lg text-muted-foreground leading-relaxed max-w-lg">
+              <p className="text-lg text-muted-foreground leading-relaxed max-w-lg animate-fade-in-up delay-200">
                 {t("landing.hero.subtitle")}
               </p>
 
               {/* Coming soon badges */}
-              <div className="flex flex-wrap gap-3 pt-2">
+              <div className="flex flex-wrap gap-3 pt-2 animate-fade-in-up delay-300">
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
                   <Target className="h-5 w-5 text-primary" />
                   <span className="text-sm font-medium text-foreground">NPS</span>
-                  <Badge variant="outline" className="text-xs ml-1">
+                  <Badge variant="outline" className="text-xs ml-1 animate-pulse-soft">
                     {t("landing.comingSoon")}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
                   <MessageSquare className="h-5 w-5 text-primary" />
                   <span className="text-sm font-medium text-foreground">Chat in-app</span>
-                  <Badge variant="outline" className="text-xs ml-1">
+                  <Badge variant="outline" className="text-xs ml-1 animate-pulse-soft">
                     {t("landing.comingSoon")}
                   </Badge>
                 </div>
               </div>
+
+              {/* Form */}
+              <Card className="p-6 shadow-lg border-border/50 animate-fade-in-up delay-500">
+                {submitted ? (
+                  <div className="text-center py-8">
+                    <CheckCircle2 className="h-12 w-12 text-primary mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">{t("landing.form.success")}</h3>
+                    <p className="text-muted-foreground text-sm">{t("landing.form.successDesc")}</p>
+                    <Button variant="outline" className="mt-4" onClick={() => setSubmitted(false)}>
+                      {t("landing.form.submit")}
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <h3 className="text-lg font-semibold">{t("landing.form.title")}</h3>
+                    <div>
+                      <Input
+                        placeholder={t("landing.form.name")}
+                        value={form.name}
+                        onChange={(e) => handleChange("name", e.target.value)}
+                        required
+                      />
+                      {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
+                    </div>
+                    <div>
+                      <Input
+                        type="email"
+                        placeholder={t("landing.form.email")}
+                        value={form.email}
+                        onChange={(e) => handleChange("email", e.target.value)}
+                        required
+                      />
+                      {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
+                    </div>
+                    <div>
+                      <Input
+                        placeholder={t("landing.form.company")}
+                        value={form.company}
+                        onChange={(e) => handleChange("company", e.target.value)}
+                        required
+                      />
+                      {errors.company && <p className="text-destructive text-xs mt-1">{errors.company}</p>}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t("landing.form.submitting")}
+                        </>
+                      ) : (
+                        <>
+                          {t("landing.form.submit")}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </Card>
             </div>
 
-            {/* Right: form */}
-            <Card className="p-6 shadow-lg border-border/50">
-              {submitted ? (
-                <div className="text-center py-8">
-                  <CheckCircle2 className="h-12 w-12 text-primary mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">{t("landing.form.success")}</h3>
-                  <p className="text-muted-foreground text-sm">{t("landing.form.successDesc")}</p>
-                  <Button variant="outline" className="mt-4" onClick={() => setSubmitted(false)}>
-                    {t("landing.form.submit")}
-                  </Button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <h3 className="text-lg font-semibold">{t("landing.form.title")}</h3>
-                  <div>
-                    <Input
-                      placeholder={t("landing.form.name")}
-                      value={form.name}
-                      onChange={(e) => handleChange("name", e.target.value)}
-                      required
-                    />
-                    {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
-                  </div>
-                  <div>
-                    <Input
-                      type="email"
-                      placeholder={t("landing.form.email")}
-                      value={form.email}
-                      onChange={(e) => handleChange("email", e.target.value)}
-                      required
-                    />
-                    {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
-                  </div>
-                  <div>
-                    <Input
-                      placeholder={t("landing.form.company")}
-                      value={form.company}
-                      onChange={(e) => handleChange("company", e.target.value)}
-                      required
-                    />
-                    {errors.company && <p className="text-destructive text-xs mt-1">{errors.company}</p>}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t("landing.form.submitting")}
-                      </>
-                    ) : (
-                      <>
-                        {t("landing.form.submit")}
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
-                </form>
-              )}
-            </Card>
+            {/* Right: Dashboard mockup */}
+            <div className="hidden lg:block">
+              <DashboardMockup />
+            </div>
           </div>
         </div>
       </section>
