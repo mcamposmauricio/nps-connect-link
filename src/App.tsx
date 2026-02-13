@@ -4,6 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Auth from "./pages/Auth";
+import LandingPage from "./pages/LandingPage";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Campaigns from "./pages/Campaigns";
@@ -47,8 +50,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* CS Dashboard is the new homepage */}
-          <Route path="/" element={<Navigate to="/cs-dashboard" replace />} />
+          {/* Public Landing Page */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/cs-dashboard" element={<CSDashboard />} />
           <Route path="/cs-trails" element={<CSTrailsPage />} />
           <Route path="/cs-health" element={<CSHealthPage />} />
@@ -89,6 +92,8 @@ const App = () => (
           
           {/* Auth & NPS Response */}
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
           <Route path="/nps/:token" element={<NPSResponse />} />
           
           {/* Embedded NPS Widget */}
