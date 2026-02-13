@@ -308,6 +308,23 @@ const Auth = () => {
             {t("auth.login")}
           </Button>
         </form>
+
+        <div className="mt-4 text-center space-y-2">
+          <button
+            type="button"
+            onClick={() => navigate("/auth/forgot-password")}
+            className="text-sm text-primary hover:underline block w-full"
+          >
+            {t("auth.forgotPassword")}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="text-sm text-muted-foreground hover:text-foreground block w-full"
+          >
+            {t("auth.discoverJourney")}
+          </button>
+        </div>
       </Card>
     </div>
   );

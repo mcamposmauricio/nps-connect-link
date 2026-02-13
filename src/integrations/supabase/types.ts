@@ -1274,6 +1274,69 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          company: string
+          created_at: string | null
+          email: string
+          id: string
+          landing_page: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          referrer: string | null
+          role: string | null
+          status: string | null
+          updated_at: string | null
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          company: string
+          created_at?: string | null
+          email: string
+          id?: string
+          landing_page?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          referrer?: string | null
+          role?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          company?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          landing_page?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          referrer?: string | null
+          role?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: []
+      }
       responses: {
         Row: {
           campaign_id: string
