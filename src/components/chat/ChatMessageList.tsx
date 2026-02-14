@@ -33,6 +33,37 @@ function getDayLabel(dateStr: string): string {
   return format(date, "dd/MM/yyyy", { locale: ptBR });
 }
 
+// Detect URLs and render them as clickable links
+function renderTextWithLinks(text: string, isOwn: boolean) {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  if (parts.length === 1) return <span>{text}</span>;
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (urlRegex.test(part)) {
+          // Reset lastIndex since we reuse the regex
+          urlRegex.lastIndex = 0;
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`underline break-all ${isOwn ? "text-primary-foreground/90 hover:text-primary-foreground" : "text-primary hover:text-primary/80"}`}
+            >
+              {part}
+            </a>
+          );
+        }
+        urlRegex.lastIndex = 0;
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function ChatMessageList({ messages, loading, onReply }: ChatMessageListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -82,11 +113,13 @@ export function ChatMessageList({ messages, loading, onReply }: ChatMessageListP
             quoteLines.push(lines[i].slice(2));
             i++;
           }
-          // Skip empty line after quote
           if (i < lines.length && lines[i].trim() === "") i++;
           quoteText = quoteLines.join("\n");
           mainContent = lines.slice(i).join("\n");
         }
+
+        // For file messages, check if there's actual text content beyond the file name
+        const hasTextWithFile = isFile && mainContent.trim() && mainContent.trim() !== msg.metadata?.file_name;
 
         return (
           <div key={msg.id}>
@@ -131,12 +164,17 @@ export function ChatMessageList({ messages, loading, onReply }: ChatMessageListP
                 )}
 
                 {isFile ? (
-                  <FileMessage
-                    metadata={msg.metadata as { file_url: string; file_name: string; file_type: string; file_size?: number }}
-                    isOwn={isOwn}
-                  />
+                  <>
+                    <FileMessage
+                      metadata={msg.metadata as { file_url: string; file_name: string; file_type: string; file_size?: number }}
+                      isOwn={isOwn}
+                    />
+                    {hasTextWithFile && (
+                      <p className="whitespace-pre-wrap mt-2">{renderTextWithLinks(hasQuote ? mainContent : mainContent, isOwn)}</p>
+                    )}
+                  </>
                 ) : (
-                  <p className="whitespace-pre-wrap">{hasQuote ? mainContent : msg.content}</p>
+                  <p className="whitespace-pre-wrap">{renderTextWithLinks(hasQuote ? mainContent : msg.content, isOwn)}</p>
                 )}
 
                 <p className="text-[10px] opacity-50 mt-1 text-right">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,10 +11,12 @@ import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { VisitorInfoPanel } from "@/components/chat/VisitorInfoPanel";
 import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
+import { ReassignDialog } from "@/components/chat/ReassignDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X } from "lucide-react";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type MobileView = "list" | "chat" | "info";
@@ -35,6 +37,8 @@ function durationLabel(startedAt: string): string {
 
 const AdminWorkspace = () => {
   const { roomId: paramRoomId } = useParams();
+  const [searchParams] = useSearchParams();
+  const viewingAttendantId = searchParams.get("attendant");
   const { t } = useLanguage();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -46,15 +50,39 @@ const AdminWorkspace = () => {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closingRoomId, setClosingRoomId] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [userAttendantId, setUserAttendantId] = useState<string | null>(null);
+
+  // Get the current user's attendant profile id
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("attendant_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setUserAttendantId(data.id);
+      });
+  }, [user]);
 
   useEffect(() => {
     if (paramRoomId) setSelectedRoomId(paramRoomId);
   }, [paramRoomId]);
 
-  // Keep the ref in sync
   useEffect(() => {
     setSelectedRoomRef(selectedRoomId);
   }, [selectedRoomId, setSelectedRoomRef]);
+
+  // Filter rooms based on viewing context
+  const filteredRooms = viewingAttendantId
+    ? rooms.filter((r) => r.attendant_id === viewingAttendantId)
+    : rooms.filter((r) => {
+        // Show unassigned + own chats (not assigned to other attendants)
+        if (r.status === "waiting") return !r.attendant_id;
+        if (!r.attendant_id) return true;
+        return r.attendant_id === userAttendantId;
+      });
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
 
@@ -87,44 +115,20 @@ const AdminWorkspace = () => {
         .single();
 
       if (createError) {
-        const { data: csm } = await supabase
-          .from("csms")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        const { data: csm } = await supabase.from("csms").select("id").eq("user_id", user.id).maybeSingle();
         let csmId = csm?.id;
         if (!csmId) {
           const { data: newCsm } = await supabase
             .from("csms")
-            .insert({
-              user_id: user.id,
-              name: user.email?.split("@")[0] ?? "Admin",
-              email: user.email ?? "",
-              is_chat_enabled: true,
-            })
+            .insert({ user_id: user.id, name: user.email?.split("@")[0] ?? "Admin", email: user.email ?? "", is_chat_enabled: true })
             .select("id")
             .single();
           csmId = newCsm?.id;
         }
-
-        if (!csmId) {
-          toast.error("Não foi possível criar perfil de atendente");
-          return;
-        }
-
-        const { data: retryProfile } = await supabase
-          .from("attendant_profiles")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        if (!csmId) { toast.error("Não foi possível criar perfil de atendente"); return; }
+        const { data: retryProfile } = await supabase.from("attendant_profiles").select("id").eq("user_id", user.id).maybeSingle();
         profile = retryProfile;
-
-        if (!profile) {
-          toast.error("Não foi possível atribuir a conversa. Verifique seu perfil de atendente.");
-          return;
-        }
+        if (!profile) { toast.error("Não foi possível atribuir a conversa."); return; }
       } else {
         profile = newProfile;
       }
@@ -132,18 +136,11 @@ const AdminWorkspace = () => {
 
     const { error } = await supabase
       .from("chat_rooms")
-      .update({
-        attendant_id: profile.id,
-        status: "active",
-        assigned_at: new Date().toISOString(),
-      })
+      .update({ attendant_id: profile.id, status: "active", assigned_at: new Date().toISOString() })
       .eq("id", roomId);
 
-    if (error) {
-      toast.error("Erro ao atribuir conversa");
-    } else {
-      toast.success("Conversa atribuída com sucesso!");
-    }
+    if (error) toast.error("Erro ao atribuir conversa");
+    else toast.success("Conversa atribuída com sucesso!");
   };
 
   const handleRequestClose = (roomId: string) => {
@@ -153,29 +150,29 @@ const AdminWorkspace = () => {
 
   const handleConfirmClose = async (resolutionStatus: "resolved" | "pending", note?: string) => {
     if (!closingRoomId || !user) return;
-
     if (note) {
       await supabase.from("chat_messages").insert({
-        room_id: closingRoomId,
-        sender_type: "attendant",
-        sender_id: user.id,
-        sender_name: user.email?.split("@")[0] ?? "Atendente",
-        content: `[Encerramento] ${note}`,
-        is_internal: true,
+        room_id: closingRoomId, sender_type: "attendant", sender_id: user.id,
+        sender_name: user.email?.split("@")[0] ?? "Atendente", content: `[Encerramento] ${note}`, is_internal: true,
       });
     }
-
-    await supabase
-      .from("chat_rooms")
-      .update({
-        status: "closed",
-        resolution_status: resolutionStatus,
-        closed_at: new Date().toISOString(),
-      })
-      .eq("id", closingRoomId);
-
+    await supabase.from("chat_rooms").update({
+      status: "closed", resolution_status: resolutionStatus, closed_at: new Date().toISOString(),
+    }).eq("id", closingRoomId);
     setClosingRoomId(null);
     toast.success(resolutionStatus === "resolved" ? "Conversa encerrada como resolvida" : "Conversa encerrada com pendência");
+  };
+
+  const handleReassign = async (attendantId: string, attendantName: string) => {
+    if (!selectedRoomId || !user) return;
+    await supabase.from("chat_rooms").update({
+      attendant_id: attendantId, assigned_at: new Date().toISOString(),
+    }).eq("id", selectedRoomId);
+    await supabase.from("chat_messages").insert({
+      room_id: selectedRoomId, sender_type: "system", sender_name: "Sistema",
+      content: `[Sistema] Chat transferido para ${attendantName}`, is_internal: true,
+    });
+    toast.success(`Conversa transferida para ${attendantName}`);
   };
 
   const handleReply = useCallback((msg: { id: string; content: string; sender_name: string | null }) => {
@@ -188,32 +185,21 @@ const AdminWorkspace = () => {
     metadata?: { file_url: string; file_name: string; file_type: string; file_size: number }
   ) => {
     if (!selectedRoomId || !user) return;
-
     let finalContent = content;
     if (replyTarget && !isInternal) {
       const quotedLines = replyTarget.content.split("\n").map((l) => `> ${l}`).join("\n");
       finalContent = `${quotedLines}\n\n${content}`;
     }
-
     await supabase.from("chat_messages").insert({
-      room_id: selectedRoomId,
-      sender_type: "attendant",
-      sender_id: user.id,
-      sender_name: user.email?.split("@")[0] ?? "Atendente",
-      content: finalContent,
-      is_internal: isInternal,
-      ...(metadata
-        ? { message_type: "file", metadata: metadata as any }
-        : {}),
+      room_id: selectedRoomId, sender_type: "attendant", sender_id: user.id,
+      sender_name: user.email?.split("@")[0] ?? "Atendente", content: finalContent, is_internal: isInternal,
+      ...(metadata ? { message_type: "file", metadata: metadata as any } : {}),
     });
-
     setReplyTarget(null);
   };
 
-  // Message count for header
   const msgCount = messages.length;
 
-  // Duration timer in header
   const renderDuration = (room: typeof selectedRoom) => {
     if (!room || !room.started_at || room.status !== "active") return null;
     return (
@@ -246,14 +232,8 @@ const AdminWorkspace = () => {
       <SidebarLayout>
         <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
           {mobileView === "list" && (
-            <ChatRoomList
-              rooms={rooms}
-              selectedRoomId={selectedRoomId}
-              onSelectRoom={handleSelectRoom}
-              loading={roomsLoading}
-            />
+            <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
           )}
-
           {mobileView === "chat" && selectedRoom && (
             <Card className="flex-1 flex flex-col rounded-none border-0 overflow-hidden">
               <div className="p-3 flex items-center justify-between border-b">
@@ -268,160 +248,137 @@ const AdminWorkspace = () => {
                     selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
                     selectedRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
                     "bg-muted text-muted-foreground"
-                  }`}>
-                    {selectedRoom.status}
-                  </span>
+                  }`}>{selectedRoom.status}</span>
                   {renderDuration(selectedRoom)}
-                  <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
                 </div>
                 <div className="flex gap-1">
                   <Sheet>
                     <SheetTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8">
-                        <Info className="h-4 w-4" />
-                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8"><Info className="h-4 w-4" /></Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="w-[85vw] p-0">
-                      <VisitorInfoPanel
-                        roomId={selectedRoom.id}
-                        visitorId={selectedRoom.visitor_id}
-                        contactId={selectedRoom.contact_id}
-                        companyContactId={selectedRoom.company_contact_id}
-                      />
+                      <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} contactId={selectedRoom.contact_id} companyContactId={selectedRoom.company_contact_id} />
                     </SheetContent>
                   </Sheet>
+                  {selectedRoom.status === "active" && (
+                    <>
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setReassignOpen(true)}>
+                        <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={() => handleRequestClose(selectedRoom.id)}>
+                        {t("chat.workspace.close")}
+                      </Button>
+                    </>
+                  )}
                   {selectedRoom.status === "waiting" && (
                     <Button size="sm" className="h-8 text-xs" onClick={() => handleAssignRoom(selectedRoom.id)}>
                       {t("chat.workspace.assign")}
                     </Button>
                   )}
-                  {selectedRoom.status === "active" && (
-                    <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={() => handleRequestClose(selectedRoom.id)}>
-                      {t("chat.workspace.close")}
-                    </Button>
-                  )}
                 </div>
               </div>
-
               <div className="flex-1 overflow-auto">
                 <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
               </div>
-
               {selectedRoom.status !== "closed" && (
-                <>
-                  {renderReplyBanner()}
-                  <ChatInput onSend={handleSendMessage} />
-                </>
+                <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} /></>
               )}
             </Card>
           )}
         </div>
-
-        <CloseRoomDialog
-          open={closeDialogOpen}
-          onOpenChange={setCloseDialogOpen}
-          onConfirm={handleConfirmClose}
-        />
+        <CloseRoomDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen} onConfirm={handleConfirmClose} />
+        <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={selectedRoom?.attendant_id ?? null} onConfirm={handleReassign} />
       </SidebarLayout>
     );
   }
 
-  // Desktop layout
+  // Desktop layout with resizable panels
   return (
     <SidebarLayout>
-      <div className="-m-6 h-[calc(100vh-3.5rem)] flex gap-3 p-3 bg-transparent">
-        {/* Left: Room list */}
-        <div className="w-72 xl:w-80 shrink-0">
-          <ChatRoomList
-            rooms={rooms}
-            selectedRoomId={selectedRoomId}
-            onSelectRoom={handleSelectRoom}
-            loading={roomsLoading}
-          />
-        </div>
-
-        {/* Center: Chat area */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          {selectedRoom ? (
-            <Card className="flex-1 flex flex-col rounded-lg border bg-card shadow-sm overflow-hidden">
-              <div className="p-3 flex items-center justify-between border-b">
-                <div className="flex items-center gap-2 min-w-0">
-                  <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-medium text-sm truncate">
-                    {selectedRoom.visitor_name || `${t("chat.workspace.room")} #${selectedRoom.id.slice(0, 8)}`}
-                  </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                    selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
-                    selectedRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
-                    "bg-muted text-muted-foreground"
-                  }`}>
-                    {selectedRoom.status}
-                  </span>
-                  {renderDuration(selectedRoom)}
-                  <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  {selectedRoom.status === "waiting" && (
-                    <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>
-                      {t("chat.workspace.assign")}
-                    </Button>
-                  )}
-                  {selectedRoom.status === "active" && (
-                    <Button size="sm" variant="destructive" onClick={() => handleRequestClose(selectedRoom.id)}>
-                      {t("chat.workspace.close")}
-                    </Button>
-                  )}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => setInfoPanelOpen(!infoPanelOpen)}
-                    title={infoPanelOpen ? "Esconder painel" : "Mostrar painel"}
-                  >
-                    {infoPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
-              </div>
-
-              {selectedRoom.status !== "closed" && (
-                <>
-                  {renderReplyBanner()}
-                  <ChatInput onSend={handleSendMessage} />
-                </>
-              )}
-            </Card>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center space-y-2">
-                <MessageSquare className="h-12 w-12 mx-auto opacity-30" />
-                <p>{t("chat.workspace.select_room")}</p>
-              </div>
+      <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Left: Room list */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+            <div className="h-full p-1.5 pl-3 pt-3 pb-3">
+              <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
             </div>
-          )}
-        </div>
+          </ResizablePanel>
 
-        {/* Right: Visitor info */}
-        {selectedRoom && infoPanelOpen && (
-          <div className="w-80 xl:w-96 shrink-0">
-            <VisitorInfoPanel
-              roomId={selectedRoom.id}
-              visitorId={selectedRoom.visitor_id}
-              contactId={selectedRoom.contact_id}
-              companyContactId={selectedRoom.company_contact_id}
-            />
-          </div>
-        )}
+          <ResizableHandle withHandle />
+
+          {/* Center: Chat area */}
+          <ResizablePanel defaultSize={infoPanelOpen ? 50 : 80} minSize={30}>
+            <div className="h-full p-1.5 pt-3 pb-3">
+              {selectedRoom ? (
+                <Card className="h-full flex flex-col rounded-lg border bg-card shadow-sm overflow-hidden">
+                  <div className="p-3 flex items-center justify-between border-b">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MessageSquare className="h-4 w-4 text-primary shrink-0" />
+                      <span className="font-medium text-sm truncate">
+                        {selectedRoom.visitor_name || `${t("chat.workspace.room")} #${selectedRoom.id.slice(0, 8)}`}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                        selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
+                        selectedRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
+                        "bg-muted text-muted-foreground"
+                      }`}>{selectedRoom.status}</span>
+                      {renderDuration(selectedRoom)}
+                      <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {selectedRoom.status === "waiting" && (
+                        <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>{t("chat.workspace.assign")}</Button>
+                      )}
+                      {selectedRoom.status === "active" && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
+                            <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleRequestClose(selectedRoom.id)}>
+                            {t("chat.workspace.close")}
+                          </Button>
+                        </>
+                      )}
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setInfoPanelOpen(!infoPanelOpen)}
+                        title={infoPanelOpen ? "Esconder painel" : "Mostrar painel"}>
+                        {infoPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
+                  </div>
+                  {selectedRoom.status !== "closed" && (
+                    <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} /></>
+                  )}
+                </Card>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  <div className="text-center space-y-2">
+                    <MessageSquare className="h-12 w-12 mx-auto opacity-30" />
+                    <p>{t("chat.workspace.select_room")}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </ResizablePanel>
+
+          {/* Right: Visitor info */}
+          {selectedRoom && infoPanelOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+                <div className="h-full p-1.5 pr-3 pt-3 pb-3">
+                  <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} contactId={selectedRoom.contact_id} companyContactId={selectedRoom.company_contact_id} />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
 
-      <CloseRoomDialog
-        open={closeDialogOpen}
-        onOpenChange={setCloseDialogOpen}
-        onConfirm={handleConfirmClose}
-      />
+      <CloseRoomDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen} onConfirm={handleConfirmClose} />
+      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={selectedRoom?.attendant_id ?? null} onConfirm={handleReassign} />
     </SidebarLayout>
   );
 };
