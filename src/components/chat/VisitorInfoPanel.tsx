@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity } from "lucide-react";
+import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -86,6 +87,7 @@ function getNpsBadge(score: number) {
 
 export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyContactId: propCompanyContactId }: VisitorInfoPanelProps) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [visitor, setVisitor] = useState<Visitor | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [companyContact, setCompanyContact] = useState<CompanyContact | null>(null);
@@ -95,8 +97,6 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-
-      // Fetch visitor
       const { data: visitorData } = await supabase
         .from("chat_visitors")
         .select("id, name, email, phone, role, department, created_at, contact_id, company_contact_id")
@@ -108,8 +108,6 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
 
       const cId = propContactId || v?.contact_id;
       const ccId = propCompanyContactId || v?.company_contact_id;
-
-      // Fetch company and contact in parallel when available
       const promises: Promise<void>[] = [];
 
       if (cId) {
@@ -123,7 +121,6 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
             setCompany(data as Company | null);
           })()
         );
-
         promises.push(
           (async () => {
             const { data } = await supabase
@@ -153,7 +150,6 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
       await Promise.all(promises);
       setLoading(false);
     };
-
     fetchData();
   }, [visitorId, propContactId, propCompanyContactId]);
 
@@ -170,7 +166,6 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
   const hasLinkedData = company || companyContact;
   const displayContact = companyContact || visitor;
 
-  // Simple fallback for anonymous visitors
   if (!hasLinkedData) {
     return (
       <div className="glass-card h-full">
@@ -213,10 +208,8 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
     );
   }
 
-  // Enriched panel with tabs
   return (
     <div className="glass-card h-full flex flex-col">
-      {/* Header with contact name */}
       <div className="p-4 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -241,7 +234,6 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
         )}
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="contact" className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-4 mt-3 grid grid-cols-3 h-8">
           <TabsTrigger value="contact" className="text-xs">Contato</TabsTrigger>
@@ -250,15 +242,9 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
         </TabsList>
 
         <ScrollArea className="flex-1">
-          {/* Contact Tab */}
           <TabsContent value="contact" className="px-4 pb-4 space-y-3 mt-0">
-            {companyContact?.department && (
-              <InfoRow icon={Building2} label="Departamento" value={companyContact.department} />
-            )}
-            {companyContact?.external_id && (
-              <InfoRow icon={Hash} label="External ID" value={companyContact.external_id} />
-            )}
-
+            {companyContact?.department && <InfoRow icon={Building2} label="Departamento" value={companyContact.department} />}
+            {companyContact?.external_id && <InfoRow icon={Hash} label="External ID" value={companyContact.external_id} />}
             <div className="pt-2 border-t border-border space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Métricas de Chat</p>
               <div className="grid grid-cols-2 gap-2">
@@ -273,22 +259,32 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
             </div>
           </TabsContent>
 
-          {/* Company Tab */}
           <TabsContent value="company" className="px-4 pb-4 space-y-3 mt-0">
             {company ? (
               <>
-                <div>
-                  <p className="font-medium text-sm">{company.trade_name || company.name}</p>
+                <button
+                  onClick={() => navigate("/nps/contacts")}
+                  className="text-left group"
+                >
+                  <p className="font-medium text-sm group-hover:text-primary transition-colors flex items-center gap-1">
+                    {company.trade_name || company.name}
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </p>
                   {company.trade_name && company.name !== company.trade_name && (
                     <p className="text-xs text-muted-foreground">{company.name}</p>
                   )}
-                </div>
+                </button>
 
-                {/* Health Score */}
                 {company.health_score != null && (
-                  <div className="space-y-1">
+                  <button
+                    onClick={() => navigate("/cs-health")}
+                    className="w-full text-left space-y-1 group"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Health Score</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors flex items-center gap-1">
+                        Health Score
+                        <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </span>
                       <span className={`text-sm font-semibold ${getHealthColor(company.health_score)}`}>
                         {company.health_score}
                       </span>
@@ -299,22 +295,24 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
                         style={{ width: `${company.health_score}%` }}
                       />
                     </div>
-                  </div>
+                  </button>
                 )}
 
-                {/* Financial */}
                 <div className="grid grid-cols-2 gap-2">
-                  <MetricCard
-                    label="MRR"
-                    value={company.mrr ? `R$ ${Number(company.mrr).toLocaleString("pt-BR")}` : "—"}
-                  />
-                  <MetricCard
-                    label="Contrato"
-                    value={company.contract_value ? `R$ ${Number(company.contract_value).toLocaleString("pt-BR")}` : "—"}
-                  />
+                  <button onClick={() => navigate("/cs-financial")} className="group">
+                    <MetricCard
+                      label={<span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-center">MRR<ExternalLink className="h-2 w-2 opacity-0 group-hover:opacity-100" /></span>}
+                      value={company.mrr ? `R$ ${Number(company.mrr).toLocaleString("pt-BR")}` : "—"}
+                    />
+                  </button>
+                  <button onClick={() => navigate("/cs-financial")} className="group">
+                    <MetricCard
+                      label={<span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-center">Contrato<ExternalLink className="h-2 w-2 opacity-0 group-hover:opacity-100" /></span>}
+                      value={company.contract_value ? `R$ ${Number(company.contract_value).toLocaleString("pt-BR")}` : "—"}
+                    />
+                  </button>
                 </div>
 
-                {/* Renewal */}
                 {company.renewal_date && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -323,36 +321,33 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
                   </div>
                 )}
 
-                {/* NPS */}
                 {company.last_nps_score != null && (
-                  <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate("/nps/dashboard")}
+                    className="flex items-center gap-2 group w-full text-left"
+                  >
                     <Star className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">NPS:</span>
+                    <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-0.5">
+                      NPS
+                      <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </span>
                     <span className="text-sm font-semibold">{company.last_nps_score}</span>
                     <Badge className={`text-[10px] px-1.5 py-0 ${getNpsBadge(company.last_nps_score).className}`}>
                       {getNpsBadge(company.last_nps_score).label}
                     </Badge>
-                  </div>
+                  </button>
                 )}
 
-                {/* Location & sector */}
                 {(company.city || company.state) && (
-                  <p className="text-xs text-muted-foreground">
-                    📍 {[company.city, company.state].filter(Boolean).join(", ")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">📍 {[company.city, company.state].filter(Boolean).join(", ")}</p>
                 )}
-                {company.company_sector && (
-                  <p className="text-xs text-muted-foreground">
-                    🏢 {company.company_sector}
-                  </p>
-                )}
+                {company.company_sector && <p className="text-xs text-muted-foreground">🏢 {company.company_sector}</p>}
               </>
             ) : (
               <p className="text-sm text-muted-foreground py-4 text-center">Sem empresa vinculada</p>
             )}
           </TabsContent>
 
-          {/* Timeline Tab */}
           <TabsContent value="timeline" className="px-4 pb-4 mt-0">
             {timelineEvents.length > 0 ? (
               <TimelineComponent events={timelineEvents} />
@@ -379,7 +374,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value }: { label: React.ReactNode; value: string }) {
   return (
     <div className="rounded-md border bg-muted/50 p-2 text-center">
       <p className="text-xs text-muted-foreground">{label}</p>

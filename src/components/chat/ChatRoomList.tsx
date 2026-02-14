@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, Clock, AlertTriangle, Flame, Search } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MessageSquare, Clock, AlertTriangle, Flame, Search, ArrowUpDown } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ChatRoom {
@@ -28,6 +29,9 @@ interface ChatRoomListProps {
   loading: boolean;
 }
 
+type SortField = "last_message" | "created_at";
+type SortDir = "desc" | "asc";
+
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
   if (diff < 1) return "<1min";
@@ -51,15 +55,22 @@ function durationLabel(startedAt: string): string {
   return m > 0 ? `${h}h${m}min` : `${h}h`;
 }
 
-function RoomItem({
-  room,
-  selectedRoomId,
-  onSelectRoom,
-}: {
-  room: ChatRoom;
-  selectedRoomId: string | null;
-  onSelectRoom: (id: string) => void;
-}) {
+function sortRooms(rooms: ChatRoom[], field: SortField, dir: SortDir): ChatRoom[] {
+  return [...rooms].sort((a, b) => {
+    let dateA: string, dateB: string;
+    if (field === "last_message") {
+      dateA = a.last_message_at || a.created_at;
+      dateB = b.last_message_at || b.created_at;
+    } else {
+      dateA = a.created_at;
+      dateB = b.created_at;
+    }
+    const cmp = new Date(dateA).getTime() - new Date(dateB).getTime();
+    return dir === "desc" ? -cmp : cmp;
+  });
+}
+
+function RoomItem({ room, selectedRoomId, onSelectRoom }: { room: ChatRoom; selectedRoomId: string | null; onSelectRoom: (id: string) => void }) {
   const unread = room.unread_count ?? 0;
   const isHighPriority = room.priority === "high" || room.priority === "urgent";
 
@@ -68,11 +79,9 @@ function RoomItem({
       key={room.id}
       onClick={() => onSelectRoom(room.id)}
       className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
-        selectedRoomId === room.id
-          ? "bg-primary/10 border border-primary/20"
-          : unread > 0
-            ? "bg-accent/50 hover:bg-accent/70"
-            : "hover:bg-muted/50"
+        selectedRoomId === room.id ? "bg-primary/10 border border-primary/20"
+        : unread > 0 ? "bg-accent/50 hover:bg-accent/70"
+        : "hover:bg-muted/50"
       } ${isHighPriority ? "border-l-2 border-l-destructive" : ""}`}
     >
       <div className="flex items-center justify-between mb-1">
@@ -93,9 +102,7 @@ function RoomItem({
             </span>
           )}
           <Badge variant={room.status === "active" ? "default" : room.status === "waiting" ? "secondary" : "outline"} className="text-[10px] gap-1 shrink-0">
-            {room.status === "waiting" && (
-              <span className={`h-1.5 w-1.5 rounded-full ${getWaitingSlaColor(room.created_at)}`} />
-            )}
+            {room.status === "waiting" && <span className={`h-1.5 w-1.5 rounded-full ${getWaitingSlaColor(room.created_at)}`} />}
             {room.status === "waiting" ? <Clock className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
             {room.status}
           </Badge>
@@ -103,9 +110,7 @@ function RoomItem({
       </div>
       {room.last_message && (
         <p className={`text-xs text-muted-foreground truncate ${unread > 0 ? "font-medium text-foreground" : ""}`}>
-          {room.last_message_sender_type && room.last_message_sender_type !== "visitor"
-            ? "Você: "
-            : ""}
+          {room.last_message_sender_type && room.last_message_sender_type !== "visitor" ? "Você: " : ""}
           {room.last_message.slice(0, 60)}{room.last_message.length > 60 ? "..." : ""}
         </p>
       )}
@@ -114,9 +119,7 @@ function RoomItem({
           {room.last_message_at ? timeAgo(room.last_message_at) : timeAgo(room.created_at)}
         </p>
         {room.status === "active" && room.started_at && (
-          <p className="text-[10px] text-muted-foreground">
-            ⏱ {durationLabel(room.started_at)}
-          </p>
+          <p className="text-[10px] text-muted-foreground">⏱ {durationLabel(room.started_at)}</p>
         )}
       </div>
     </button>
@@ -126,6 +129,8 @@ function RoomItem({
 export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: ChatRoomListProps) {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<SortField>("last_message");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   if (loading) {
     return (
@@ -139,8 +144,15 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
     ? rooms.filter((r) => (r.visitor_name ?? "").toLowerCase().includes(search.toLowerCase()))
     : rooms;
 
-  const waitingRooms = filtered.filter((r) => r.status === "waiting");
-  const activeRooms = filtered.filter((r) => r.status === "active");
+  const waitingRooms = sortRooms(filtered.filter((r) => r.status === "waiting"), sortField, sortDir);
+  const activeRooms = sortRooms(filtered.filter((r) => r.status === "active"), sortField, sortDir);
+
+  const sortValue = `${sortField}-${sortDir}`;
+  const handleSortChange = (val: string) => {
+    const [f, d] = val.split("-") as [SortField, SortDir];
+    setSortField(f);
+    setSortDir(d);
+  };
 
   return (
     <div className="glass-card h-full flex flex-col">
@@ -151,13 +163,20 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar conversa..."
-            className="h-8 text-xs pl-8"
-          />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." className="h-8 text-xs pl-8" />
         </div>
+        <Select value={sortValue} onValueChange={handleSortChange}>
+          <SelectTrigger className="h-7 text-[10px]">
+            <ArrowUpDown className="h-3 w-3 mr-1" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="last_message-desc" className="text-xs">Última msg (recente)</SelectItem>
+            <SelectItem value="last_message-asc" className="text-xs">Última msg (antiga)</SelectItem>
+            <SelectItem value="created_at-desc" className="text-xs">Abertura (recente)</SelectItem>
+            <SelectItem value="created_at-asc" className="text-xs">Abertura (antiga)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">

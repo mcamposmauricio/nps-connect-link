@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { EmojiPicker } from "@/components/chat/EmojiPicker";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
@@ -39,7 +40,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch macros on mount
   useEffect(() => {
     supabase
       .from("chat_macros")
@@ -53,7 +53,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    const maxHeight = 4 * 24;
+    const maxHeight = 200;
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, []);
 
@@ -94,26 +94,13 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const uploadFile = async (file: File): Promise<{ file_url: string; file_name: string; file_type: string; file_size: number } | null> => {
     const ext = file.name.split(".").pop() || "bin";
     const path = `${crypto.randomUUID()}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("chat-attachments")
-      .upload(path, file, { contentType: file.type });
-
+    const { error } = await supabase.storage.from("chat-attachments").upload(path, file, { contentType: file.type });
     if (error) {
       toast.error("Erro ao enviar arquivo");
       return null;
     }
-
-    const { data: urlData } = supabase.storage
-      .from("chat-attachments")
-      .getPublicUrl(path);
-
-    return {
-      file_url: urlData.publicUrl,
-      file_name: file.name,
-      file_type: file.type,
-      file_size: file.size,
-    };
+    const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
+    return { file_url: urlData.publicUrl, file_name: file.name, file_type: file.type, file_size: file.size };
   };
 
   const handleSend = async () => {
@@ -121,15 +108,11 @@ export function ChatInput({ onSend }: ChatInputProps) {
     setSending(true);
 
     let metadata: { file_url: string; file_name: string; file_type: string; file_size: number } | undefined;
-
     if (pendingFile) {
       setUploading(true);
       const result = await uploadFile(pendingFile);
       setUploading(false);
-      if (!result) {
-        setSending(false);
-        return;
-      }
+      if (!result) { setSending(false); return; }
       metadata = result;
     }
 
@@ -155,7 +138,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
     setValue(v);
-    // Open macros dropdown when "/" is typed at start
     if (v === "/" && macros.length > 0) {
       setMacrosOpen(true);
     } else if (!v.startsWith("/")) {
@@ -169,15 +151,42 @@ export function ChatInput({ onSend }: ChatInputProps) {
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) handleFileSelect(file);
+        return;
+      }
+    }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    const el = textareaRef.current;
+    if (el) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const newValue = value.slice(0, start) + emoji + value.slice(end);
+      setValue(newValue);
+      setTimeout(() => {
+        el.focus();
+        el.setSelectionRange(start + emoji.length, start + emoji.length);
+      }, 0);
+    } else {
+      setValue(value + emoji);
+    }
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) handleFileSelect(file);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   return (
     <div className="border-t p-3 space-y-2" onDrop={handleDrop} onDragOver={handleDragOver}>
@@ -205,7 +214,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
         </div>
       )}
 
-      {/* Macros dropdown */}
       {macrosOpen && macros.length > 0 && (
         <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto">
           <Command>
@@ -214,18 +222,12 @@ export function ChatInput({ onSend }: ChatInputProps) {
               <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
               <CommandGroup>
                 {macros.map((macro) => (
-                  <CommandItem
-                    key={macro.id}
-                    onSelect={() => handleSelectMacro(macro)}
-                    className="text-xs cursor-pointer"
-                  >
+                  <CommandItem key={macro.id} onSelect={() => handleSelectMacro(macro)} className="text-xs cursor-pointer">
                     <div className="flex items-center gap-2 w-full">
                       <Zap className="h-3 w-3 text-primary shrink-0" />
                       <div className="flex-1 min-w-0">
                         <span className="font-medium">{macro.title}</span>
-                        {macro.shortcut && (
-                          <span className="ml-1 text-muted-foreground">/{macro.shortcut}</span>
-                        )}
+                        {macro.shortcut && <span className="ml-1 text-muted-foreground">/{macro.shortcut}</span>}
                         <p className="text-muted-foreground truncate text-[10px]">{macro.content.slice(0, 60)}</p>
                       </div>
                     </div>
@@ -268,6 +270,8 @@ export function ChatInput({ onSend }: ChatInputProps) {
           <Paperclip className="h-4 w-4" />
         </Button>
 
+        <EmojiPicker onSelect={handleEmojiSelect} />
+
         <Popover open={false}>
           <PopoverTrigger asChild>
             <Button
@@ -290,11 +294,12 @@ export function ChatInput({ onSend }: ChatInputProps) {
           ref={textareaRef}
           value={value}
           onChange={handleChange}
+          onPaste={handlePaste}
           placeholder={isInternal ? t("chat.workspace.internal_placeholder") : t("chat.workspace.message_placeholder")}
           onKeyDown={handleKeyDown}
           disabled={sending}
           rows={1}
-          className="min-h-[36px] max-h-[96px] resize-none py-2"
+          className="min-h-[36px] max-h-[200px] resize-y py-2"
         />
         <Button
           size="icon"
