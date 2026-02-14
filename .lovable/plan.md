@@ -1,86 +1,176 @@
 
+# Melhorias no Workspace de Chat - 11 Funcionalidades
 
-# Tornar a Landing Page mais dinamica com imagem de apoio
+## Resumo
 
-## Objetivo
+Conjunto de melhorias no workspace de atendimento cobrindo: entrada de midia, exibicao de mensagens, reorganizacao de layout, reatribuicao de chats, emoji, ordenacao, paineis redimensionaveis, envio por outros atendentes, visao de equipe no menu e links clicaveis.
 
-Adicionar dinamismo visual a landing page mantendo o tom "Early Access / Em Breve", com animacoes de entrada (fade-in + slide-up), uma imagem ilustrativa de apoio (dashboard mockup) e elementos visuais animados (pulso nos badges, gradiente animado no fundo).
+---
 
-## Mudancas
+## 1. Colar imagem via Ctrl+V
 
-### 1. Animacoes CSS (`src/index.css`)
+**Arquivo:** `src/components/chat/ChatInput.tsx`
 
-Adicionar keyframes e classes utilitarias:
-- `animate-fade-in-up` - elementos surgem de baixo com fade (hero text, badges, form)
-- `animate-pulse-soft` - pulso suave nos badges "Em breve"
-- `animate-float` - flutuacao sutil na imagem de apoio
-- Delays escalonados para os elementos do hero (stagger effect)
+Adicionar listener `onPaste` no Textarea que detecta `clipboardData.items` com tipo `image/*`, cria um `File` a partir do blob e chama `handleFileSelect(file)` existente.
 
-### 2. Imagem de apoio (`src/pages/LandingPage.tsx`)
+---
 
-No lado esquerdo do hero (texto), adicionar abaixo dos badges "Em breve" uma imagem ilustrativa que simula um dashboard/interface do produto:
-- Usar uma imagem SVG inline ou um mockup estilizado com divs que representam um painel com graficos e metricas (sem dependencia externa)
-- Alternativa: um "browser frame" estilizado com CSS mostrando uma interface mockada do Journey CS
-- A imagem tera animacao `float` para dar vida
+## 2. Fix: Texto enviado junto com imagem nao aparece
 
-**Abordagem escolhida**: Criar um componente visual inline que simula uma janela de navegador com um mini-dashboard dentro (barras de graficos, cards de metricas), tudo em CSS/Tailwind. Isso evita dependencias externas e fica alinhado com o design system.
+**Arquivo:** `src/pages/AdminWorkspace.tsx` (funcao `handleSendMessage`)
 
-### 3. Layout reestruturado
+Problema atual: quando ha arquivo + texto, o `content` e enviado mas o `message_type` e setado como `"file"`, e no `ChatMessageList` mensagens do tipo `file` renderizam apenas o `FileMessage` sem exibir o texto.
 
-```
-Desktop (lg:grid-cols-2):
-+--------------------------------+---------------------------+
-| [Early Access badge]           |                           |
-| Titulo animado                 |  +---------------------+  |
-| Subtitulo animado              |  | [Browser frame]     |  |
-|                                |  | Mini dashboard mock |  |
-| [NPS - Em breve] [Chat]       |  | com graficos e KPIs |  |
-|   (badges com pulso)           |  +---------------------+  |
-|                                |     (animacao float)      |
-| +------------------------+    |                           |
-| | Formulario de lead     |    |                           |
-| | Nome / Email / Empresa |    |                           |
-| | [CTA button]           |    |                           |
-| +------------------------+    |                           |
-+--------------------------------+---------------------------+
+**Correcao em 2 pontos:**
+- `AdminWorkspace.tsx` `handleSendMessage`: enviar o texto no campo `content` normalmente (ja faz isso)
+- `ChatMessageList.tsx`: quando `message_type === "file"` e `content` difere de `file_name`, renderizar tanto o `FileMessage` quanto o texto `content` abaixo da imagem/arquivo
 
-Mobile:
-Texto -> Imagem -> Formulario (empilhados)
-```
+---
 
-### 4. Elementos dinamicos adicionados
+## 3. Links clicaveis no painel de infos da empresa
 
-| Elemento | Animacao | Descricao |
-|----------|----------|-----------|
-| Badge "Early Access" | fade-in-up (delay 0ms) | Surge primeiro |
-| Titulo h1 | fade-in-up (delay 100ms) | Surge em seguida |
-| Subtitulo | fade-in-up (delay 200ms) | Efeito cascata |
-| Badges "Em breve" | fade-in-up (delay 300ms) + pulse-soft | Chamam atencao com pulso |
-| Imagem mockup | fade-in-up (delay 400ms) + float | Flutuacao constante |
-| Card formulario | fade-in-up (delay 500ms) | Ultimo a surgir |
-| Fundo gradient | animacao de cor suave | Gradiente que se movimenta lentamente |
+**Arquivo:** `src/components/chat/VisitorInfoPanel.tsx`
 
-### 5. Mockup visual do dashboard (componente inline)
+Na aba "Empresa", transformar os dados relevantes em links clicaveis:
+- Nome da empresa: link para `/nps/contacts` com filtro ou para `CompanyDetailsSheet`
+- Health Score: link para `/cs-health`
+- MRR/Contrato: link para `/cs-financial`
+- NPS Score: link para `/nps/dashboard`
 
-Um "browser frame" estilizado contendo:
-- Barra de titulo com 3 bolinhas (vermelho, amarelo, verde)
-- Mini sidebar com itens
-- Area principal com:
-  - 3 mini cards de KPI (NPS Score, Clientes Ativos, CSAT)
-  - Mini grafico de barras estilizado em CSS
-- Tudo em cores do design system (primary green, muted, border)
-- Sombra e rounded para parecer uma janela real
+Usar `<Link>` do react-router ou `onClick` com `navigate()`.
 
-## Arquivos modificados
+---
+
+## 4. Botao de emoji no chat
+
+**Arquivo:** `src/components/chat/ChatInput.tsx`
+
+Adicionar um botao de emoji (icone Smile) ao lado dos botoes existentes. Ao clicar, abre um `Popover` com uma grade de emojis comuns organizados por categoria (rostos, maos, objetos). Ao selecionar, insere o emoji na posicao do cursor no textarea.
+
+Implementacao leve sem dependencia externa: grade fixa de ~80 emojis populares em categorias.
+
+---
+
+## 5. Reatribuicao de chat ("Enviar para")
+
+**Arquivos:** `src/pages/AdminWorkspace.tsx`, novo componente `src/components/chat/ReassignDialog.tsx`
+
+Adicionar botao "Transferir" no header do chat (ao lado de "Encerrar") que abre um dialog listando os atendentes online (via `attendant_profiles`). Ao confirmar:
+- Atualiza `chat_rooms.attendant_id` para o novo atendente
+- Atualiza `chat_rooms.assigned_at`
+- Insere mensagem de sistema: "[Sistema] Chat transferido de X para Y"
+- Toast de confirmacao
+
+---
+
+## 6. Ordenacao do workspace
+
+**Arquivo:** `src/components/chat/ChatRoomList.tsx`
+
+Adicionar um seletor de ordenacao (dropdown) no header da lista:
+- Opcoes: "Ultima mensagem" ou "Abertura do chat"
+- Direcao: crescente ou decrescente
+- Aplicar `sort()` na lista filtrada antes de renderizar
+- Manter a logica de "nao lidos primeiro" como opcao padrao
+
+---
+
+## 7. Paineis redimensionaveis (arrastar largura)
+
+**Arquivo:** `src/pages/AdminWorkspace.tsx`
+
+Substituir o layout `flex` fixo por `react-resizable-panels` (ja instalado no projeto). Os 3 blocos (lista, chat, info) serao `Panel` com `PanelResizeHandle` entre eles, permitindo redimensionar arrastando.
+
+Tamanhos padrao:
+- Lista: ~20%
+- Chat: ~50%
+- Info: ~30%
+
+Limites minimos para evitar colapso total.
+
+---
+
+## 8. Outros atendentes podem enviar mensagens (nao so notas)
+
+**Arquivo:** `src/components/chat/ChatInput.tsx`, `src/pages/AdminWorkspace.tsx`
+
+Atualmente `handleSendMessage` verifica se o chat esta atribuido ao usuario logado? Nao, ele envia para qualquer `selectedRoom`. O problema e que o botao `is_internal` forca nota interna.
+
+**Ajuste:** Remover restricao que force notas internas para atendentes nao-donos. Qualquer atendente do tenant pode enviar mensagem normal ou nota interna em qualquer sala. A RLS ja permite isso (tenant members can manage messages).
+
+---
+
+## 9. Visao de workspace de outros atendentes no menu
+
+**Arquivos:** `src/components/AppSidebar.tsx`, `src/pages/AdminWorkspace.tsx`
+
+No menu lateral, dentro do submenu Chat, abaixo de "Workspace":
+- Listar atendentes da equipe com badge mostrando numero de chats ativos
+- Ao clicar em um atendente, navegar para `/admin/workspace?attendant=<id>` que filtra a lista de salas mostrando apenas chats desse atendente
+- Visivel para perfis com permissao `chat.manage` (gestores) ou todos do tenant
+- Na fila "Na fila" do workspace do usuario logado, filtrar salas que ja estejam atribuidas a outro atendente (mostrar apenas as nao-atribuidas + as do proprio usuario)
+
+**Detalhes:**
+- Buscar `attendant_profiles` com contagem de salas ativas
+- Exibir como sub-itens colapsaveis sob "Workspace"
+- Badge com contagem ao lado do nome
+
+---
+
+## 10. Caixa de mensagem expansivel em altura
+
+**Arquivo:** `src/components/chat/ChatInput.tsx`
+
+Atualmente o textarea tem `resize-none` e `max-h-[96px]`. Mudancas:
+- Trocar `resize-none` por `resize-y`
+- Aumentar `max-h` para `max-h-[200px]`
+- Manter auto-resize mas permitir que o usuario arraste para expandir manualmente
+
+---
+
+## 11. Links clicaveis nas mensagens
+
+**Arquivo:** `src/components/chat/ChatMessageList.tsx`
+
+Substituir a renderizacao de texto plano por uma funcao que detecta URLs (regex) e as transforma em tags `<a>` clicaveis com `target="_blank"` e estilizacao (underline, cor). Aplicar tanto para mensagens de visitante quanto de atendente.
+
+---
+
+## Detalhes Tecnicos
+
+### Arquivos a serem criados
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `src/pages/LandingPage.tsx` | Adicionar mockup visual, animacoes via classes, reestruturar layout |
-| 2 | `src/index.css` | Adicionar keyframes e classes de animacao |
+| 1 | `src/components/chat/ReassignDialog.tsx` | Dialog de reatribuicao de chat |
+| 2 | `src/components/chat/EmojiPicker.tsx` | Picker de emojis leve inline |
 
-## O que NAO muda
-- Logica do formulario e tracking UTM
-- Traducoes (chaves i18n permanecem as mesmas)
-- Banco de dados e RLS
-- Tom "Early Access / Em breve"
-- Estrutura de 3 secoes (navbar, hero, footer)
+### Arquivos a serem modificados
+
+| # | Arquivo | Mudancas |
+|---|---------|----------|
+| 1 | `src/components/chat/ChatInput.tsx` | Paste de imagem, emoji picker, textarea expansivel |
+| 2 | `src/components/chat/ChatMessageList.tsx` | Links clicaveis, fix texto+imagem |
+| 3 | `src/pages/AdminWorkspace.tsx` | Paineis redimensionaveis, reatribuicao, envio por outros atendentes, filtro de salas |
+| 4 | `src/components/chat/ChatRoomList.tsx` | Ordenacao configuravel |
+| 5 | `src/components/chat/VisitorInfoPanel.tsx` | Links nas infos da empresa |
+| 6 | `src/components/AppSidebar.tsx` | Sub-menu de atendentes com contagem |
+| 7 | `src/locales/pt-BR.ts` | Novas chaves de traducao |
+| 8 | `src/locales/en.ts` | Novas chaves de traducao |
+
+### Sem mudancas no banco de dados
+
+Todas as funcionalidades usam tabelas e RLS existentes. A reatribuicao usa `chat_rooms.attendant_id` ja existente. A visao de outros atendentes usa `attendant_profiles` ja disponivel.
+
+### Dependencias
+
+`react-resizable-panels` ja esta instalado no projeto (v2.1.9).
+
+### Ordem de implementacao sugerida
+
+1. Fixes primeiro (texto+imagem, links clicaveis nas mensagens)
+2. Melhorias de input (Ctrl+V imagem, emoji, textarea expansivel)
+3. Funcionalidades de gestao (reatribuicao, ordenacao)
+4. Layout (paineis redimensionaveis)
+5. Visao de equipe (sidebar + filtro de salas)
+6. Links no painel de infos
