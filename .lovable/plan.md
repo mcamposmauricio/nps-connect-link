@@ -1,64 +1,131 @@
 
-# Adicionar pagina "Meu Perfil"
+# Equipes, Categorias de Atendimento, e Regras de Fila
 
-## Objetivo
+## Resumo
 
-Criar uma pagina dedicada onde o usuario logado pode visualizar e editar seus dados de perfil, incluindo o nome exibido no atendimento ao cliente, telefone, departamento, especialidades e foto de avatar.
+Este plano implementa 4 funcionalidades interligadas: criacao de equipes de atendentes, categorias de atendimento para empresas, regras de fila (qual equipe atende qual categoria), e prioridade de atendimento no cadastro de empresas. Tambem move o menu "Atendentes" da sidebar para dentro das configuracoes do chat.
 
-## Mudancas
+## Novas tabelas no banco de dados
 
-### 1. Nova pagina `src/pages/MyProfile.tsx`
+### 1. `chat_teams` - Equipes de atendimento
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid PK | |
+| tenant_id | uuid | Isolamento multi-tenant |
+| name | text | Nome da equipe (ex: "Suporte Tecnico") |
+| description | text | Descricao opcional |
+| user_id | uuid | Criador |
+| created_at | timestamptz | |
 
-Pagina com formulario para editar os dados do proprio usuario a partir da tabela `user_profiles`:
+### 2. `chat_team_members` - Vinculo atendente-equipe
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid PK | |
+| team_id | uuid FK | Referencia a chat_teams |
+| attendant_id | uuid FK | Referencia a attendant_profiles |
+| tenant_id | uuid | |
+| created_at | timestamptz | |
+| UNIQUE(team_id, attendant_id) | | Evita duplicata |
 
-**Campos editaveis:**
-- **Nome de exibicao** (display_name) -- o nome que aparece no chat para o cliente
-- **Email** (somente leitura, vem do auth)
-- **Telefone** (phone)
-- **Departamento** (department)
-- **Especialidades** (specialty) -- checkboxes: implementacao, onboarding, acompanhamento, churn
-- **Avatar** (avatar_url) -- upload de imagem para o bucket `logos` existente
+### 3. `chat_service_categories` - Categorias de atendimento
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid PK | |
+| tenant_id | uuid | |
+| name | text | Nome (ex: "Premium", "Standard") |
+| description | text | |
+| color | text | Cor para badge visual |
+| user_id | uuid | Criador |
+| created_at | timestamptz | |
 
-**Layout:**
-- Card com avatar grande no topo (clicavel para trocar foto)
-- Formulario abaixo com os campos
-- Botao "Salvar" que faz `update` na tabela `user_profiles` onde `user_id = auth.uid()`
-- Toast de confirmacao ao salvar
+### 4. `chat_category_teams` - Regras de fila (quais equipes atendem cada categoria)
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid PK | |
+| category_id | uuid FK | Referencia a chat_service_categories |
+| team_id | uuid FK | Referencia a chat_teams |
+| tenant_id | uuid | |
+| priority_order | integer | Ordem de prioridade entre equipes |
+| created_at | timestamptz | |
+| UNIQUE(category_id, team_id) | | Evita duplicata |
 
-A RLS ja permite que o usuario atualize seu proprio perfil (`Users can update own profile`).
+### 5. Alteracao na tabela `contacts`
+- Adicionar coluna `service_category_id` (uuid, nullable, FK para chat_service_categories)
+- Adicionar coluna `service_priority` (text, default 'normal') -- valores: 'low', 'normal', 'high', 'critical'
 
-### 2. Nova rota em `src/App.tsx`
+## Politicas RLS
 
-Adicionar rota `/profile` apontando para `MyProfile`.
+Todas as novas tabelas terao politicas baseadas em `tenant_id = get_user_tenant_id(auth.uid())` para SELECT, INSERT, UPDATE, DELETE -- seguindo o padrao ja usado nas demais tabelas de chat.
 
-### 3. Link no sidebar footer `src/components/AppSidebar.tsx`
+## Mudancas na interface
 
-Adicionar um botao "Meu Perfil" no footer do sidebar (acima do seletor de idioma e botao de logout), com icone `User`. Visivel para todos os usuarios autenticados (nao depende de permissao).
+### 1. Configuracoes do Chat (`AdminSettings.tsx`) - Novas abas
 
-### 4. Traducoes `src/locales/pt-BR.ts` e `src/locales/en.ts`
+Adicionar 3 novas abas na pagina de configuracoes do chat:
 
-Novas chaves:
-- `profile.title` -- "Meu Perfil" / "My Profile"
-- `profile.subtitle` -- "Gerencie suas informacoes pessoais" / "Manage your personal information"
-- `profile.displayName` -- "Nome de exibicao" / "Display name"
-- `profile.displayNameHint` -- "Este nome aparece para clientes no chat" / "This name is shown to customers in chat"
-- `profile.phone` -- "Telefone" / "Phone"
-- `profile.department` -- "Departamento" / "Department"
-- `profile.specialties` -- "Especialidades" / "Specialties"
-- `profile.avatar` -- "Foto de perfil" / "Profile photo"
-- `profile.changePhoto` -- "Alterar foto" / "Change photo"
-- `profile.saved` -- "Perfil atualizado" / "Profile updated"
+**Aba "Atendentes"** - Mover o conteudo atual de `AdminAttendants.tsx` para dentro desta aba. O componente ja existe, apenas sera incorporado como tab. Adicionar nesta aba um seletor de equipe para cada atendente (multi-select, permitindo o atendente pertencer a varias equipes).
 
-## Arquivos
+**Aba "Equipes"** - CRUD de equipes:
+- Lista de equipes com nome, descricao, e quantidade de membros
+- Botao para criar nova equipe
+- Dialog de edicao/criacao com campos nome e descricao
+- Botao de excluir com confirmacao
+
+**Aba "Categorias"** - CRUD de categorias de atendimento:
+- Lista de categorias com nome, cor, e empresas vinculadas
+- Botao para criar nova categoria
+- Dialog de criacao/edicao com campos nome, descricao, cor
+- Secao para atribuir empresas a cada categoria (multi-select buscando de `contacts` onde `is_company = true`)
+- Secao para definir quais equipes atendem esta categoria (multi-select de `chat_teams`)
+
+### 2. Sidebar (`AppSidebar.tsx`)
+
+- Remover o item "Atendentes" (`/admin/attendants`) da sidebar do chat (sera acessado via configuracoes)
+
+### 3. Cadastro de Empresas (`CompanyForm.tsx` e `CompanyDetailsSheet.tsx`)
+
+- Adicionar campo "Prioridade de Atendimento" no formulario de empresa (`CompanyForm.tsx`):
+  - Select com opcoes: Baixa, Normal, Alta, Critica
+  - Default: Normal
+- Adicionar campo "Categoria de Atendimento" no formulario de empresa:
+  - Select buscando de `chat_service_categories` do tenant
+- Exibir esses campos tambem no `CompanyDetailsSheet.tsx` como badges visuais
+
+### 4. Rota removida
+
+- A rota `/admin/attendants` continua existindo mas redireciona para `/admin/settings/attendants`
+
+## Arquivos modificados/criados
 
 | # | Arquivo | Tipo | Descricao |
 |---|---------|------|-----------|
-| 1 | `src/pages/MyProfile.tsx` | Novo | Pagina de edicao de perfil |
-| 2 | `src/App.tsx` | Modificado | Adicionar rota `/profile` |
-| 3 | `src/components/AppSidebar.tsx` | Modificado | Link "Meu Perfil" no footer |
-| 4 | `src/locales/pt-BR.ts` | Modificado | Chaves de traducao |
-| 5 | `src/locales/en.ts` | Modificado | Chaves de traducao |
+| 1 | Migracao SQL | DB | Criar tabelas chat_teams, chat_team_members, chat_service_categories, chat_category_teams; alterar contacts |
+| 2 | `src/pages/AdminSettings.tsx` | Modificado | Adicionar abas Atendentes, Equipes e Categorias |
+| 3 | `src/components/chat/TeamsTab.tsx` | Novo | Componente da aba de equipes (CRUD) |
+| 4 | `src/components/chat/CategoriesTab.tsx` | Novo | Componente da aba de categorias (CRUD + regras de fila) |
+| 5 | `src/components/chat/AttendantsTab.tsx` | Novo | Componente da aba de atendentes (conteudo migrado de AdminAttendants + selecao de equipe) |
+| 6 | `src/components/AppSidebar.tsx` | Modificado | Remover link "Atendentes" da sidebar |
+| 7 | `src/components/CompanyForm.tsx` | Modificado | Adicionar campos prioridade e categoria |
+| 8 | `src/components/CompanyDetailsSheet.tsx` | Modificado | Exibir prioridade e categoria |
+| 9 | `src/pages/Contacts.tsx` | Modificado | Passar dados de prioridade/categoria ao inserir/editar |
+| 10 | `src/pages/AdminAttendants.tsx` | Modificado | Redirecionar para /admin/settings/attendants |
+| 11 | `src/locales/pt-BR.ts` | Modificado | Novas chaves de traducao |
+| 12 | `src/locales/en.ts` | Modificado | Novas chaves de traducao |
 
-## Sem mudancas no banco de dados
+## Fluxo de dados
 
-A tabela `user_profiles` ja possui todos os campos necessarios (display_name, phone, department, specialty, avatar_url) e a RLS ja permite que o usuario edite seu proprio registro. O bucket `logos` ja e publico e pode ser usado para avatares.
+```text
+Empresa (contacts)
+  |-- service_category_id --> chat_service_categories
+  |-- service_priority (low/normal/high/critical)
+  |
+  +-- company_contacts (pessoas vinculadas herdam a categoria da empresa)
+
+chat_service_categories
+  |-- chat_category_teams --> chat_teams (quais equipes atendem)
+  
+chat_teams
+  |-- chat_team_members --> attendant_profiles (quais atendentes pertencem)
+```
+
+Quando um chat e aberto por um contato de uma empresa com categoria X, o sistema sabe quais equipes e atendentes sao responsaveis, e a prioridade da empresa define a ordem na fila.
