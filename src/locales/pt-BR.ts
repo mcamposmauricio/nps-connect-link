@@ -1031,4 +1031,8 @@ export default {
   "bulkImport.parseError": "Erro ao processar o arquivo CSV",
   "bulkImport.batchError": "Erro no lote",
   "bulkImport.companyNotFound": "Empresa não encontrada",
+  "bulkImport.errorDuplicateEmail": "Email já cadastrado no sistema",
+  "bulkImport.errorDuplicateCnpj": "CNPJ já cadastrado no sistema",
+  "bulkImport.errorDuplicateInFile": "Registro duplicado no arquivo",
+  "bulkImport.errorContactDuplicate": "Contato com este email já existe nesta empresa",
 };
