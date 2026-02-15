@@ -1,106 +1,69 @@
 
-# Renomear Configuracoes de Chat, Adicao em Massa e Melhorias no Relatorio de Atendimento
 
-## Resumo
+# Corrigir Upload de Foto de Perfil (RLS Storage)
 
-Este plano cobre 3 frentes: (1) renomear abas e labels nas configuracoes do chat, (2) melhorar a UX de adicao de empresas em categorias com selecao em massa, e (3) revisar o relatorio gerencial de atendimento adicionando novos KPIs e graficos para gerar mais insights gerenciais.
+## Problema
 
----
+A politica RLS de upload no bucket `logos` exige que o primeiro segmento do caminho do arquivo seja o UUID do usuario autenticado:
 
-## 1. Renomear abas e labels
+```
+WITH CHECK: bucket_id = 'logos' AND auth.uid()::text = storage.foldername(name)[1]
+```
 
-| Aba/label atual | Novo nome (PT-BR) | Novo nome (EN) |
-|---|---|---|
-| Equipes | Times de Atendimento | Service Teams |
-| Regras | Msgs Automaticas | Auto Messages |
-| Categorias | Regras de Atendimento | Service Rules |
+Porem, o codigo em `MyProfile.tsx` faz upload para o caminho `avatars/{user_id}.{ext}`, onde o primeiro segmento e "avatars" (nao o UUID do usuario). Isso causa o erro 403.
 
-Arquivos afetados:
-- `src/locales/pt-BR.ts` - Atualizar chaves `chat.teams.title`, `chat.settings.tab_rules`, `chat.categories.title`
-- `src/locales/en.ts` - Mesmas chaves
-- `src/components/chat/CategoriesTab.tsx` - Atualizar label de "Equipes responsaveis" para "Times responsaveis"
+Alem disso, mesmo corrigindo o caminho, um administrador nao conseguiria alterar a foto de outro usuario, pois a politica so permite upload na "pasta" do proprio usuario.
 
----
+## Solucao
 
-## 2. Adicao em massa de empresas nas categorias (`CategoriesTab.tsx`)
+### 1. Alterar o caminho de upload em `MyProfile.tsx`
 
-Substituir o `<select>` simples por um Dialog com:
+Mudar de:
+```
+avatars/${user.id}.${ext}
+```
 
-- Campo de busca para filtrar empresas por nome
-- Lista com checkboxes para selecionar multiplas empresas
-- Botao "Selecionar todas" (filtradas)
-- Botao "Adicionar X empresas" que salva todas de uma vez
-- Contador mostrando quantas estao selecionadas
+Para:
+```
+${user.id}/avatar.${ext}
+```
 
-Fluxo: usuario clica em "+ Adicionar empresas" na categoria, abre Dialog, busca/filtra, marca as desejadas, clica "Adicionar".
+Isso faz o primeiro segmento do caminho ser o UUID do usuario, satisfazendo a politica existente.
 
----
+### 2. Adicionar politica de admin para upload no storage
 
-## 3. Melhorias no Relatorio de Atendimento (Gerencial)
+Criar uma nova politica que permite administradores fazerem upload em qualquer pasta do bucket `logos`:
 
-### 3.1 Novos KPIs (alem dos 5 existentes)
+```sql
+CREATE POLICY "Admins can upload any logo"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'logos'
+  AND public.has_role(auth.uid(), 'admin')
+);
+```
 
-| KPI atual | Mantem? |
-|---|---|
-| Total de Chats | Sim |
-| Chats Hoje | Sim |
-| CSAT Medio | Sim |
-| Taxa de Resolucao | Sim |
-| Tempo Medio de Resolucao | Sim |
+E para UPDATE (upsert precisa de ambas):
 
-**Novos KPIs a adicionar:**
+```sql
+CREATE POLICY "Admins can update any logo"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'logos'
+  AND public.has_role(auth.uid(), 'admin')
+);
+```
 
-| Novo KPI | Descricao | Calculo |
-|---|---|---|
-| Tempo Medio de Primeira Resposta | Quanto tempo leva para o atendente enviar a primeira mensagem apos o chat ser criado | Diferenca entre `chat_rooms.created_at` e a primeira `chat_messages.created_at` onde `sender_type = 'attendant'` |
-| Chats sem Resolucao | Quantidade de chats fechados sem resolucao definida (status "pending") | Filtrar rooms onde `status = 'closed'` e `resolution_status = 'pending'` |
-
-### 3.2 Novos graficos/secoes
-
-**Grafico de Evolucao CSAT por periodo** - Grafico de linha mostrando a media de CSAT ao longo dos dias do periodo selecionado (complementa o bar chart de volume).
-
-**Tabela de Performance por Atendente** - Tabela detalhada com colunas:
-- Nome do atendente
-- Total de chats
-- CSAT medio individual
-- Taxa de resolucao individual
-- Tempo medio de resolucao individual
-
-Isso substitui o grafico de barras horizontal atual por algo mais rico em informacao.
-
-**Grafico de Horarios de Pico** - Heatmap ou bar chart mostrando distribuicao de chats por hora do dia, permitindo ao gestor entender quando ha mais demanda.
-
-### 3.3 Filtro adicional
-
-Adicionar filtro por **categoria de atendimento** (service category) para cruzar dados com as novas regras de fila.
-
-### 3.4 Atualizacao do hook `useDashboardStats.ts`
-
-Adicionar ao `DashboardStats`:
-- `avgFirstResponseMinutes: number | null` - tempo medio de primeira resposta
-- `unresolvedChats: number` - chats sem resolucao
-- `csatByDay: { date: string; avg: number }[]` - evolucao CSAT
-- `attendantPerformance: { name: string; chats: number; csat: number | null; resolutionRate: number | null; avgResolution: number | null }[]` - performance individual
-- `chatsByHour: { hour: number; count: number }[]` - distribuicao por hora
-
-Adicionar ao `DashboardFilters`:
-- `categoryId?: string | null` - filtro por categoria de atendimento
-
-Para calcular o tempo de primeira resposta, sera necessario consultar `chat_messages` agrupando pela `room_id` para encontrar a primeira mensagem do tipo attendant.
-
----
-
-## Arquivos modificados/criados
+## Arquivos modificados
 
 | # | Arquivo | Descricao |
 |---|---------|-----------|
-| 1 | `src/locales/pt-BR.ts` | Renomear chaves de abas e adicionar novas chaves para relatorio |
-| 2 | `src/locales/en.ts` | Mesmas traducoes em ingles |
-| 3 | `src/pages/AdminSettings.tsx` | Atualizar labels das tabs (chaves de traducao atualizadas refletem automaticamente) |
-| 4 | `src/components/chat/CategoriesTab.tsx` | Adicao em massa com Dialog, busca e checkboxes; renomear labels de "equipes" para "times" |
-| 5 | `src/hooks/useDashboardStats.ts` | Novos campos de stats, filtro por categoria, consulta a chat_messages para primeira resposta |
-| 6 | `src/pages/AdminDashboardGerencial.tsx` | Novos KPI cards, grafico CSAT por dia, tabela de performance, grafico por hora, filtro de categoria |
+| 1 | Migracao SQL | Adicionar politicas de admin para upload/update no bucket logos |
+| 2 | `src/pages/MyProfile.tsx` | Alterar caminho do upload de `avatars/{id}.ext` para `{id}/avatar.ext` |
 
-## Nenhuma mudanca no banco de dados
+## Resultado esperado
 
-Todos os dados necessarios ja existem nas tabelas `chat_rooms`, `chat_messages`, `contacts` e `chat_service_categories`.
+- Usuario logado consegue alterar sua propria foto de perfil
+- Administrador consegue alterar a foto de qualquer usuario (se essa funcionalidade for implementada futuramente)
