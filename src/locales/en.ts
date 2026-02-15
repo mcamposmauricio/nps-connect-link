@@ -609,6 +609,8 @@ export default {
   "chat.dashboard.online_attendants": "Online Attendants",
   "chat.dashboard.closed_today": "Closed Today",
   "chat.workspace.title": "Workspace",
+  "chat.workspace.station": "Workspace",
+  "chat.workspace.you": "(you)",
   "chat.workspace.conversations": "Conversations",
   "chat.workspace.total": "total",
   "chat.workspace.no_conversations": "No conversations",
