@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Tag, X } from "lucide-react";
+import { Plus, Edit, Trash2, Tag, X, Search } from "lucide-react";
 
 interface Category {
   id: string;
@@ -43,6 +44,12 @@ const CategoriesTab = () => {
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", description: "", color: "#6366f1" });
+
+  // Bulk add companies state
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkCategoryId, setBulkCategoryId] = useState<string | null>(null);
+  const [bulkSearch, setBulkSearch] = useState("");
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
 
   const fetchAll = async () => {
     setLoading(true);
@@ -87,16 +94,10 @@ const CategoriesTab = () => {
 
   const deleteCategory = async () => {
     if (!deleteId) return;
-    // Remove from contacts first
     await supabase.from("contacts").update({ service_category_id: null } as any).eq("service_category_id", deleteId);
     await supabase.from("chat_service_categories").delete().eq("id", deleteId);
     setDeleteId(null);
     toast({ title: t("chat.settings.saved") });
-    fetchAll();
-  };
-
-  const assignCompany = async (companyId: string, categoryId: string) => {
-    await supabase.from("contacts").update({ service_category_id: categoryId } as any).eq("id", companyId);
     fetchAll();
   };
 
@@ -106,7 +107,6 @@ const CategoriesTab = () => {
   };
 
   const addTeamToCategory = async (categoryId: string, teamId: string) => {
-    const cat = categories.find(c => c.id === categoryId);
     const { data: catData } = await supabase.from("chat_service_categories").select("tenant_id").eq("id", categoryId).single();
     await supabase.from("chat_category_teams").insert({ category_id: categoryId, team_id: teamId, tenant_id: (catData as any)?.tenant_id } as any);
     fetchAll();
@@ -114,6 +114,49 @@ const CategoriesTab = () => {
 
   const removeTeamFromCategory = async (categoryId: string, teamId: string) => {
     await supabase.from("chat_category_teams").delete().eq("category_id", categoryId).eq("team_id", teamId);
+    fetchAll();
+  };
+
+  // Bulk add companies
+  const openBulkDialog = (categoryId: string) => {
+    setBulkCategoryId(categoryId);
+    setBulkSearch("");
+    setBulkSelected(new Set());
+    setBulkDialogOpen(true);
+  };
+
+  const unassigned = companies.filter(c => !c.service_category_id);
+
+  const filteredUnassigned = unassigned.filter(c => {
+    const search = bulkSearch.toLowerCase();
+    return (c.trade_name || c.name).toLowerCase().includes(search);
+  });
+
+  const toggleBulkSelect = (id: string) => {
+    setBulkSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (bulkSelected.size === filteredUnassigned.length) {
+      setBulkSelected(new Set());
+    } else {
+      setBulkSelected(new Set(filteredUnassigned.map(c => c.id)));
+    }
+  };
+
+  const saveBulkCompanies = async () => {
+    if (!bulkCategoryId || bulkSelected.size === 0) return;
+    const ids = Array.from(bulkSelected);
+    for (const id of ids) {
+      await supabase.from("contacts").update({ service_category_id: bulkCategoryId } as any).eq("id", id);
+    }
+    setBulkDialogOpen(false);
+    toast({ title: t("chat.settings.saved") });
     fetchAll();
   };
 
@@ -138,7 +181,6 @@ const CategoriesTab = () => {
         <div className="grid gap-4">
           {categories.map((cat) => {
             const catCompanies = companies.filter(c => c.service_category_id === cat.id);
-            const unassigned = companies.filter(c => !c.service_category_id);
             const catTeamIds = categoryTeams.filter(ct => ct.category_id === cat.id).map(ct => ct.team_id);
             const assignedTeams = teams.filter(t => catTeamIds.includes(t.id));
             const availableTeams = teams.filter(t => !catTeamIds.includes(t.id));
@@ -194,10 +236,9 @@ const CategoriesTab = () => {
                         </Badge>
                       ))}
                       {unassigned.length > 0 && (
-                        <select className="text-xs border rounded px-1.5 py-0.5 bg-background" value="" onChange={(e) => { if (e.target.value) assignCompany(e.target.value, cat.id); }}>
-                          <option value="">+ {t("chat.categories.addCompany")}</option>
-                          {unassigned.map(c => <option key={c.id} value={c.id}>{c.trade_name || c.name}</option>)}
-                        </select>
+                        <Button variant="outline" size="sm" className="text-xs h-6" onClick={() => openBulkDialog(cat.id)}>
+                          <Plus className="h-3 w-3 mr-1" /> {t("chat.categories.addCompanies")}
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -208,6 +249,7 @@ const CategoriesTab = () => {
         </div>
       )}
 
+      {/* Category create/edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -237,6 +279,58 @@ const CategoriesTab = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk add companies dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("chat.categories.addCompanies")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder={t("chat.categories.searchCompany")}
+                value={bulkSearch}
+                onChange={(e) => setBulkSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="sm" className="text-xs" onClick={toggleSelectAll}>
+                {bulkSelected.size === filteredUnassigned.length && filteredUnassigned.length > 0
+                  ? t("chat.categories.deselectAll")
+                  : t("chat.categories.selectAll")}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {bulkSelected.size} {t("chat.categories.selectedCount")}
+              </span>
+            </div>
+            <div className="max-h-60 overflow-y-auto border rounded-md divide-y">
+              {filteredUnassigned.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-3 text-center">{t("companies.noCompaniesFound")}</p>
+              ) : (
+                filteredUnassigned.map(comp => (
+                  <label key={comp.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer">
+                    <Checkbox
+                      checked={bulkSelected.has(comp.id)}
+                      onCheckedChange={() => toggleBulkSelect(comp.id)}
+                    />
+                    <span className="text-sm">{comp.trade_name || comp.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={saveBulkCompanies} disabled={bulkSelected.size === 0}>
+              {t("chat.categories.addSelected")} ({bulkSelected.size})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
