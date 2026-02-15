@@ -920,4 +920,16 @@ export default {
   "landing.form.success": "Inscrição confirmada!",
   "landing.form.successDesc": "Você será o primeiro a receber novidades.",
   "landing.footer.rights": "Todos os direitos reservados.",
+
+  // Profile
+  "profile.title": "Meu Perfil",
+  "profile.subtitle": "Gerencie suas informações pessoais",
+  "profile.displayName": "Nome de exibição",
+  "profile.displayNameHint": "Este nome aparece para clientes no chat",
+  "profile.phone": "Telefone",
+  "profile.department": "Departamento",
+  "profile.specialties": "Especialidades",
+  "profile.avatar": "Foto de perfil",
+  "profile.changePhoto": "Clique para alterar a foto",
+  "profile.saved": "Perfil atualizado com sucesso",
 };
