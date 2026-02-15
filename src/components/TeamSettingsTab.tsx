@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { ShieldCheck, Pencil, Copy, UserPlus, Mail, Phone, Building2, Loader2, Clock } from "lucide-react";
+import { ShieldCheck, Pencil, Copy, UserPlus, Mail, Phone, Building2, Loader2, Clock, Camera } from "lucide-react";
 import UserPermissionsDialog from "@/components/UserPermissionsDialog";
 
 const SPECIALTIES = ["implementacao", "onboarding", "acompanhamento", "churn"];
@@ -208,6 +208,29 @@ const TeamSettingsTab = () => {
     return profile.email.slice(0, 2).toUpperCase();
   };
 
+  const handleAvatarUpload = async (profile: UserProfile, file: File) => {
+    const ext = file.name.split(".").pop();
+    const userId = profile.user_id;
+    if (!userId) return;
+    const path = `${userId}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("logos")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      toast({ title: t("common.error"), description: uploadError.message, variant: "destructive" });
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
+    const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await supabase.from("user_profiles").update({ avatar_url: avatarUrl }).eq("user_id", userId);
+    toast({ title: t("chat.settings.saved") });
+    loadData();
+  };
+
   return (
     <>
       <Card>
@@ -248,10 +271,26 @@ const TeamSettingsTab = () => {
                   className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarImage src={profile.avatar_url ?? undefined} />
-                      <AvatarFallback>{initials(profile)}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative group">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarImage src={profile.avatar_url ?? undefined} />
+                        <AvatarFallback>{initials(profile)}</AvatarFallback>
+                      </Avatar>
+                      {profile.user_id && (
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                          <Camera className="h-4 w-4 text-white" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleAvatarUpload(profile, file);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm">
