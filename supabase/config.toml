@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.resolve-chat-visitor]
 verify_jwt = false
+
+[functions.import-external-data]
+verify_jwt = false
