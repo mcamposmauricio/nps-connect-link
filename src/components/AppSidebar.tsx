@@ -37,9 +37,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   const reportPaths = ["/cs-health", "/cs-churn", "/cs-financial", "/admin/gerencial"];
-  const [npsOpen, setNpsOpen] = useState(location.pathname.startsWith("/nps/") || location.pathname === "/nps");
-  const [chatOpen, setChatOpen] = useState(location.pathname.startsWith("/admin/"));
-  const [reportsOpen, setReportsOpen] = useState(reportPaths.includes(location.pathname));
+  const [npsOpen, setNpsOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(true);
+  const [reportsOpen, setReportsOpen] = useState(true);
 
   const showReports = hasPermission('cs', 'view') || hasPermission('chat', 'view');
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
@@ -49,7 +49,7 @@ export function AppSidebar() {
   const myAttendant = teamAttendants.find((a) => a.user_id === user?.id);
   const totalActiveChats = teamAttendants.reduce((sum, a) => sum + a.active_count, 0);
 
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
 
   // Fetch attendant counts filtered by team membership
   const fetchCounts = useCallback(async () => {
@@ -351,10 +351,9 @@ export function AppSidebar() {
                               >
                                 <User className="h-3.5 w-3.5" />
                                 <span className="truncate">
-                                  {att.display_name}
-                                  {att.user_id === user?.id && (
-                                    <span className="text-muted-foreground ml-1">{t("chat.workspace.you")}</span>
-                                  )}
+                                  {att.user_id === user?.id
+                                    ? `${t("chat.workspace.you")} ${att.display_name}`
+                                    : att.display_name}
                                 </span>
                                 <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">
                                   {att.active_count}
