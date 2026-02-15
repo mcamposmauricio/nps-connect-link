@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2 } from "lucide-react";
+import { Plus, Loader2, Building2, Users, Upload, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -22,10 +22,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CompanyCard } from "@/components/CompanyCard";
 import { CompanyForm } from "@/components/CompanyForm";
 import { CompanyDetailsSheet } from "@/components/CompanyDetailsSheet";
+import { QuickContactForm } from "@/components/QuickContactForm";
+import { BulkImportDialog } from "@/components/BulkImportDialog";
 
 interface CompanyContact {
   id: string;
@@ -64,15 +72,18 @@ const Contacts = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [addCompanyDialogOpen, setAddCompanyDialogOpen] = useState(false);
+  const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [editCompanyData, setEditCompanyData] = useState<Company | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [deleteCompanyId, setDeleteCompanyId] = useState<string | null>(null);
+  const [bulkImportType, setBulkImportType] = useState<"companies" | "contacts" | null>(null);
   
   const { toast } = useToast();
   const { t } = useLanguage();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('contacts', 'edit');
   const canDelete = hasPermission('contacts', 'delete');
+
   useEffect(() => {
     fetchCompanies();
   }, []);
@@ -82,7 +93,6 @@ const Contacts = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch companies (contacts where is_company = true)
       const { data: companiesData, error: companiesError } = await supabase
         .from("contacts")
         .select("*")
@@ -91,7 +101,6 @@ const Contacts = () => {
 
       if (companiesError) throw companiesError;
 
-      // Fetch all company_contacts for these companies
       const companyIds = (companiesData || []).map(c => c.id);
       
       let contactsData: any[] = [];
@@ -105,7 +114,6 @@ const Contacts = () => {
         contactsData = data || [];
       }
 
-      // Map companies with their contacts count and primary contact
       const companiesWithContacts: Company[] = (companiesData || []).map(company => {
         const companyContactsList = contactsData.filter(c => c.company_id === company.id);
         const primaryContact = companyContactsList.find(c => c.is_primary) || null;
@@ -167,6 +175,7 @@ const Contacts = () => {
         zip_code: data.zip_code || null,
         service_priority: data.service_priority || 'normal',
         service_category_id: data.service_category_id || null,
+        custom_fields: data.custom_fields && Object.keys(data.custom_fields).length > 0 ? data.custom_fields : {},
       } as any);
 
       if (error) throw error;
@@ -209,6 +218,7 @@ const Contacts = () => {
           zip_code: data.zip_code || null,
           service_priority: data.service_priority || 'normal',
           service_category_id: data.service_category_id || null,
+          custom_fields: data.custom_fields && Object.keys(data.custom_fields).length > 0 ? data.custom_fields : {},
         } as any)
         .eq("id", editCompanyData.id);
 
@@ -264,6 +274,36 @@ const Contacts = () => {
     }
   };
 
+  const AddDropdown = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          {t("companies.add")}
+          <ChevronDown className="ml-2 h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setAddCompanyDialogOpen(true)}>
+          <Building2 className="mr-2 h-4 w-4" />
+          {t("companies.addCompanyManual")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setAddContactDialogOpen(true)}>
+          <Users className="mr-2 h-4 w-4" />
+          {t("companies.addContactManual")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setBulkImportType("companies")}>
+          <Upload className="mr-2 h-4 w-4" />
+          {t("companies.importCompaniesCsv")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setBulkImportType("contacts")}>
+          <Upload className="mr-2 h-4 w-4" />
+          {t("companies.importContactsCsv")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <SidebarLayout>
       <div className="space-y-6">
@@ -273,12 +313,7 @@ const Contacts = () => {
             <p className="text-sm text-muted-foreground mt-1">{t("companies.subtitle")}</p>
           </div>
 
-          {canEdit && (
-            <Button onClick={() => setAddCompanyDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t("companies.addCompany")}
-            </Button>
-          )}
+          {canEdit && <AddDropdown />}
         </div>
 
         {loading ? (
@@ -289,15 +324,7 @@ const Contacts = () => {
           <Card className="p-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">{t("companies.noCompanies")}</p>
-            {canEdit && (
-              <Button 
-                className="mt-4"
-                onClick={() => setAddCompanyDialogOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                {t("companies.addCompany")}
-              </Button>
-            )}
+            {canEdit && <div className="mt-4"><AddDropdown /></div>}
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -326,6 +353,22 @@ const Contacts = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Add Contact Dialog */}
+        <Dialog open={addContactDialogOpen} onOpenChange={setAddContactDialogOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("companies.addContact")}</DialogTitle>
+            </DialogHeader>
+            <QuickContactForm
+              onSuccess={() => {
+                setAddContactDialogOpen(false);
+                fetchCompanies();
+              }}
+              onCancel={() => setAddContactDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+
         {/* Edit Company Dialog */}
         <Dialog open={!!editCompanyData} onOpenChange={(open) => !open && setEditCompanyData(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -350,6 +393,7 @@ const Contacts = () => {
                   zip_code: editCompanyData.zip_code || "",
                   service_priority: (editCompanyData as any).service_priority || "normal",
                   service_category_id: (editCompanyData as any).service_category_id || "",
+                  custom_fields: (editCompanyData as any).custom_fields || {},
                 }}
                 onSubmit={handleEditCompany}
                 onCancel={() => setEditCompanyData(null)}
@@ -357,6 +401,14 @@ const Contacts = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Bulk Import Dialog */}
+        <BulkImportDialog
+          open={!!bulkImportType}
+          onOpenChange={(open) => !open && setBulkImportType(null)}
+          type={bulkImportType || "companies"}
+          onSuccess={fetchCompanies}
+        />
 
         {/* Unified Company Details Sheet */}
         <CompanyDetailsSheet

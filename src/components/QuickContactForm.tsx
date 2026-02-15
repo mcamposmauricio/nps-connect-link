@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CompanySelector } from "@/components/CompanySelector";
+import { CustomFieldsEditor } from "@/components/CustomFieldsEditor";
 
 interface QuickContactFormProps {
   onSuccess: () => void;
@@ -24,6 +25,7 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
     role: "",
     department: "",
     external_id: "",
+    custom_fields: {} as Record<string, string>,
   });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -67,8 +69,9 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
         role: formData.role || null,
         department: formData.department || null,
         external_id: formData.external_id || null,
-        is_primary: count === 0, // First contact is automatically primary
-      });
+        is_primary: count === 0,
+        custom_fields: Object.keys(formData.custom_fields).length > 0 ? formData.custom_fields : {},
+      } as any);
 
       if (error) throw error;
 
@@ -85,6 +88,7 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
         role: "",
         department: "",
         external_id: "",
+        custom_fields: {},
       });
       onSuccess();
     } catch (error: any) {
@@ -176,6 +180,11 @@ export const QuickContactForm = ({ onSuccess, onCancel, preselectedCompanyId }: 
           {t("companyContacts.externalIdHelp")}
         </p>
       </div>
+
+      <CustomFieldsEditor
+        value={formData.custom_fields}
+        onChange={(fields) => setFormData({ ...formData, custom_fields: fields })}
+      />
 
       <div className="flex gap-2 pt-4">
         {onCancel && (

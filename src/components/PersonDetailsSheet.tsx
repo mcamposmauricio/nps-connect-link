@@ -27,6 +27,7 @@ import {
 import { format } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
 import { TimelineComponent } from "@/components/cs/TimelineComponent";
+import { CustomFieldsDisplay } from "@/components/CustomFieldsDisplay";
 
 interface PersonWithCompany {
   id: string;
@@ -221,6 +222,8 @@ export function PersonDetailsSheet({ person, onClose }: PersonDetailsSheetProps)
               </Card>
             )}
 
+            {/* Custom Fields */}
+            <CustomFieldsDisplay fields={(person as any).custom_fields} />
             {/* Chat Metrics */}
             <Card>
               <CardHeader className="pb-2">
