@@ -43,6 +43,7 @@ import { NPSTrailCard } from "@/components/cs/NPSTrailCard";
 import { CompanyContactsList } from "@/components/CompanyContactsList";
 import { CompanyContactForm } from "@/components/CompanyContactForm";
 import { PersonDetailsSheet } from "@/components/PersonDetailsSheet";
+import { CustomFieldsDisplay } from "@/components/CustomFieldsDisplay";
 
 interface CompanyDetailsSheetProps {
   companyId: string | null;
@@ -201,7 +202,8 @@ export function CompanyDetailsSheet({
         department: data.department || null,
         is_primary: data.is_primary || contacts.length === 0,
         external_id: data.external_id || null,
-      });
+        custom_fields: data.custom_fields && Object.keys(data.custom_fields).length > 0 ? data.custom_fields : {},
+      } as any);
 
       if (error) throw error;
       toast({ title: t("common.success"), description: t("contacts.addSuccess") });
@@ -232,7 +234,8 @@ export function CompanyDetailsSheet({
           department: data.department || null,
           is_primary: data.is_primary,
           external_id: data.external_id || null,
-        })
+          custom_fields: data.custom_fields && Object.keys(data.custom_fields).length > 0 ? data.custom_fields : {},
+        } as any)
         .eq("id", editContactData.id);
 
       if (error) throw error;
@@ -421,6 +424,8 @@ export function CompanyDetailsSheet({
                 </CardContent>
               </Card>
 
+              {/* Custom Fields */}
+              <CustomFieldsDisplay fields={(company as any).custom_fields} />
               {/* Financial Info */}
               <Card>
                 <CardHeader className="pb-2">
@@ -621,6 +626,7 @@ export function CompanyDetailsSheet({
                 department: editContactData.department || "",
                 is_primary: editContactData.is_primary,
                 external_id: editContactData.external_id || "",
+                custom_fields: (editContactData as any).custom_fields || {},
               }}
               onSubmit={handleEditContact}
               onCancel={() => setEditContactData(null)}

@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { CNPJInput, type CNPJData } from "@/components/CNPJInput";
 import { CNPJPreview } from "@/components/CNPJPreview";
 import { supabase } from "@/integrations/supabase/client";
+import { CustomFieldsEditor } from "@/components/CustomFieldsEditor";
 
 interface CompanyFormData {
   name: string;
@@ -26,6 +27,7 @@ interface CompanyFormData {
   zip_code: string;
   service_priority: string;
   service_category_id: string;
+  custom_fields: Record<string, string>;
 }
 
 interface CompanyFormProps {
@@ -56,6 +58,7 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
     zip_code: initialData?.zip_code || "",
     service_priority: initialData?.service_priority || "normal",
     service_category_id: initialData?.service_category_id || "",
+    custom_fields: (initialData?.custom_fields as Record<string, string>) || {},
   });
 
   useEffect(() => {
@@ -101,7 +104,7 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
     }
   };
 
-  const updateField = (field: keyof CompanyFormData, value: string) => {
+  const updateField = (field: keyof CompanyFormData, value: string | Record<string, string>) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -209,6 +212,13 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
           </Select>
         </div>
       </div>
+
+      <Separator className="my-4" />
+
+      <CustomFieldsEditor
+        value={formData.custom_fields}
+        onChange={(fields) => updateField("custom_fields", fields)}
+      />
 
       <Separator className="my-4" />
 

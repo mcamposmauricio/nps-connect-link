@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PhoneInput } from "@/components/PhoneInput";
+import { CustomFieldsEditor } from "@/components/CustomFieldsEditor";
 
 interface CompanyContactFormData {
   name: string;
@@ -15,6 +16,7 @@ interface CompanyContactFormData {
   department: string;
   is_primary: boolean;
   external_id: string;
+  custom_fields: Record<string, string>;
 }
 
 interface CompanyContactFormProps {
@@ -42,6 +44,7 @@ export function CompanyContactForm({
     department: initialData?.department || "",
     is_primary: initialData?.is_primary || false,
     external_id: initialData?.external_id || "",
+    custom_fields: (initialData?.custom_fields as Record<string, string>) || {},
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,6 +130,11 @@ export function CompanyContactForm({
           {t("companyContacts.externalIdHelp")}
         </p>
       </div>
+
+      <CustomFieldsEditor
+        value={formData.custom_fields}
+        onChange={(fields) => updateField("custom_fields", fields as any)}
+      />
 
       {showPrimaryOption && (
         <div className="flex items-center justify-between">
