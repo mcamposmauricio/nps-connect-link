@@ -407,6 +407,11 @@ export function CompanyDetailsSheet({
                   {company.company_sector && (
                     <Badge variant="secondary" className="text-xs">{company.company_sector}</Badge>
                   )}
+                  {(company as any).service_priority && (company as any).service_priority !== 'normal' && (
+                    <Badge variant="outline" className="text-xs">
+                      {t(`chat.categories.priority${((company as any).service_priority as string).charAt(0).toUpperCase() + ((company as any).service_priority as string).slice(1)}`)}
+                    </Badge>
+                  )}
                   {(company.city || company.state) && (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" />

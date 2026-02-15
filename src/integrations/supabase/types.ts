@@ -566,6 +566,55 @@ export type Database = {
           },
         ]
       }
+      chat_category_teams: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          id: string
+          priority_order: number | null
+          team_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          id?: string
+          priority_order?: number | null
+          team_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          priority_order?: number | null
+          team_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_category_teams_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "chat_service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_category_teams_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "chat_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_category_teams_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_custom_fields: {
         Row: {
           created_at: string | null
@@ -862,6 +911,44 @@ export type Database = {
           },
         ]
       }
+      chat_service_categories: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          tenant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_service_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_settings: {
         Row: {
           auto_assignment: boolean | null
@@ -946,6 +1033,87 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "chat_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_team_members: {
+        Row: {
+          attendant_id: string
+          created_at: string | null
+          id: string
+          team_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          attendant_id: string
+          created_at?: string | null
+          id?: string
+          team_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          attendant_id?: string
+          created_at?: string | null
+          id?: string
+          team_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_team_members_attendant_id_fkey"
+            columns: ["attendant_id"]
+            isOneToOne: false
+            referencedRelation: "attendant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "chat_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_team_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_teams: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          tenant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_teams_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1127,6 +1295,8 @@ export type Database = {
           neighborhood: string | null
           phone: string | null
           renewal_date: string | null
+          service_category_id: string | null
+          service_priority: string | null
           state: string | null
           street: string | null
           street_number: string | null
@@ -1158,6 +1328,8 @@ export type Database = {
           neighborhood?: string | null
           phone?: string | null
           renewal_date?: string | null
+          service_category_id?: string | null
+          service_priority?: string | null
           state?: string | null
           street?: string | null
           street_number?: string | null
@@ -1189,6 +1361,8 @@ export type Database = {
           neighborhood?: string | null
           phone?: string | null
           renewal_date?: string | null
+          service_category_id?: string | null
+          service_priority?: string | null
           state?: string | null
           street?: string | null
           street_number?: string | null
@@ -1204,6 +1378,13 @@ export type Database = {
             columns: ["csm_id"]
             isOneToOne: false
             referencedRelation: "csms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_service_category_id_fkey"
+            columns: ["service_category_id"]
+            isOneToOne: false
+            referencedRelation: "chat_service_categories"
             referencedColumns: ["id"]
           },
           {

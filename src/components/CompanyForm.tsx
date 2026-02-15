@@ -1,12 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CNPJInput, type CNPJData } from "@/components/CNPJInput";
 import { CNPJPreview } from "@/components/CNPJPreview";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CompanyFormData {
   name: string;
@@ -22,6 +24,8 @@ interface CompanyFormData {
   city: string;
   state: string;
   zip_code: string;
+  service_priority: string;
+  service_category_id: string;
 }
 
 interface CompanyFormProps {
@@ -35,6 +39,7 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
   const { t } = useLanguage();
   const [saving, setSaving] = useState(false);
   const [cnpjData, setCnpjData] = useState<CNPJData | null>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
   const [formData, setFormData] = useState<CompanyFormData>({
     name: initialData?.name || "",
     trade_name: initialData?.trade_name || "",
@@ -49,7 +54,15 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
     city: initialData?.city || "",
     state: initialData?.state || "",
     zip_code: initialData?.zip_code || "",
+    service_priority: initialData?.service_priority || "normal",
+    service_category_id: initialData?.service_category_id || "",
   });
+
+  useEffect(() => {
+    supabase.from("chat_service_categories").select("id, name, color").order("name").then(({ data }) => {
+      setCategories(data ?? []);
+    });
+  }, []);
 
   const handleCNPJDataFetched = useCallback((data: CNPJData | null) => {
     setCnpjData(data);
@@ -163,6 +176,38 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
           onChange={(e) => updateField("company_sector", e.target.value)}
           placeholder={t("contacts.sectorPlaceholder")}
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>{t("chat.categories.servicePriority")}</Label>
+          <Select value={formData.service_priority} onValueChange={(v) => updateField("service_priority", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">{t("chat.categories.priorityLow")}</SelectItem>
+              <SelectItem value="normal">{t("chat.categories.priorityNormal")}</SelectItem>
+              <SelectItem value="high">{t("chat.categories.priorityHigh")}</SelectItem>
+              <SelectItem value="critical">{t("chat.categories.priorityCritical")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>{t("chat.categories.serviceCategory")}</Label>
+          <Select value={formData.service_category_id} onValueChange={(v) => updateField("service_category_id", v === "none" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder={t("chat.categories.selectCategory")} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">—</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                    {cat.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Separator className="my-4" />

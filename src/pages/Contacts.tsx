@@ -165,7 +165,9 @@ const Contacts = () => {
         city: data.city || null,
         state: data.state || null,
         zip_code: data.zip_code || null,
-      });
+        service_priority: data.service_priority || 'normal',
+        service_category_id: data.service_category_id || null,
+      } as any);
 
       if (error) throw error;
 
@@ -205,7 +207,9 @@ const Contacts = () => {
           city: data.city || null,
           state: data.state || null,
           zip_code: data.zip_code || null,
-        })
+          service_priority: data.service_priority || 'normal',
+          service_category_id: data.service_category_id || null,
+        } as any)
         .eq("id", editCompanyData.id);
 
       if (error) throw error;
@@ -344,6 +348,8 @@ const Contacts = () => {
                   city: editCompanyData.city || "",
                   state: editCompanyData.state || "",
                   zip_code: editCompanyData.zip_code || "",
+                  service_priority: (editCompanyData as any).service_priority || "normal",
+                  service_category_id: (editCompanyData as any).service_category_id || "",
                 }}
                 onSubmit={handleEditCompany}
                 onCancel={() => setEditCompanyData(null)}

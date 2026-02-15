@@ -14,9 +14,12 @@ import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Plus, Edit, Trash2, Key } from "lucide-react";
+import { Save, Plus, Edit, Trash2, Key, Headphones, Users, Tag } from "lucide-react";
 import ChatApiKeysTab from "@/components/ChatApiKeysTab";
 import WidgetPreview from "@/components/chat/WidgetPreview";
+import AttendantsTab from "@/components/chat/AttendantsTab";
+import TeamsTab from "@/components/chat/TeamsTab";
+import CategoriesTab from "@/components/chat/CategoriesTab";
 
 interface Macro {
   id: string;
@@ -302,6 +305,18 @@ const AdminSettings = () => {
             <TabsTrigger value="apikeys" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
               {t("settings.tabs.apiKeys")}
+            </TabsTrigger>
+            <TabsTrigger value="attendants" className="flex items-center gap-2">
+              <Headphones className="h-4 w-4" />
+              {t("chat.attendants.title")}
+            </TabsTrigger>
+            <TabsTrigger value="teams" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              {t("chat.teams.title")}
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              {t("chat.categories.title")}
             </TabsTrigger>
           </TabsList>
 
@@ -648,6 +663,21 @@ const AdminSettings = () => {
           {/* API Keys Tab */}
           <TabsContent value="apikeys" className="mt-4">
             <ChatApiKeysTab />
+          </TabsContent>
+
+          {/* Attendants Tab */}
+          <TabsContent value="attendants" className="mt-4">
+            <AttendantsTab />
+          </TabsContent>
+
+          {/* Teams Tab */}
+          <TabsContent value="teams" className="mt-4">
+            <TeamsTab />
+          </TabsContent>
+
+          {/* Categories Tab */}
+          <TabsContent value="categories" className="mt-4">
+            <CategoriesTab />
           </TabsContent>
         </Tabs>
 

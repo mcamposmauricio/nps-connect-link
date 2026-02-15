@@ -273,11 +273,6 @@ export function AppSidebar() {
                     {hasPermission('chat', 'manage') && (
                       <>
                         <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/admin/attendants")} isActive={isActive("/admin/attendants")} tooltip={t("chat.attendants.title")} className="pl-6">
-                            <Headphones className="h-4 w-4" /><span>{t("chat.attendants.title")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
                           <SidebarMenuButton onClick={() => navigate("/admin/banners")} isActive={isActive("/admin/banners")} tooltip={t("banners.title")} className="pl-6">
                             <Flag className="h-4 w-4" /><span>{t("banners.title")}</span>
                           </SidebarMenuButton>
