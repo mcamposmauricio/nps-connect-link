@@ -36,8 +36,12 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
+  const reportPaths = ["/cs-health", "/cs-churn", "/cs-financial", "/admin/gerencial"];
   const [npsOpen, setNpsOpen] = useState(location.pathname.startsWith("/nps/") || location.pathname === "/nps");
   const [chatOpen, setChatOpen] = useState(location.pathname.startsWith("/admin/"));
+  const [reportsOpen, setReportsOpen] = useState(reportPaths.includes(location.pathname));
+
+  const showReports = hasPermission('cs', 'view') || hasPermission('chat', 'view');
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
 
   const isActive = (path: string) => location.pathname === path;
@@ -103,11 +107,6 @@ export function AppSidebar() {
     { path: "/cs-trails", icon: Route, label: t("nav.journeys") },
   ];
 
-  const csReportItems = [
-    { path: "/cs-health", icon: Heart, label: t("nav.health") },
-    { path: "/cs-churn", icon: TrendingDown, label: t("nav.risk") },
-    { path: "/cs-financial", icon: DollarSign, label: t("nav.revenue") },
-  ];
 
   const npsItems = [
     { path: "/nps/dashboard", icon: BarChart3, label: t("nav.metrics") },
@@ -145,21 +144,49 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* CS Reports */}
-        {hasPermission('cs', 'view') && (
+        {/* Relatórios - unified reports menu */}
+        {showReports && (
           <SidebarGroup>
-            <SidebarGroupLabel>{t("cs.reports")}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {csReportItems.map((item) => (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton onClick={() => navigate(item.path)} isActive={isActive(item.path)} tooltip={item.label}>
-                      <item.icon className="h-4 w-4" /><span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
+            <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full">
+                  <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /><span>{t("cs.reports")}</span></span>
+                  {!collapsed && (reportsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {hasPermission('cs', 'view') && (
+                      <>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/cs-health")} isActive={isActive("/cs-health")} tooltip={t("nav.health")} className="pl-6">
+                            <Heart className="h-4 w-4" /><span>{t("nav.health")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/cs-churn")} isActive={isActive("/cs-churn")} tooltip={t("nav.risk")} className="pl-6">
+                            <TrendingDown className="h-4 w-4" /><span>{t("nav.risk")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/cs-financial")} isActive={isActive("/cs-financial")} tooltip={t("nav.revenue")} className="pl-6">
+                            <DollarSign className="h-4 w-4" /><span>{t("nav.revenue")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </>
+                    )}
+                    {hasPermission('chat', 'view') && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/admin/gerencial")} isActive={isActive("/admin/gerencial")} tooltip={t("chat.gerencial.title")} className="pl-6">
+                          <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
           </SidebarGroup>
         )}
 
@@ -275,11 +302,6 @@ export function AppSidebar() {
                         <SidebarMenuItem>
                           <SidebarMenuButton onClick={() => navigate("/admin/banners")} isActive={isActive("/admin/banners")} tooltip={t("banners.title")} className="pl-6">
                             <Flag className="h-4 w-4" /><span>{t("banners.title")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/admin/gerencial")} isActive={isActive("/admin/gerencial")} tooltip={t("chat.gerencial.title")} className="pl-6">
-                            <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
