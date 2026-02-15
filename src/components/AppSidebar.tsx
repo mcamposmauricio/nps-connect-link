@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, Route, Heart, TrendingDown, DollarSign, Users, BarChart3, Send, Settings,
   ChevronDown, ChevronRight, LogOut, Languages, Zap, Building2, MessageSquare, Headphones,
-  TrendingUp, History, Flag, User,
+  TrendingUp, History, Flag, User, Inbox,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ interface TeamAttendant {
   id: string;
   display_name: string;
   active_count: number;
+  user_id: string;
 }
 
 export function AppSidebar() {
@@ -31,46 +32,65 @@ export function AppSidebar() {
   const location = useLocation();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
-  const { isAdmin, hasPermission } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
   const [npsOpen, setNpsOpen] = useState(location.pathname.startsWith("/nps/") || location.pathname === "/nps");
   const [chatOpen, setChatOpen] = useState(location.pathname.startsWith("/admin/"));
-  const [teamOpen, setTeamOpen] = useState(false);
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Fetch team attendants with active chat counts
+  // Find current user's attendant profile
+  const myAttendant = teamAttendants.find((a) => a.user_id === user?.id);
+  const otherAttendants = teamAttendants.filter((a) => a.user_id !== user?.id);
+
+  // Fetch attendant counts
+  const fetchCounts = useCallback(async () => {
+    const { data: attendants } = await supabase
+      .from("attendant_profiles")
+      .select("id, display_name, user_id");
+    if (!attendants) return;
+
+    const { data: activeRooms } = await supabase
+      .from("chat_rooms")
+      .select("attendant_id")
+      .in("status", ["active", "waiting"]);
+
+    const counts: Record<string, number> = {};
+    (activeRooms ?? []).forEach((r: any) => {
+      if (r.attendant_id) counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
+    });
+
+    setTeamAttendants(
+      (attendants as any[]).map((a) => ({
+        id: a.id,
+        display_name: a.display_name,
+        user_id: a.user_id,
+        active_count: counts[a.id] || 0,
+      }))
+    );
+  }, []);
+
+  // Fetch on mount + realtime subscription
   useEffect(() => {
     if (!chatOpen) return;
-    const fetchTeam = async () => {
-      const { data: attendants } = await supabase
-        .from("attendant_profiles")
-        .select("id, display_name");
-      if (!attendants) return;
+    fetchCounts();
 
-      const { data: activeRooms } = await supabase
-        .from("chat_rooms")
-        .select("attendant_id")
-        .eq("status", "active");
+    const channel = supabase
+      .channel("sidebar-chat-rooms")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "chat_rooms" },
+        () => fetchCounts()
+      )
+      .subscribe();
 
-      const counts: Record<string, number> = {};
-      (activeRooms ?? []).forEach((r: any) => {
-        if (r.attendant_id) counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
-      });
-
-      setTeamAttendants(
-        (attendants as any[]).map((a) => ({
-          id: a.id,
-          display_name: a.display_name,
-          active_count: counts[a.id] || 0,
-        }))
-      );
+    return () => {
+      supabase.removeChannel(channel);
     };
-    fetchTeam();
-  }, [chatOpen]);
+  }, [chatOpen, fetchCounts]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -209,52 +229,41 @@ export function AppSidebar() {
                         <LayoutDashboard className="h-4 w-4" /><span>Dashboard</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    {/* Sua fila */}
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         onClick={() => navigate("/admin/workspace")}
-                        isActive={isActive("/admin/workspace") || location.pathname.startsWith("/admin/workspace/")}
-                        tooltip={t("chat.workspace.title")}
+                        isActive={location.pathname === "/admin/workspace" && !location.search.includes("attendant=")}
+                        tooltip="Sua fila"
                         className="pl-6"
                       >
-                        <MessageSquare className="h-4 w-4" /><span>Workspace</span>
+                        <Inbox className="h-4 w-4" />
+                        <span>Sua fila</span>
+                        {myAttendant && (
+                          <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">
+                            {myAttendant.active_count}
+                          </Badge>
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
-                    {/* Team attendants sub-section */}
-                    {teamAttendants.length > 0 && (
-                      <SidebarMenuItem>
-                        <Collapsible open={teamOpen} onOpenChange={setTeamOpen}>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip="Equipe" className="pl-8">
-                              <Users className="h-3.5 w-3.5" />
-                              <span className="text-xs">Equipe</span>
-                              {!collapsed && (
-                                <span className="ml-auto">
-                                  {teamOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                                </span>
-                              )}
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            {teamAttendants.map((att) => (
-                              <SidebarMenuButton
-                                key={att.id}
-                                onClick={() => navigate(`/admin/workspace?attendant=${att.id}`)}
-                                isActive={location.search.includes(`attendant=${att.id}`)}
-                                tooltip={att.display_name}
-                                className="pl-10 text-xs"
-                              >
-                                <User className="h-3 w-3" />
-                                <span className="truncate">{att.display_name}</span>
-                                <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">
-                                  {att.active_count}
-                                </Badge>
-                              </SidebarMenuButton>
-                            ))}
-                          </CollapsibleContent>
-                        </Collapsible>
+                    {/* Other attendants */}
+                    {otherAttendants.map((att) => (
+                      <SidebarMenuItem key={att.id}>
+                        <SidebarMenuButton
+                          onClick={() => navigate(`/admin/workspace?attendant=${att.id}`)}
+                          isActive={location.search.includes(`attendant=${att.id}`)}
+                          tooltip={att.display_name}
+                          className="pl-8 text-xs"
+                        >
+                          <User className="h-3.5 w-3.5" />
+                          <span className="truncate">{att.display_name}</span>
+                          <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">
+                            {att.active_count}
+                          </Badge>
+                        </SidebarMenuButton>
                       </SidebarMenuItem>
-                    )}
+                    ))}
 
                     <SidebarMenuItem>
                       <SidebarMenuButton onClick={() => navigate("/admin/history")} isActive={isActive("/admin/history")} tooltip={t("chat.history.title")} className="pl-6">
