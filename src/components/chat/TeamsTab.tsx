@@ -1,0 +1,166 @@
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, Edit, Trash2, Users } from "lucide-react";
+
+interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  member_count: number;
+}
+
+const TeamsTab = () => {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", description: "" });
+
+  const fetchTeams = async () => {
+    setLoading(true);
+    const [{ data: teamsData }, { data: membersData }] = await Promise.all([
+      supabase.from("chat_teams").select("id, name, description").order("name"),
+      supabase.from("chat_team_members").select("team_id"),
+    ]);
+
+    const counts: Record<string, number> = {};
+    (membersData ?? []).forEach((m: any) => { counts[m.team_id] = (counts[m.team_id] || 0) + 1; });
+
+    setTeams((teamsData ?? []).map((t: any) => ({ ...t, member_count: counts[t.id] || 0 })));
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchTeams(); }, []);
+
+  const openDialog = (team?: Team) => {
+    if (team) {
+      setEditingTeam(team);
+      setForm({ name: team.name, description: team.description || "" });
+    } else {
+      setEditingTeam(null);
+      setForm({ name: "", description: "" });
+    }
+    setDialogOpen(true);
+  };
+
+  const saveTeam = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    if (editingTeam) {
+      await supabase.from("chat_teams").update({ name: form.name, description: form.description || null }).eq("id", editingTeam.id);
+    } else {
+      await supabase.from("chat_teams").insert({ user_id: session.user.id, name: form.name, description: form.description || null } as any);
+    }
+    setDialogOpen(false);
+    toast({ title: t("chat.settings.saved") });
+    fetchTeams();
+  };
+
+  const deleteTeam = async () => {
+    if (!deleteId) return;
+    await supabase.from("chat_teams").delete().eq("id", deleteId);
+    setDeleteId(null);
+    toast({ title: t("chat.settings.saved") });
+    fetchTeams();
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => openDialog()}>
+          <Plus className="h-4 w-4 mr-1" /> {t("chat.teams.create")}
+        </Button>
+      </div>
+
+      {teams.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">
+          <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
+          <p>{t("chat.teams.noTeams")}</p>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {teams.map((team) => (
+            <Card key={team.id}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{team.name}</CardTitle>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="h-3 w-3 mr-1" />{team.member_count}
+                    </Badge>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(team)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(team.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              {team.description && (
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{team.description}</p>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingTeam ? t("chat.teams.edit") : t("chat.teams.create")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("chat.teams.name")}</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("chat.teams.namePlaceholder")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("chat.teams.description")}</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={saveTeam} disabled={!form.name.trim()}>{t("common.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("chat.teams.deleteConfirm")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("chat.teams.deleteDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={deleteTeam}>{t("common.delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default TeamsTab;
