@@ -34,6 +34,7 @@ import PendingApproval from "./pages/PendingApproval";
 import UserPortal from "./pages/UserPortal";
 import People from "./pages/People";
 import NPSSettings from "./pages/NPSSettings";
+import MyProfile from "./pages/MyProfile";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => (
           <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
           <Route path="/nps/settings" element={<Settings />} />
           <Route path="/nps/nps-settings" element={<NPSSettings />} />
+          <Route path="/profile" element={<MyProfile />} />
           
           {/* Legacy routes redirect to new structure */}
           <Route path="/dashboard" element={<Navigate to="/nps/dashboard" replace />} />

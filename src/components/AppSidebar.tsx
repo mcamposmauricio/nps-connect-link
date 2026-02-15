@@ -309,6 +309,9 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-2">
+          <SidebarMenuButton onClick={() => navigate("/profile")} isActive={isActive("/profile")} tooltip={t("profile.title")} className="w-full justify-start">
+            <User className="h-4 w-4" />{!collapsed && <span>{t("profile.title")}</span>}
+          </SidebarMenuButton>
           {hasPermission('settings', 'view') && (
             <SidebarMenuButton onClick={() => navigate("/nps/settings")} isActive={isActive("/nps/settings")} tooltip={t("nav.config")} className="w-full justify-start">
               <Settings className="h-4 w-4" />{!collapsed && <span>{t("nav.config")}</span>}

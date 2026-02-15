@@ -920,4 +920,16 @@ export default {
   "landing.form.success": "You're signed up!",
   "landing.form.successDesc": "You'll be the first to hear about our updates.",
   "landing.footer.rights": "All rights reserved.",
+
+  // Profile
+  "profile.title": "My Profile",
+  "profile.subtitle": "Manage your personal information",
+  "profile.displayName": "Display name",
+  "profile.displayNameHint": "This name is shown to customers in chat",
+  "profile.phone": "Phone",
+  "profile.department": "Department",
+  "profile.specialties": "Specialties",
+  "profile.avatar": "Profile photo",
+  "profile.changePhoto": "Click to change photo",
+  "profile.saved": "Profile updated successfully",
 };
