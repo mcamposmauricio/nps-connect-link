@@ -274,7 +274,7 @@ const Contacts = () => {
     }
   };
 
-  const AddDropdown = () => (
+  const addDropdownContent = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button>
@@ -313,7 +313,7 @@ const Contacts = () => {
             <p className="text-sm text-muted-foreground mt-1">{t("companies.subtitle")}</p>
           </div>
 
-          {canEdit && <AddDropdown />}
+          {canEdit && addDropdownContent}
         </div>
 
         {loading ? (
@@ -324,7 +324,7 @@ const Contacts = () => {
           <Card className="p-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">{t("companies.noCompanies")}</p>
-            {canEdit && <div className="mt-4"><AddDropdown /></div>}
+            {canEdit && <div className="mt-4">{addDropdownContent}</div>}
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

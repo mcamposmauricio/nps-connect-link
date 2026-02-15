@@ -93,26 +93,111 @@ export function BulkImportDialog({ open, onOpenChange, type, onSuccess }: BulkIm
     link.click();
   };
 
-  // CSV parse
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  // CSV parse with duplicate validation
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Fetch existing data for duplicate checking
+    let existingEmails = new Set<string>();
+    let existingCnpjs = new Set<string>();
+    let existingContactEmails = new Map<string, Set<string>>(); // companyEmail -> Set<contactEmail>
+
+    if (type === "companies") {
+      const { data: existing } = await supabase
+        .from("contacts")
+        .select("email, company_document")
+        .eq("is_company", true);
+      if (existing) {
+        existingEmails = new Set(existing.map(c => c.email?.toLowerCase().trim()).filter(Boolean));
+        existingCnpjs = new Set(
+          existing.map(c => c.company_document?.replace(/\D/g, "")).filter(Boolean) as string[]
+        );
+      }
+    } else {
+      // For contacts, fetch existing company contacts grouped by company email
+      const { data: companies } = await supabase
+        .from("contacts")
+        .select("id, email")
+        .eq("is_company", true);
+      if (companies && companies.length > 0) {
+        const companyIds = companies.map(c => c.id);
+        const { data: contacts } = await supabase
+          .from("company_contacts")
+          .select("email, company_id")
+          .in("company_id", companyIds);
+        if (contacts) {
+          const companyIdToEmail = new Map(companies.map(c => [c.id, c.email?.toLowerCase().trim()]));
+          for (const contact of contacts) {
+            const compEmail = companyIdToEmail.get(contact.company_id) || "";
+            if (!existingContactEmails.has(compEmail)) {
+              existingContactEmails.set(compEmail, new Set());
+            }
+            existingContactEmails.get(compEmail)!.add(contact.email?.toLowerCase().trim());
+          }
+        }
+      }
+    }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       encoding: "UTF-8",
       complete: (results) => {
+        const seenEmails = new Set<string>();
+        const seenCnpjs = new Set<string>();
+
         const rows: ParsedRow[] = (results.data as Record<string, string>[]).map((row) => {
           const errors: string[] = [];
           if (!row.nome?.trim()) errors.push(t("bulkImport.errorNameRequired"));
           if (!row.email?.trim()) errors.push(t("bulkImport.errorEmailRequired"));
+          
+          const emailLower = row.email?.trim().toLowerCase() || "";
           if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())) {
             errors.push(t("bulkImport.errorEmailInvalid"));
           }
-          if (type === "contacts" && !row.empresa_email?.trim()) {
-            errors.push(t("bulkImport.errorCompanyEmailRequired"));
+
+          if (type === "companies") {
+            // Check duplicate email against DB
+            if (emailLower && existingEmails.has(emailLower)) {
+              errors.push(t("bulkImport.errorDuplicateEmail"));
+            }
+            // Check duplicate email within CSV
+            if (emailLower && seenEmails.has(emailLower)) {
+              errors.push(t("bulkImport.errorDuplicateInFile"));
+            }
+            if (emailLower) seenEmails.add(emailLower);
+
+            // Check duplicate CNPJ
+            const cnpjClean = row.cnpj?.replace(/\D/g, "") || "";
+            if (cnpjClean) {
+              if (existingCnpjs.has(cnpjClean)) {
+                errors.push(t("bulkImport.errorDuplicateCnpj"));
+              }
+              if (seenCnpjs.has(cnpjClean)) {
+                errors.push(t("bulkImport.errorDuplicateInFile"));
+              }
+              seenCnpjs.add(cnpjClean);
+            }
+          } else {
+            // Contacts
+            if (!row.empresa_email?.trim()) {
+              errors.push(t("bulkImport.errorCompanyEmailRequired"));
+            } else {
+              const compEmail = row.empresa_email.trim().toLowerCase();
+              const existingSet = existingContactEmails.get(compEmail);
+              if (existingSet && emailLower && existingSet.has(emailLower)) {
+                errors.push(t("bulkImport.errorContactDuplicate"));
+              }
+            }
+            // Check duplicate within CSV (same email + same company)
+            const csvKey = `${emailLower}|${row.empresa_email?.trim().toLowerCase() || ""}`;
+            if (emailLower && seenEmails.has(csvKey)) {
+              errors.push(t("bulkImport.errorDuplicateInFile"));
+            }
+            if (emailLower) seenEmails.add(csvKey);
           }
+
           return { data: row, errors, valid: errors.length === 0 };
         });
         setParsedRows(rows);
