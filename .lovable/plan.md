@@ -1,79 +1,64 @@
 
-# Ajustes no Menu do Workspace e Contadores em Tempo Real
+# Adicionar pagina "Meu Perfil"
 
-## Problemas identificados
+## Objetivo
 
-1. **Clicar em "Workspace" no menu navega para a rota com o parametro `?attendant=` de outro atendente** em vez de abrir a fila propria do usuario.
-2. **Os subitens de equipe mostram nomes genericos** e nao diferenciam o usuario logado como "Sua fila".
-3. **O contador de chats ativos no menu nao atualiza em tempo real** quando um chat e transferido -- so atualiza com F5.
-4. **O item "Workspace" no menu nao reflete o conceito de "Sua fila"** com o contador de chats do proprio usuario.
+Criar uma pagina dedicada onde o usuario logado pode visualizar e editar seus dados de perfil, incluindo o nome exibido no atendimento ao cliente, telefone, departamento, especialidades e foto de avatar.
 
-## Solucao
+## Mudancas
 
-### 1. "Workspace" sempre abre a fila propria do usuario
+### 1. Nova pagina `src/pages/MyProfile.tsx`
 
-No `AppSidebar.tsx`, o botao "Workspace" vai navegar para `/admin/workspace` (sem parametro `attendant`), garantindo que sempre abra a visao propria.
+Pagina com formulario para editar os dados do proprio usuario a partir da tabela `user_profiles`:
 
-### 2. Reorganizar subitens: "Sua fila" + nomes dos colegas
+**Campos editaveis:**
+- **Nome de exibicao** (display_name) -- o nome que aparece no chat para o cliente
+- **Email** (somente leitura, vem do auth)
+- **Telefone** (phone)
+- **Departamento** (department)
+- **Especialidades** (specialty) -- checkboxes: implementacao, onboarding, acompanhamento, churn
+- **Avatar** (avatar_url) -- upload de imagem para o bucket `logos` existente
 
-Remover o item separado "Workspace" e o sub-grupo "Equipe". Em vez disso, apos expandir o collapsible do Chat, exibir direto:
+**Layout:**
+- Card com avatar grande no topo (clicavel para trocar foto)
+- Formulario abaixo com os campos
+- Botao "Salvar" que faz `update` na tabela `user_profiles` onde `user_id = auth.uid()`
+- Toast de confirmacao ao salvar
 
-- **Dashboard** (como ja esta)
-- **Sua fila (N)** -- navega para `/admin/workspace` sem parametro, badge com contagem de chats do usuario logado
-- **Nome Atendente A (N)** -- navega para `/admin/workspace?attendant=<id>`
-- **Nome Atendente B (N)** -- idem
-- **Historico, Atendentes, Banners, etc.** (como ja estao)
+A RLS ja permite que o usuario atualize seu proprio perfil (`Users can update own profile`).
 
-A identificacao de "Sua fila" sera feita buscando o `attendant_profiles.id` do usuario logado e comparando com a lista de atendentes.
+### 2. Nova rota em `src/App.tsx`
 
-### 3. Contadores com Realtime
+Adicionar rota `/profile` apontando para `MyProfile`.
 
-Substituir o `useEffect` que busca atendentes e contagens apenas uma vez por uma implementacao com **Supabase Realtime subscription** na tabela `chat_rooms`. Quando qualquer sala muda de `attendant_id` ou `status`, a contagem e recalculada automaticamente.
+### 3. Link no sidebar footer `src/components/AppSidebar.tsx`
 
-Fluxo:
-- Fetch inicial de `attendant_profiles` + contagem de `chat_rooms` com `status` in (`active`, `waiting`)
-- Subscription em `postgres_changes` na tabela `chat_rooms` para eventos `INSERT`, `UPDATE`, `DELETE`
-- A cada evento, re-fetch das contagens (query leve de `select attendant_id, count`)
-- Cleanup do channel no unmount
+Adicionar um botao "Meu Perfil" no footer do sidebar (acima do seletor de idioma e botao de logout), com icone `User`. Visivel para todos os usuarios autenticados (nao depende de permissao).
 
-### 4. Badge no item "Sua fila"
+### 4. Traducoes `src/locales/pt-BR.ts` e `src/locales/en.ts`
 
-O item "Sua fila" tera uma badge mostrando quantos chats estao atribuidos ao usuario logado (incluindo ativos). Isso da visao rapida sem clicar.
+Novas chaves:
+- `profile.title` -- "Meu Perfil" / "My Profile"
+- `profile.subtitle` -- "Gerencie suas informacoes pessoais" / "Manage your personal information"
+- `profile.displayName` -- "Nome de exibicao" / "Display name"
+- `profile.displayNameHint` -- "Este nome aparece para clientes no chat" / "This name is shown to customers in chat"
+- `profile.phone` -- "Telefone" / "Phone"
+- `profile.department` -- "Departamento" / "Department"
+- `profile.specialties` -- "Especialidades" / "Specialties"
+- `profile.avatar` -- "Foto de perfil" / "Profile photo"
+- `profile.changePhoto` -- "Alterar foto" / "Change photo"
+- `profile.saved` -- "Perfil atualizado" / "Profile updated"
 
-## Mudancas tecnicas
+## Arquivos
 
-### Arquivo: `src/components/AppSidebar.tsx`
+| # | Arquivo | Tipo | Descricao |
+|---|---------|------|-----------|
+| 1 | `src/pages/MyProfile.tsx` | Novo | Pagina de edicao de perfil |
+| 2 | `src/App.tsx` | Modificado | Adicionar rota `/profile` |
+| 3 | `src/components/AppSidebar.tsx` | Modificado | Link "Meu Perfil" no footer |
+| 4 | `src/locales/pt-BR.ts` | Modificado | Chaves de traducao |
+| 5 | `src/locales/en.ts` | Modificado | Chaves de traducao |
 
-1. **Buscar `attendant_profiles.id` do usuario logado** usando `user.id` do `useAuth()`
-2. **Reestruturar lista** dentro do collapsible Chat:
-   - "Sua fila" com contagem propria (primeiro item, destaque)
-   - Demais atendentes (exceto o logado) com suas contagens
-   - Sem sub-collapsible "Equipe" -- todos direto no nivel
-3. **Adicionar subscription Realtime** em `chat_rooms` para atualizar contagens automaticamente
-4. **Navegacao**: "Sua fila" navega para `/admin/workspace` (limpo), colegas para `/admin/workspace?attendant=<id>`
-5. **isActive**: "Sua fila" fica ativo quando pathname e `/admin/workspace` e NAO tem `attendant` no search params
+## Sem mudancas no banco de dados
 
-### Nenhuma mudanca em outros arquivos
-
-O `AdminWorkspace.tsx` ja trata corretamente a ausencia de `attendant` param como "minha fila" e a presenca como "fila de outro atendente".
-
-## Estrutura visual do menu
-
-```text
-Chat
-  Dashboard
-  Sua fila                    [3]   <-- sempre abre /admin/workspace
-  Ana Silva                   [2]   <-- /admin/workspace?attendant=xxx
-  Carlos Santos               [1]   <-- /admin/workspace?attendant=yyy
-  Historico
-  Atendentes
-  Banners
-  Gerencial
-  Configuracoes
-```
-
-## Arquivo modificado
-
-| # | Arquivo | Descricao |
-|---|---------|-----------|
-| 1 | `src/components/AppSidebar.tsx` | Reestruturar subitens, "Sua fila", realtime nos contadores |
+A tabela `user_profiles` ja possui todos os campos necessarios (display_name, phone, department, specialty, avatar_url) e a RLS ja permite que o usuario edite seu proprio registro. O bucket `logos` ja e publico e pode ser usado para avatares.
