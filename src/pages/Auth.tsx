@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Zap, UserPlus } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface InviteProfile {
   id: string;
@@ -31,14 +32,12 @@ const Auth = () => {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite");
+  const { user: authUser } = useAuthContext();
 
+  // Redirect when auth context detects a logged-in user
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) navigate("/dashboard");
-    };
-    checkUser();
-  }, [navigate]);
+    if (authUser) navigate("/nps/dashboard", { replace: true });
+  }, [authUser, navigate]);
 
   useEffect(() => {
     if (!inviteToken) return;
@@ -69,10 +68,9 @@ const Auth = () => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      navigate("/dashboard");
+      // Navigation is handled by the useEffect watching authUser
     } catch (error: any) {
       toast({ title: t("auth.error"), description: error.message, variant: "destructive" });
-    } finally {
       setLoading(false);
     }
   };
