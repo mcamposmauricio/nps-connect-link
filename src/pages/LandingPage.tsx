@@ -101,20 +101,19 @@ const LandingPage = () => {
             </div>
             <span className="text-xl font-bold text-white">Journey CS</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
+          <div className="flex items-stretch gap-2">
+            <button
               onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-accent text-white hover:bg-accent/90 h-9 px-4 text-sm"
+              className="inline-flex items-center justify-center rounded-md bg-accent text-white hover:bg-accent/90 px-4 text-sm font-medium h-9"
             >
               {t("landing.nav.earlyAccess")}
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 hover:text-white h-9 px-4 text-sm"
+              className="inline-flex items-center justify-center rounded-md border border-white/20 text-white hover:bg-white/10 px-4 text-sm font-medium h-9"
             >
               {isLoggedIn ? t("landing.nav.goToDashboard") : t("landing.nav.login")}
-            </Button>
+            </button>
           </div>
         </div>
       </nav>
