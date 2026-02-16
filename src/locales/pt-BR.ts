@@ -70,7 +70,7 @@ export default {
   "cs.trailStatus.active": "Ativa",
   "cs.trailStatus.completed": "Concluída",
   "cs.trailStatus.paused": "Pausada",
-  
+
   // CS NPS Trail
   "cs.npsTrail.addedToCampaign": "Incluído na Campanha",
   "cs.npsTrail.emailSent": "Email Enviado",
@@ -262,7 +262,8 @@ export default {
   "contacts.companyDocument": "CNPJ",
   "contacts.externalId": "ID Externo",
   "contacts.externalIdPlaceholder": "Ex: cust_12345",
-  "contacts.externalIdHelp": "ID usado em seu sistema para identificar esta empresa. Necessário para integração com widget NPS embedável.",
+  "contacts.externalIdHelp":
+    "ID usado em seu sistema para identificar esta empresa. Necessário para integração com widget NPS embedável.",
 
   // CNPJ
   "cnpj.searching": "Buscando dados do CNPJ...",
@@ -378,7 +379,8 @@ export default {
   "campaigns.saving": "Salvando...",
   "campaigns.deleteCampaign": "Excluir Campanha",
   "campaigns.deleteConfirmTitle": "Excluir Campanha?",
-  "campaigns.deleteConfirmDescription": "Esta ação não pode ser desfeita. Todas as informações e respostas desta campanha serão permanentemente excluídas.",
+  "campaigns.deleteConfirmDescription":
+    "Esta ação não pode ser desfeita. Todas as informações e respostas desta campanha serão permanentemente excluídas.",
   "campaigns.deleteSuccess": "Campanha excluída com sucesso",
   "campaigns.deleteError": "Erro ao excluir campanha",
   "campaigns.deleteBlockedActive": "Campanhas ativas não podem ser excluídas. Pause ou finalize antes.",
@@ -389,7 +391,8 @@ export default {
   "campaigns.channelEmailDescription": "Enviar pesquisa NPS por e-mail para os contatos",
   "campaigns.channelEmbedded": "Widget Embedado",
   "campaigns.channelEmbeddedDescription": "Exibir pesquisa NPS dentro do seu aplicativo via widget",
-  "campaigns.channelHelp": "Selecione um ou mais canais. O primeiro canal a receber resposta invalida automaticamente os demais para aquele contato.",
+  "campaigns.channelHelp":
+    "Selecione um ou mais canais. O primeiro canal a receber resposta invalida automaticamente os demais para aquele contato.",
   "campaigns.selectAtLeastOneChannel": "Selecione pelo menos um canal de envio",
 
   // Campaign Form
@@ -492,7 +495,8 @@ export default {
   "settings.apiKeys.createSuccess": "Chave de API criada com sucesso!",
   "settings.apiKeys.deleteSuccess": "Chave de API excluída com sucesso!",
   "settings.apiKeys.deleteTitle": "Excluir Chave de API?",
-  "settings.apiKeys.deleteDescription": "Esta ação é irreversível. Qualquer integração usando esta chave deixará de funcionar.",
+  "settings.apiKeys.deleteDescription":
+    "Esta ação é irreversível. Qualquer integração usando esta chave deixará de funcionar.",
   "settings.apiKeys.noKeys": "Nenhuma chave de API criada",
   "settings.apiKeys.created": "Criada",
   "settings.apiKeys.lastUsed": "Último uso",
@@ -609,7 +613,7 @@ export default {
   "chat.dashboard.online_attendants": "Atendentes Online",
   "chat.dashboard.closed_today": "Encerradas Hoje",
   "chat.workspace.title": "Workspace",
-  "chat.workspace.station": "Estação de Trabalho",
+  "chat.workspace.station": "Fila do chat",
   "chat.workspace.you": "(você)",
   "chat.workspace.conversations": "Conversas",
   "chat.workspace.total": "total",
@@ -856,7 +860,8 @@ export default {
   "chat.settings.apiKeys.title": "API Keys do Chat",
   "chat.settings.apiKeys.description": "Gerencie chaves de API para integração do widget de chat",
   "chat.settings.apiKeys.integrationCode": "Código de Integração do Chat",
-  "chat.settings.apiKeys.integrationDescription": "Copie o código abaixo e cole no HTML do seu site para integrar o widget de chat",
+  "chat.settings.apiKeys.integrationDescription":
+    "Copie o código abaixo e cole no HTML do seu site para integrar o widget de chat",
   "chat.settings.widgetConfig": "Configuração do Widget",
   "chat.settings.widgetConfigDesc": "Personalize a aparência e posição do widget de chat",
   "chat.settings.companyName": "Nome da Empresa",
@@ -922,7 +927,8 @@ export default {
   "landing.nav.goToDashboard": "Ir para o Painel",
   "landing.hero.badge": "Early Access",
   "landing.hero.title": "Algo novo está chegando",
-  "landing.hero.subtitle": "Uma plataforma completa de Customer Success com NPS inteligente e chat in-app. Inscreva-se para ser o primeiro a saber.",
+  "landing.hero.subtitle":
+    "Uma plataforma completa de Customer Success com NPS inteligente e chat in-app. Inscreva-se para ser o primeiro a saber.",
   "landing.comingSoon": "Em breve",
   "landing.form.title": "Seja o primeiro a saber",
   "landing.form.name": "Nome completo",
@@ -1004,15 +1010,18 @@ export default {
   // Bulk Import
   "bulkImport.titleCompanies": "Importar Empresas via CSV",
   "bulkImport.titleContacts": "Importar Contatos via CSV",
-  "bulkImport.configDescription": "Configure campos customizados opcionais que serão adicionados como colunas extras no modelo CSV.",
+  "bulkImport.configDescription":
+    "Configure campos customizados opcionais que serão adicionados como colunas extras no modelo CSV.",
   "bulkImport.next": "Próximo",
   "bulkImport.back": "Voltar",
   "bulkImport.instructionsTitle": "Instruções",
   "bulkImport.step1": "Configure os campos customizados na etapa anterior (opcional)",
   "bulkImport.step2": "Baixe o modelo CSV clicando no botão abaixo",
   "bulkImport.step3": "Preencha os dados seguindo o formato do modelo",
-  "bulkImport.step4CompanyEmail": "A coluna \"empresa_email\" deve conter o email de uma empresa já cadastrada no sistema",
-  "bulkImport.step5ExternalId": "A coluna \"external_id\" é o identificador do usuário no seu sistema externo. Ele será usado para vincular automaticamente o chat e o NPS quando embedados. Sem ele, o usuário será tratado como visitante anônimo.",
+  "bulkImport.step4CompanyEmail":
+    'A coluna "empresa_email" deve conter o email de uma empresa já cadastrada no sistema',
+  "bulkImport.step5ExternalId":
+    'A coluna "external_id" é o identificador do usuário no seu sistema externo. Ele será usado para vincular automaticamente o chat e o NPS quando embedados. Sem ele, o usuário será tratado como visitante anônimo.',
   "bulkImport.step6Upload": "Faça upload do arquivo preenchido abaixo",
   "bulkImport.downloadTemplate": "Baixar modelo CSV",
   "bulkImport.dropzone": "Clique ou arraste um arquivo CSV aqui",
@@ -1044,15 +1053,18 @@ export default {
   "externalApi.keysDescription": "Gerencie chaves de API exclusivas para importação externa de dados",
   "externalApi.createKey": "Criar Chave de Import",
   "externalApi.createKeyTitle": "Nova Chave de Import",
-  "externalApi.createKeyDescription": "Crie uma chave de API para uso exclusivo na importação externa de empresas e contatos.",
+  "externalApi.createKeyDescription":
+    "Crie uma chave de API para uso exclusivo na importação externa de empresas e contatos.",
   "externalApi.keyNamePlaceholder": "Ex: Integração ERP, Sistema CRM",
-  "externalApi.keyWarning": "Esta chave permite cadastrar dados na sua conta. Compartilhe apenas com sistemas de confiança.",
+  "externalApi.keyWarning":
+    "Esta chave permite cadastrar dados na sua conta. Compartilhe apenas com sistemas de confiança.",
   "externalApi.noKeys": "Nenhuma chave de import criada",
   "externalApi.endpointTitle": "Endpoint e Autenticação",
   "externalApi.endpointDescription": "URL do endpoint e instruções de autenticação",
   "externalApi.endpoint": "Endpoint",
   "externalApi.authTitle": "Autenticação",
-  "externalApi.authDescription": "Envie a chave de API no header x-api-key de cada requisição. Apenas chaves com prefixo import_ são aceitas neste endpoint.",
+  "externalApi.authDescription":
+    "Envie a chave de API no header x-api-key de cada requisição. Apenas chaves com prefixo import_ são aceitas neste endpoint.",
   "externalApi.payloadsTitle": "Payloads Esperados",
   "externalApi.payloadsDescription": "Exemplos completos de payloads JSON e comandos cURL prontos para uso",
   "externalApi.companiesJson": "JSON Empresas",
@@ -1087,10 +1099,14 @@ export default {
   "externalApi.fields.cargo": "Cargo na empresa",
   "externalApi.fields.departamento": "Departamento",
   "externalApi.fields.contatoPrincipal": "Se é o contato principal da empresa",
-  "externalApi.fields.externalId": "ID do usuário no sistema externo. Essencial para integração com widgets de Chat e NPS",
-  "externalApi.customFieldsExplanation": "Objeto JSON livre com até 10 pares chave/valor. As chaves serão os nomes dos campos e os valores, o conteúdo. Esses campos podem ser editados depois pela interface web. Não há necessidade de pré-configurar os campos — qualquer chave é aceita.",
-  "externalApi.externalIdExplanation": "O external_id é o identificador do usuário no seu sistema externo. Quando o widget de Chat ou NPS estiver embedado no seu sistema, o external_id identifica automaticamente o usuário, localiza a empresa vinculada e carrega campanhas, banners e histórico personalizado. Sem ele, o usuário será tratado como visitante anônimo.",
-  "externalApi.skipDuplicatesExplanation": "Quando skip_duplicates é true, registros com email ou CNPJ já existente serão ignorados silenciosamente. Quando false (padrão), a API retornará erro para cada duplicata encontrada.",
+  "externalApi.fields.externalId":
+    "ID do usuário no sistema externo. Essencial para integração com widgets de Chat e NPS",
+  "externalApi.customFieldsExplanation":
+    "Objeto JSON livre com até 10 pares chave/valor. As chaves serão os nomes dos campos e os valores, o conteúdo. Esses campos podem ser editados depois pela interface web. Não há necessidade de pré-configurar os campos — qualquer chave é aceita.",
+  "externalApi.externalIdExplanation":
+    "O external_id é o identificador do usuário no seu sistema externo. Quando o widget de Chat ou NPS estiver embedado no seu sistema, o external_id identifica automaticamente o usuário, localiza a empresa vinculada e carrega campanhas, banners e histórico personalizado. Sem ele, o usuário será tratado como visitante anônimo.",
+  "externalApi.skipDuplicatesExplanation":
+    "Quando skip_duplicates é true, registros com email ou CNPJ já existente serão ignorados silenciosamente. Quando false (padrão), a API retornará erro para cada duplicata encontrada.",
   "externalApi.responsesTitle": "Respostas da API",
   "externalApi.successResponse": "Resposta de Sucesso (200)",
   "externalApi.errorResponses": "Respostas de Erro",
