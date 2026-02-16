@@ -941,7 +941,7 @@ export default {
   "landing.footer.rights": "Todos os direitos reservados.",
 
   // Landing Features
-  "landing.features.title": "Tudo que seu time de CS precisa",
+  "landing.features.title": "Única ferramenta que o time de CS precisa!",
   "landing.features.subtitle":
     "Chat in-app, NPS automatizado, gestão de carteira e dashboards de indicadores — Tudo em uma única plataforma.",
   "landing.features.chat.title": "Chat in-app",
