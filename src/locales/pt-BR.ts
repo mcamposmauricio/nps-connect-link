@@ -940,6 +940,25 @@ export default {
   "landing.form.successDesc": "Você será o primeiro a receber novidades.",
   "landing.footer.rights": "Todos os direitos reservados.",
 
+  // Landing Features
+  "landing.features.title": "Tudo que você precisa para Customer Success",
+  "landing.features.subtitle": "Chat in-app, NPS automatizado e dashboards de indicadores — integrados em uma única plataforma.",
+  "landing.features.chat.title": "Chat in-app",
+  "landing.features.chat.desc": "Converse com seus clientes em tempo real, direto dentro do seu produto. Atendimento ágil sem sair da plataforma.",
+  "landing.features.nps.title": "NPS Inteligente",
+  "landing.features.nps.desc": "Mensure a satisfação com pesquisas NPS automatizadas e acompanhe a evolução dos seus clientes.",
+  "landing.features.cs.title": "Dashboard CS",
+  "landing.features.cs.desc": "Indicadores de saúde, churn, MRR e CSAT em um único painel. Tome decisões baseadas em dados.",
+
+  // Landing Differentials
+  "landing.diff.title": "Por que Journey CS?",
+  "landing.diff.integrated.title": "Tudo em um só lugar",
+  "landing.diff.integrated.desc": "CS, NPS e Chat integrados nativamente. Sem precisar de múltiplas ferramentas.",
+  "landing.diff.realtime.title": "Dados em tempo real",
+  "landing.diff.realtime.desc": "Dashboards atualizados automaticamente com alertas e insights inteligentes.",
+  "landing.diff.easy.title": "Fácil de usar",
+  "landing.diff.easy.desc": "Setup rápido e interface intuitiva. Comece a operar em minutos, sem complexidade.",
+
   // Profile
   "profile.title": "Meu Perfil",
   "profile.subtitle": "Gerencie suas informações pessoais",
