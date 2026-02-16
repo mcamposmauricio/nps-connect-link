@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Zap, UserPlus } from "lucide-react";
@@ -33,32 +32,25 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite");
 
-  // Check if already logged in
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/dashboard");
-      }
+      if (session) navigate("/dashboard");
     };
     checkUser();
   }, [navigate]);
 
-  // Load invite profile if token exists
   useEffect(() => {
     if (!inviteToken) return;
-
     const loadInvite = async () => {
       setInviteLoading(true);
       setInviteError(false);
-
       const { data, error } = await supabase
         .from("user_profiles")
         .select("id, email, display_name, invite_token, invite_status, specialty, tenant_id")
         .eq("invite_token", inviteToken)
         .eq("invite_status", "pending")
         .maybeSingle();
-
       if (error || !data) {
         setInviteError(true);
       } else {
@@ -68,41 +60,28 @@ const Auth = () => {
       }
       setInviteLoading(false);
     };
-
     loadInvite();
   }, [inviteToken]);
 
-  // Handle login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       navigate("/dashboard");
     } catch (error: any) {
-      toast({
-        title: t("auth.error"),
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: t("auth.error"), description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle invite acceptance (signup)
   const handleAcceptInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteProfile) return;
     setLoading(true);
-
     try {
-      // 1. Sign up the user
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: inviteProfile.email,
         password,
@@ -112,28 +91,20 @@ const Auth = () => {
         },
       });
       if (signUpError) throw signUpError;
-
       const newUserId = signUpData.user?.id;
       if (!newUserId) throw new Error("User creation failed");
 
-      // 2. Update the invite profile with the new user_id and mark as accepted
       const { error: updateError } = await supabase
         .from("user_profiles")
         .update({
-          user_id: newUserId,
-          invite_status: "accepted",
+          user_id: newUserId, invite_status: "accepted",
           display_name: displayName || inviteProfile.display_name,
           last_sign_in_at: new Date().toISOString(),
         })
         .eq("id", inviteProfile.id)
         .eq("invite_status", "pending");
+      if (updateError) console.error("Profile update error:", updateError);
 
-      if (updateError) {
-        console.error("Profile update error:", updateError);
-        // Don't throw - the user was created, they can still log in
-      }
-
-      // 3. If profile has CS specialties, create a CSM record
       if (inviteProfile.specialty && inviteProfile.specialty.length > 0) {
         await supabase.from("csms").insert({
           user_id: newUserId,
@@ -142,49 +113,41 @@ const Auth = () => {
           specialty: inviteProfile.specialty,
         });
       }
-
-      toast({
-        title: t("auth.signupSuccess"),
-        description: t("auth.checkEmail"),
-      });
-
-      // Clear the invite token from URL and show login
+      toast({ title: t("auth.signupSuccess"), description: t("auth.checkEmail") });
       navigate("/auth", { replace: true });
     } catch (error: any) {
-      toast({
-        title: t("auth.error"),
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: t("auth.error"), description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Invite loading state
+  const cardClasses = "w-full max-w-md rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-2xl";
+
+  // Invite loading
   if (inviteToken && inviteLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-purple-600 p-4">
-        <Card className="w-full max-w-md p-8 shadow-xl text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">{t("auth.loadingInvite")}</p>
-        </Card>
+      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+        <div className={cardClasses + " text-center"}>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-accent" />
+          <p className="text-white/60">{t("auth.loadingInvite")}</p>
+        </div>
       </div>
     );
   }
 
-  // Invalid/expired invite
+  // Invalid invite
   if (inviteToken && inviteError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-purple-600 p-4">
-        <Card className="w-full max-w-md p-8 shadow-xl text-center">
-          <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-semibold mb-2">{t("auth.inviteInvalid")}</h2>
-          <p className="text-muted-foreground mb-4">{t("auth.inviteInvalidDesc")}</p>
-          <Button onClick={() => navigate("/auth", { replace: true })} variant="outline">
+      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+        <div className={cardClasses + " text-center"}>
+          <UserPlus className="h-12 w-12 mx-auto mb-4 text-white/40" />
+          <h2 className="text-xl font-semibold text-white mb-2">{t("auth.inviteInvalid")}</h2>
+          <p className="text-white/60 mb-4">{t("auth.inviteInvalidDesc")}</p>
+          <Button onClick={() => navigate("/auth", { replace: true })} variant="outline" className="border-white/20 text-white hover:bg-white/10">
             {t("auth.backToLogin")}
           </Button>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -192,140 +155,89 @@ const Auth = () => {
   // Invite acceptance form
   if (inviteToken && inviteProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-purple-600 p-4">
-        <Card className="w-full max-w-md p-8 shadow-xl">
+      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+        <div className={cardClasses}>
           <div className="flex items-center justify-center mb-6">
-            <Zap className="h-10 w-10 text-primary mr-3" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Journey CS
-            </h1>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-white mr-3">
+              <Zap className="h-5 w-5" />
+            </div>
+            <h1 className="text-2xl font-bold text-white">Journey CS</h1>
           </div>
-
           <div className="text-center mb-6">
-            <Badge variant="secondary" className="mb-2">
-              <UserPlus className="h-3 w-3 mr-1" />
-              {t("auth.inviteBadge")}
+            <Badge className="bg-accent/20 text-accent border-accent/30 mb-2">
+              <UserPlus className="h-3 w-3 mr-1" />{t("auth.inviteBadge")}
             </Badge>
-            <h2 className="text-lg font-semibold">{t("auth.welcomeInvite")}</h2>
-            <p className="text-sm text-muted-foreground">{t("auth.completeSignup")}</p>
+            <h2 className="text-lg font-semibold text-white">{t("auth.welcomeInvite")}</h2>
+            <p className="text-sm text-white/60">{t("auth.completeSignup")}</p>
           </div>
-
           <form onSubmit={handleAcceptInvite} className="space-y-4">
             <div>
-              <label htmlFor="invite-name" className="block text-sm font-medium mb-2">
-                {t("auth.displayName")}
-              </label>
-              <Input
-                id="invite-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+              <label className="block text-sm font-medium text-white/80 mb-2">{t("auth.displayName")}</label>
+              <Input id="invite-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
                 placeholder={t("auth.displayNamePlaceholder")}
-              />
+                className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
             </div>
-
             <div>
-              <label htmlFor="invite-email" className="block text-sm font-medium mb-2">
-                {t("auth.email")}
-              </label>
-              <Input
-                id="invite-email"
-                type="email"
-                value={inviteProfile.email}
-                disabled
-                className="bg-muted"
-              />
+              <label className="block text-sm font-medium text-white/80 mb-2">{t("auth.email")}</label>
+              <Input value={inviteProfile.email} disabled className="bg-white/5 border-white/10 text-white/60" />
             </div>
-
             <div>
-              <label htmlFor="invite-password" className="block text-sm font-medium mb-2">
-                {t("auth.password")}
-              </label>
-              <Input
-                id="invite-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
+              <label className="block text-sm font-medium text-white/80 mb-2">{t("auth.password")}</label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" required minLength={6}
+                className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
             </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("auth.acceptInvite")}
             </Button>
           </form>
-        </Card>
+        </div>
       </div>
     );
   }
 
-  // Default: Login-only form (no signup toggle)
+  // Default login
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-purple-600 p-4">
-      <Card className="w-full max-w-md p-8 shadow-xl">
+    <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+      <div className={cardClasses + " animate-scale-in"}>
         <div className="flex items-center justify-center mb-8">
-          <Zap className="h-12 w-12 text-primary mr-3" />
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Journey CS
-          </h1>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-white mr-3">
+            <Zap className="h-6 w-6" />
+          </div>
+          <h1 className="text-3xl font-bold text-white">Journey CS</h1>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-2">
-              {t("auth.email")}
-            </label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.email")}
-              required
-            />
+            <label className="block text-sm font-medium text-white/80 mb-2">{t("auth.email")}</label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder={t("auth.email")} required
+              className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
           </div>
-
           <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-2">
-              {t("auth.password")}
-            </label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
+            <label className="block text-sm font-medium text-white/80 mb-2">{t("auth.password")}</label>
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" required minLength={6}
+              className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
           </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("auth.login")}
           </Button>
         </form>
 
         <div className="mt-4 text-center space-y-2">
-          <button
-            type="button"
-            onClick={() => navigate("/auth/forgot-password")}
-            className="text-sm text-primary hover:underline block w-full"
-          >
+          <button type="button" onClick={() => navigate("/auth/forgot-password")}
+            className="text-sm text-accent hover:underline block w-full">
             {t("auth.forgotPassword")}
           </button>
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="text-sm text-muted-foreground hover:text-foreground block w-full"
-          >
+          <button type="button" onClick={() => navigate("/")}
+            className="text-sm text-white/40 hover:text-white/70 block w-full">
             {t("auth.discoverJourney")}
           </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

@@ -8,6 +8,7 @@ import EmailSettingsTab from "@/components/EmailSettingsTab";
 import NotificationSettingsTab from "@/components/NotificationSettingsTab";
 import ApiKeysTab from "@/components/ApiKeysTab";
 import NPSWidgetTab from "@/components/NPSWidgetTab";
+import { PageHeader } from "@/components/ui/page-header";
 
 const NPSSettings = () => {
   const { t } = useLanguage();
@@ -17,12 +18,7 @@ const NPSSettings = () => {
   return (
     <SidebarLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("npsSettings.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("npsSettings.subtitle")}
-          </p>
-        </div>
+        <PageHeader title={t("npsSettings.title")} subtitle={t("npsSettings.subtitle")} />
 
         <Tabs defaultValue="brand" className="space-y-6">
           <TabsList className="w-full lg:w-auto lg:inline-flex flex-wrap">
