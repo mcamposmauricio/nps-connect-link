@@ -221,7 +221,7 @@ const Auth = () => {
               placeholder="••••••••" required minLength={6}
               className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
           </div>
-          <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-emerald-500 text-white font-semibold hover:opacity-90 shadow-md" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("auth.login")}
           </Button>
