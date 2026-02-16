@@ -101,13 +101,21 @@ const LandingPage = () => {
             </div>
             <span className="text-xl font-bold text-white">Journey CS</span>
           </div>
-          <Button
-            onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
-            variant={isLoggedIn ? "gradient" : "outline"}
-            className={!isLoggedIn ? "border-white/20 text-white hover:bg-white/10 hover:text-white" : ""}
-          >
-            {isLoggedIn ? t("landing.nav.goToDashboard") : t("landing.nav.login")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="gradient"
+              onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              {t("landing.nav.earlyAccess")}
+            </Button>
+            <Button
+              onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
+              variant={isLoggedIn ? "gradient" : "outline"}
+              className={!isLoggedIn ? "border-white/20 text-white hover:bg-white/10 hover:text-white" : ""}
+            >
+              {isLoggedIn ? t("landing.nav.goToDashboard") : t("landing.nav.login")}
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -122,7 +130,7 @@ const LandingPage = () => {
           </Badge>
 
           {/* Form */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300 text-left">
+          <div id="lead-form" className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300 text-left">
             {submitted ? (
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 text-accent mx-auto mb-4" />

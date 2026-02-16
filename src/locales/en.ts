@@ -925,6 +925,7 @@ export default {
   // Landing Page
   "landing.nav.login": "Login",
   "landing.nav.goToDashboard": "Go to Dashboard",
+  "landing.nav.earlyAccess": "Be the first to know",
   "landing.hero.badge": "Early Access",
   "landing.hero.title": "Something new is coming",
   "landing.comingSoon": "Coming Soon",
