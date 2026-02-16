@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Layout from "@/components/Layout";
+import SidebarLayout from "@/components/SidebarLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -115,7 +115,7 @@ const Results = () => {
   };
 
   return (
-    <Layout>
+    <SidebarLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -185,7 +185,7 @@ const Results = () => {
           </div>
         )}
       </div>
-    </Layout>
+    </SidebarLayout>
   );
 };
 

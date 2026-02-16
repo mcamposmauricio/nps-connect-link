@@ -1139,4 +1139,14 @@ export default {
   "externalApi.errors.emptyData": "Array vazio",
   "externalApi.errors.maxRecords": "Excede limite de 500",
   "externalApi.errors.internal": "Erro interno",
+
+  // NPS Response
+  "nps.response.invalidLink": "Link inválido",
+  "nps.response.invalidLinkDesc": "Este link não é válido ou expirou.",
+  "nps.response.thanks": "Obrigado!",
+  "nps.response.successDesc": "Sua resposta foi enviada com sucesso.",
+  "nps.response.error": "Erro",
+  "nps.response.errorDesc": "Não foi possível carregar a pesquisa.",
+  "nps.response.errorSubmit": "Não foi possível enviar sua resposta.",
+  "nps.response.alreadyResponded": "Você já respondeu esta pesquisa.",
 };

@@ -1134,4 +1134,14 @@ export default {
   "externalApi.errors.emptyData": "Empty array",
   "externalApi.errors.maxRecords": "Exceeds 500 limit",
   "externalApi.errors.internal": "Internal error",
+
+  // NPS Response
+  "nps.response.invalidLink": "Invalid link",
+  "nps.response.invalidLinkDesc": "This link is not valid or has expired.",
+  "nps.response.thanks": "Thank you!",
+  "nps.response.successDesc": "Your response was submitted successfully.",
+  "nps.response.error": "Error",
+  "nps.response.errorDesc": "Could not load the survey.",
+  "nps.response.errorSubmit": "Could not submit your response.",
+  "nps.response.alreadyResponded": "You have already responded to this survey.",
 };

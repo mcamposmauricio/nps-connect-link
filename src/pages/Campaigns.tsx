@@ -240,7 +240,7 @@ const Campaigns = () => {
                     <div className="flex items-start justify-between gap-4">
                       <div 
                         className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                        onClick={() => navigate(`/nps/campaigns/${campaign.id}`)}
                       >
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <h3 className="text-xl font-bold truncate">{campaign.name}</h3>

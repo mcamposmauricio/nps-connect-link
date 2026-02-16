@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import SidebarLayout from "@/components/SidebarLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Search, Users, Link as LinkIcon, Loader2, Copy } from "lucide-react";
 import { PersonDetailsSheet } from "@/components/PersonDetailsSheet";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 interface PersonWithCompany {
   id: string;
@@ -39,12 +40,18 @@ interface PersonWithCompany {
 
 const People = () => {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<PersonWithCompany | null>(null);
   const { t } = useLanguage();
   const { toast } = useToast();
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: people = [], isLoading } = useQuery({
-    queryKey: ["people-list", search],
+    queryKey: ["people-list", debouncedSearch],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -54,8 +61,9 @@ const People = () => {
         .select("*")
         .order("name");
 
-      if (search.trim()) {
-        query = query.or(`name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
+      if (debouncedSearch.trim()) {
+        const sanitized = sanitizeFilterValue(debouncedSearch.trim());
+        query = query.or(`name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
       }
 
       const { data: contacts, error } = await query;

@@ -34,6 +34,8 @@ import { CompanyForm } from "@/components/CompanyForm";
 import { CompanyDetailsSheet } from "@/components/CompanyDetailsSheet";
 import { QuickContactForm } from "@/components/QuickContactForm";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface CompanyContact {
   id: string;
@@ -71,6 +73,7 @@ interface Company {
 const Contacts = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchFilter, setSearchFilter] = useState("");
   const [addCompanyDialogOpen, setAddCompanyDialogOpen] = useState(false);
   const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [editCompanyData, setEditCompanyData] = useState<Company | null>(null);
@@ -316,6 +319,19 @@ const Contacts = () => {
           {canEdit && addDropdownContent}
         </div>
 
+        {/* Search */}
+        {!loading && companies.length > 0 && (
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("companies.searchPlaceholder")}
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
@@ -328,7 +344,15 @@ const Contacts = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {companies.map((company) => (
+            {companies.filter((c) => {
+              if (!searchFilter.trim()) return true;
+              const term = searchFilter.toLowerCase();
+              return (
+                c.name.toLowerCase().includes(term) ||
+                (c.trade_name && c.trade_name.toLowerCase().includes(term)) ||
+                (c.company_document && c.company_document.includes(term))
+              );
+            }).map((company) => (
               <CompanyCard
                 key={company.id}
                 company={company}
