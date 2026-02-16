@@ -8,10 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import DashboardMockup from "@/components/DashboardMockup";
 import LandingBackgroundMockups from "@/components/LandingBackgroundMockups";
+import LandingFeatures from "@/components/landing/LandingFeatures";
+import LandingDifferentials from "@/components/landing/LandingDifferentials";
 import {
   Zap,
-  MessageSquare,
-  Target,
   ArrowRight,
   CheckCircle2,
   Loader2,
@@ -93,6 +93,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-dark-hero flex flex-col relative overflow-hidden">
       <LandingBackgroundMockups />
+
       {/* Navbar */}
       <nav className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
@@ -130,26 +131,8 @@ const LandingPage = () => {
                 {t("landing.hero.subtitle")}
               </p>
 
-              {/* Coming soon badges */}
-              <div className="flex flex-wrap gap-3 pt-2 animate-fade-in-up delay-300">
-                <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5">
-                  <Target className="h-5 w-5 text-accent" />
-                  <span className="text-sm font-medium text-white">NPS</span>
-                  <Badge className="bg-accent/20 text-accent border-accent/30 text-xs ml-1 animate-pulse-soft">
-                    {t("landing.comingSoon")}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5">
-                  <MessageSquare className="h-5 w-5 text-accent" />
-                  <span className="text-sm font-medium text-white">Chat in-app</span>
-                  <Badge className="bg-accent/20 text-accent border-accent/30 text-xs ml-1 animate-pulse-soft">
-                    {t("landing.comingSoon")}
-                  </Badge>
-                </div>
-              </div>
-
               {/* Form */}
-              <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-500">
+              <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300">
                 {submitted ? (
                   <div className="text-center py-8">
                     <CheckCircle2 className="h-12 w-12 text-accent mx-auto mb-4" />
@@ -212,6 +195,12 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Features Section */}
+      <LandingFeatures />
+
+      {/* Differentials Section */}
+      <LandingDifferentials />
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 relative z-10">
