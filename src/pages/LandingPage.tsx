@@ -121,14 +121,6 @@ const LandingPage = () => {
             {t("landing.hero.badge")}
           </Badge>
 
-          <h1 className="text-4xl lg:text-5xl font-bold text-white leading-tight animate-fade-in-up delay-100">
-            {t("landing.hero.title")}
-          </h1>
-
-          <p className="text-lg text-white/60 leading-relaxed animate-fade-in-up delay-200">
-            {t("landing.hero.subtitle")}
-          </p>
-
           {/* Form */}
           <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300 text-left">
             {submitted ? (
