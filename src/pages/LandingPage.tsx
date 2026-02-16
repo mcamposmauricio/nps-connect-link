@@ -12,14 +12,14 @@ import {
   Zap,
   ArrowRight,
   CheckCircle2,
-  Loader2,
-} from "lucide-react";
+  Loader2 } from
+"lucide-react";
 import { z } from "zod";
 
 const leadSchema = z.object({
   name: z.string().trim().min(2, "Nome muito curto").max(100),
   email: z.string().trim().email("Email inválido").max(255),
-  company: z.string().trim().min(2, "Nome da empresa muito curto").max(100),
+  company: z.string().trim().min(2, "Nome da empresa muito curto").max(100)
 });
 
 const LandingPage = () => {
@@ -34,7 +34,7 @@ const LandingPage = () => {
 
   const [tracking, setTracking] = useState({
     utm_source: "", utm_medium: "", utm_campaign: "", utm_content: "", utm_term: "",
-    referrer: "", landing_page: "", user_agent: "",
+    referrer: "", landing_page: "", user_agent: ""
   });
 
   useEffect(() => {
@@ -47,7 +47,7 @@ const LandingPage = () => {
       utm_term: params.get("utm_term") || "",
       referrer: document.referrer || "",
       landing_page: window.location.pathname + window.location.search,
-      user_agent: navigator.userAgent || "",
+      user_agent: navigator.userAgent || ""
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsLoggedIn(!!session);
@@ -75,7 +75,7 @@ const LandingPage = () => {
     try {
       const { error } = await supabase.from("leads").insert({
         name: result.data.name, email: result.data.email, company: result.data.company,
-        phone: null, role: null, ...tracking,
+        phone: null, role: null, ...tracking
       });
       if (error) throw error;
       setSubmitted(true);
@@ -104,14 +104,14 @@ const LandingPage = () => {
           <div className="flex items-stretch gap-2">
             <button
               onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
-              className="inline-flex items-center justify-center rounded-md bg-accent text-white hover:bg-accent/90 px-4 text-sm font-medium h-9"
-            >
+              className="inline-flex items-center justify-center rounded-md text-white px-4 text-sm font-medium h-9 bg-[#1d8753]">
+
               {t("landing.nav.earlyAccess")}
             </button>
             <button
               onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
-              className="inline-flex items-center justify-center rounded-md border border-white/20 text-white hover:bg-white/10 px-4 text-sm font-medium h-9"
-            >
+              className="inline-flex items-center justify-center rounded-md border border-white/20 text-white px-4 text-sm font-medium h-9 bg-[#1e1d87]">
+
               {isLoggedIn ? t("landing.nav.goToDashboard") : t("landing.nav.login")}
             </button>
           </div>
@@ -130,63 +130,63 @@ const LandingPage = () => {
 
           {/* Form */}
           <div id="lead-form" className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300 text-left">
-            {submitted ? (
-              <div className="text-center py-8">
+            {submitted ?
+            <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 text-accent mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">{t("landing.form.success")}</h3>
                 <p className="text-white/60 text-sm">{t("landing.form.successDesc")}</p>
                 <Button variant="outline" className="mt-4 border-white/20 text-white hover:bg-white/10" onClick={() => setSubmitted(false)}>
                   {t("landing.form.submit")}
                 </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              </div> :
+
+            <form onSubmit={handleSubmit} className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">{t("landing.form.title")}</h3>
                 <div>
                   <Input
-                    placeholder={t("landing.form.name")}
-                    value={form.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                    required
-                    className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
-                  />
+                  placeholder={t("landing.form.name")}
+                  value={form.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  required
+                  className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
+
                   {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
                   <Input
-                    type="email"
-                    placeholder={t("landing.form.email")}
-                    value={form.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    required
-                    className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
-                  />
+                  type="email"
+                  placeholder={t("landing.form.email")}
+                  value={form.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  required
+                  className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
+
                   {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
                 </div>
                 <div>
                   <Input
-                    placeholder={t("landing.form.company")}
-                    value={form.company}
-                    onChange={(e) => handleChange("company", e.target.value)}
-                    required
-                    className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
-                  />
+                  placeholder={t("landing.form.company")}
+                  value={form.company}
+                  onChange={(e) => handleChange("company", e.target.value)}
+                  required
+                  className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent" />
+
                   {errors.company && <p className="text-destructive text-xs mt-1">{errors.company}</p>}
                 </div>
                 <Button type="submit" className="w-full bg-accent text-white hover:bg-accent/90" disabled={loading}>
-                  {loading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("landing.form.submitting")}</>
-                  ) : (
-                    <>{t("landing.form.submit")}<ArrowRight className="ml-2 h-4 w-4" /></>
-                  )}
+                  {loading ?
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("landing.form.submitting")}</> :
+
+                <>{t("landing.form.submit")}<ArrowRight className="ml-2 h-4 w-4" /></>
+                }
                 </Button>
               </form>
-            )}
+            }
           </div>
         </div>
       </section>
-    </div>
-  );
+    </div>);
+
 };
 
 export default LandingPage;
