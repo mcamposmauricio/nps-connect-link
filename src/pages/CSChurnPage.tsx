@@ -152,8 +152,8 @@ export default function CSChurnPage() {
                 {atRiskCompanies.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">{t("cs.churn.noAtRisk")}</p>
                 ) : (
-                  <div className="space-y-3">
-                    {atRiskCompanies.slice(0, 5).map((company) => (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {atRiskCompanies.map((company) => (
                       <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                         <div>
                           <p className="font-medium">{company.trade_name || company.name}</p>

@@ -23,6 +23,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NPSHeatMap } from "@/components/NPSHeatMap";
 import { PageHeader } from "@/components/ui/page-header";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 interface Stats {
   totalContacts: number;
@@ -214,31 +215,37 @@ const Dashboard = () => {
 
         if (!campaigns) return;
 
-        const campaignStatsData = await Promise.all(
-          campaigns.map(async (campaign) => {
-            const { data: responses } = await supabase
-              .from("responses")
-              .select("score")
-              .eq("campaign_id", campaign.id);
+        const campaignIds = campaigns.map((c) => c.id);
+        const { data: allResponses } = await supabase
+          .from("responses")
+          .select("score, campaign_id")
+          .in("campaign_id", campaignIds);
 
-            const responsesData = responses || [];
-            const promoters = responsesData.filter((r) => r.score >= 9).length;
-            const passives = responsesData.filter((r) => r.score >= 7 && r.score <= 8).length;
-            const detractors = responsesData.filter((r) => r.score <= 6).length;
-            const total = responsesData.length;
-            const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+        const responsesByCampaign = new Map<string, { score: number }[]>();
+        (allResponses || []).forEach((r) => {
+          const list = responsesByCampaign.get(r.campaign_id) || [];
+          list.push({ score: r.score });
+          responsesByCampaign.set(r.campaign_id, list);
+        });
 
-            return {
-              id: campaign.id,
-              name: campaign.name,
-              totalResponses: total,
-              npsScore,
-              promoters,
-              passives,
-              detractors,
-            };
-          })
-        );
+        const campaignStatsData = campaigns.map((campaign) => {
+          const responsesData = responsesByCampaign.get(campaign.id) || [];
+          const promoters = responsesData.filter((r) => r.score >= 9).length;
+          const passives = responsesData.filter((r) => r.score >= 7 && r.score <= 8).length;
+          const detractors = responsesData.filter((r) => r.score <= 6).length;
+          const total = responsesData.length;
+          const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+
+          return {
+            id: campaign.id,
+            name: campaign.name,
+            totalResponses: total,
+            npsScore,
+            promoters,
+            passives,
+            detractors,
+          };
+        });
 
         setCampaignStats(campaignStatsData);
       } catch (error) {
@@ -339,10 +346,11 @@ const Dashboard = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
+        const sanitized = sanitizeFilterValue(searchTerm);
         const { data, error } = await supabase
           .from("contacts")
           .select("*")
-          .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+          .or(`name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`)
           .limit(10);
 
         if (error) throw error;
@@ -735,7 +743,7 @@ const Dashboard = () => {
                   <div
                     key={response.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/campaigns/${response.campaign_id}`)}
+                    onClick={() => navigate(`/nps/campaigns/${response.campaign_id}`)}
                   >
                     <div className="flex items-center gap-4 flex-1">
                       {response.contacts.is_company ? (

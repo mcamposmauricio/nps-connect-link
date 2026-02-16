@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import NPSForm from "@/components/NPSForm";
 
 interface BrandSettings {
@@ -15,6 +16,7 @@ interface BrandSettings {
 const NPSResponse = () => {
   const { token } = useParams();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -52,8 +54,8 @@ const NPSResponse = () => {
       if (ccError) throw ccError;
       if (!campaignContact) {
         toast({
-          title: "Link inválido",
-          description: "Este link não é válido ou expirou.",
+          title: t("nps.response.invalidLink"),
+          description: t("nps.response.invalidLinkDesc"),
           variant: "destructive",
         });
         return;
@@ -81,8 +83,8 @@ const NPSResponse = () => {
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast({
-        title: "Erro",
-        description: "Não foi possível carregar a pesquisa.",
+        title: t("nps.response.error"),
+        description: t("nps.response.errorDesc"),
         variant: "destructive",
       });
     } finally {
@@ -96,6 +98,23 @@ const NPSResponse = () => {
     setSubmitting(true);
 
     try {
+      // Check for duplicate response
+      const { data: existing } = await supabase
+        .from("responses")
+        .select("id")
+        .eq("campaign_id", campaignData.campaign_id)
+        .eq("contact_id", campaignData.contact_id)
+        .maybeSingle();
+
+      if (existing) {
+        setSubmitted(true);
+        toast({
+          title: t("nps.response.thanks"),
+          description: t("nps.response.alreadyResponded"),
+        });
+        return;
+      }
+
       const { error } = await supabase.from("responses").insert({
         campaign_id: campaignData.campaign_id,
         contact_id: campaignData.contact_id,
@@ -108,13 +127,13 @@ const NPSResponse = () => {
 
       setSubmitted(true);
       toast({
-        title: "Obrigado!",
-        description: "Sua resposta foi enviada com sucesso.",
+        title: t("nps.response.thanks"),
+        description: t("nps.response.successDesc"),
       });
     } catch (error: any) {
       toast({
-        title: "Erro",
-        description: error.message || "Não foi possível enviar sua resposta.",
+        title: t("nps.response.error"),
+        description: error.message || t("nps.response.errorSubmit"),
         variant: "destructive",
       });
     } finally {
@@ -134,8 +153,8 @@ const NPSResponse = () => {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Link inválido</h1>
-          <p className="text-muted-foreground">Este link não é válido ou expirou.</p>
+          <h1 className="text-2xl font-bold mb-2">{t("nps.response.invalidLink")}</h1>
+          <p className="text-muted-foreground">{t("nps.response.invalidLinkDesc")}</p>
         </div>
       </div>
     );

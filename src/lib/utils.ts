@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function sanitizeFilterValue(value: string): string {
+  return value.replace(/[,()."\\]/g, '');
+}
+
 export function exportToCSV(data: any[], filename: string) {
   const csv = Papa.unparse(data);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
