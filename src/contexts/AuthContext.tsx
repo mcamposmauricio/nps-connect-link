@@ -107,11 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        await loadUserData(currentUser);
+        setTimeout(() => loadUserData(currentUser), 0);
       } else {
         setIsAdmin(false);
         setIsChatEnabled(false);
