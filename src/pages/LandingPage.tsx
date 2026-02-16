@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import DashboardMockup from "@/components/DashboardMockup";
+import LandingBackgroundMockups from "@/components/LandingBackgroundMockups";
 import {
   Zap,
   MessageSquare,
@@ -91,6 +92,7 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-dark-hero flex flex-col relative overflow-hidden">
+      <LandingBackgroundMockups />
       {/* Navbar */}
       <nav className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
