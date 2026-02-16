@@ -2,58 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Design System — Journey CS
+   All colors are HSL. Indigo/Teal palette. */
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 210 4% 18%;
+    --background: 220 20% 97%;
+    --foreground: 224 30% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 4% 18%;
+    --card-foreground: 224 30% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 4% 18%;
+    --popover-foreground: 224 30% 15%;
 
-    --primary: 148 59% 28%;
+    --primary: 239 60% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 4% 18%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 224 20% 96%;
+    --secondary-foreground: 224 30% 15%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 210 4% 40%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 148 59% 35%;
+    --accent: 160 84% 39%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 148 59% 28%;
+    --success: 160 84% 39%;
     --warning: 38 92% 50%;
     --neutral: 43 74% 66%;
 
-    --promoter: 148 59% 28%;
+    --promoter: 160 84% 39%;
     --passive: 43 74% 66%;
-    --detractor: 0 84.2% 60.2%;
+    --detractor: 0 84% 60%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 148 59% 28%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 239 60% 50%;
 
     --radius: 0.5rem;
-    
-    --gradient-hero: linear-gradient(135deg, hsl(148 59% 28%) 0%, hsl(148 59% 35%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
-    
+
+    --gradient-hero: linear-gradient(135deg, hsl(224 47% 8%) 0%, hsl(239 40% 15%) 50%, hsl(224 47% 8%) 100%);
+    --gradient-cosmic: radial-gradient(ellipse at 30% 50%, hsl(239 60% 20% / 0.4) 0%, transparent 60%);
+    --gradient-sidebar-active: linear-gradient(135deg, hsl(160 84% 39% / 0.15) 0%, hsl(160 84% 39% / 0.05) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 20% 97%) 100%);
+
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.15);
     --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.2);
-    
+
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --glass-bg: 0 0% 100% / 0.6;
@@ -62,68 +63,62 @@ All colors MUST be HSL.
     --glass-blur: 12px;
 
     --sidebar-background: 0 0% 100%;
-
-    --sidebar-foreground: 210 4% 18%;
-
-    --sidebar-primary: 148 59% 28%;
-
+    --sidebar-foreground: 224 30% 15%;
+    --sidebar-primary: 239 60% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-
-    --sidebar-accent: 0 0% 96%;
-
-    --sidebar-accent-foreground: 210 4% 18%;
-
-    --sidebar-border: 0 0% 90%;
-
-    --sidebar-ring: 148 59% 28%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 224 30% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 239 60% 50%;
   }
 
   .dark {
-    --background: 210 4% 18%;
-    --foreground: 0 0% 98%;
+    --background: 224 47% 8%;
+    --foreground: 210 20% 98%;
 
-    --card: 210 4% 22%;
-    --card-foreground: 0 0% 98%;
+    --card: 224 40% 12%;
+    --card-foreground: 210 20% 98%;
 
-    --popover: 210 4% 22%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 224 40% 12%;
+    --popover-foreground: 210 20% 98%;
 
-    --primary: 148 59% 35%;
+    --primary: 239 60% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 4% 30%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 224 30% 18%;
+    --secondary-foreground: 210 20% 98%;
 
-    --muted: 210 4% 26%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 224 30% 14%;
+    --muted-foreground: 220 10% 60%;
 
-    --accent: 148 59% 40%;
+    --accent: 160 84% 45%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 20% 98%;
 
-    --success: 148 59% 35%;
+    --success: 160 84% 45%;
     --warning: 38 92% 50%;
     --neutral: 43 74% 66%;
 
-    --promoter: 148 59% 35%;
+    --promoter: 160 84% 45%;
     --passive: 43 74% 66%;
-    --detractor: 0 62.8% 30.6%;
+    --detractor: 0 62% 30%;
 
-    --border: 210 4% 30%;
-    --input: 210 4% 30%;
-    --ring: 148 59% 35%;
-    --sidebar-background: 210 4% 20%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 148 59% 35%;
+    --border: 224 30% 18%;
+    --input: 224 30% 18%;
+    --ring: 239 60% 60%;
+
+    --sidebar-background: 224 40% 10%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 239 60% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 4% 26%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 210 4% 30%;
-    --sidebar-ring: 148 59% 35%;
+    --sidebar-accent: 224 30% 14%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 224 30% 18%;
+    --sidebar-ring: 239 60% 60%;
 
-    --glass-bg: 210 4% 22% / 0.5;
+    --glass-bg: 224 40% 12% / 0.5;
     --glass-border: 0 0% 100% / 0.08;
     --glass-shadow: 0 8px 32px 0 hsl(0 0% 0% / 0.2);
   }
@@ -145,7 +140,7 @@ All colors MUST be HSL.
   }
 }
 
-/* Glass Design System — outside @layer so it overrides Tailwind utilities */
+/* Glass Design System */
 .glass-card {
   background: hsl(var(--glass-bg));
   backdrop-filter: blur(var(--glass-blur));
@@ -159,7 +154,20 @@ All colors MUST be HSL.
   box-shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
 }
 
-/* Landing page animations */
+/* Landing / Auth dark background */
+.bg-dark-hero {
+  background: var(--gradient-hero);
+  position: relative;
+}
+.bg-dark-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-cosmic);
+  pointer-events: none;
+}
+
+/* Animations */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -172,6 +180,18 @@ All colors MUST be HSL.
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-10px); }
 }
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
 
 .animate-fade-in-up {
   opacity: 0;
@@ -182,6 +202,15 @@ All colors MUST be HSL.
 }
 .animate-float {
   animation: float 4s ease-in-out infinite;
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
 }
 
 .delay-0   { animation-delay: 0ms; }

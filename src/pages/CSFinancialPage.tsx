@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SidebarLayout from "@/components/SidebarLayout";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, Building2, PieChart } from "lucide-react";
@@ -47,10 +48,7 @@ export default function CSFinancialPage() {
   return (
     <SidebarLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("cs.financial.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("cs.financial.subtitle")}</p>
-        </div>
+        <PageHeader title={t("cs.financial.title")} subtitle={t("cs.financial.subtitle")} />
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">

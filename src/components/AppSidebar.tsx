@@ -36,10 +36,10 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
-  const reportPaths = ["/cs-health", "/cs-churn", "/cs-financial", "/admin/gerencial"];
   const [npsOpen, setNpsOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
   const [reportsOpen, setReportsOpen] = useState(true);
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
 
   const showReports = hasPermission('cs', 'view') || hasPermission('chat', 'view');
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
@@ -49,105 +49,56 @@ export function AppSidebar() {
   const myAttendant = teamAttendants.find((a) => a.user_id === user?.id);
   const totalActiveChats = teamAttendants.reduce((sum, a) => sum + a.active_count, 0);
 
-  const [workspaceOpen, setWorkspaceOpen] = useState(true);
-
   // Fetch attendant counts filtered by team membership
   const fetchCounts = useCallback(async () => {
     if (!user?.id) return;
-
-    // 1. Find my attendant profile
     const { data: myProfile } = await supabase
-      .from("attendant_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .from("attendant_profiles").select("id").eq("user_id", user.id).maybeSingle();
 
     let attendants: any[] = [];
-
     if (isAdmin) {
-      // Admins see all attendants
-      const { data } = await supabase
-        .from("attendant_profiles")
-        .select("id, display_name, user_id");
+      const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id");
       attendants = data ?? [];
     } else if (myProfile) {
-      // Find my teams
-      const { data: myTeams } = await supabase
-        .from("chat_team_members")
-        .select("team_id")
-        .eq("attendant_id", myProfile.id);
-
+      const { data: myTeams } = await supabase.from("chat_team_members").select("team_id").eq("attendant_id", myProfile.id);
       if (myTeams && myTeams.length > 0) {
         const teamIds = myTeams.map((t: any) => t.team_id);
-        // Find all attendants in those teams
-        const { data: teamMembers } = await supabase
-          .from("chat_team_members")
-          .select("attendant_id")
-          .in("team_id", teamIds);
-
+        const { data: teamMembers } = await supabase.from("chat_team_members").select("attendant_id").in("team_id", teamIds);
         const uniqueIds = [...new Set((teamMembers ?? []).map((m: any) => m.attendant_id))];
         if (uniqueIds.length > 0) {
-          const { data } = await supabase
-            .from("attendant_profiles")
-            .select("id, display_name, user_id")
-            .in("id", uniqueIds);
+          const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id").in("id", uniqueIds);
           attendants = data ?? [];
         }
       } else {
-        // No teams, show only self
-        const { data } = await supabase
-          .from("attendant_profiles")
-          .select("id, display_name, user_id")
-          .eq("user_id", user.id);
+        const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id").eq("user_id", user.id);
         attendants = data ?? [];
       }
     }
 
-    // Count active rooms per attendant
-    const { data: activeRooms } = await supabase
-      .from("chat_rooms")
-      .select("attendant_id")
-      .in("status", ["active", "waiting"]);
-
+    const { data: activeRooms } = await supabase.from("chat_rooms").select("attendant_id").in("status", ["active", "waiting"]);
     const counts: Record<string, number> = {};
     (activeRooms ?? []).forEach((r: any) => {
       if (r.attendant_id) counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
     });
 
-    // Sort: logged-in user first, then alphabetical
     const sorted = attendants
-      .map((a: any) => ({
-        id: a.id,
-        display_name: a.display_name,
-        user_id: a.user_id,
-        active_count: counts[a.id] || 0,
-      }))
+      .map((a: any) => ({ id: a.id, display_name: a.display_name, user_id: a.user_id, active_count: counts[a.id] || 0 }))
       .sort((a, b) => {
         if (a.user_id === user.id) return -1;
         if (b.user_id === user.id) return 1;
         return a.display_name.localeCompare(b.display_name);
       });
-
     setTeamAttendants(sorted);
   }, [user?.id, isAdmin]);
 
-  // Fetch on mount + realtime subscription
   useEffect(() => {
     if (!chatOpen) return;
     fetchCounts();
-
     const channel = supabase
       .channel("sidebar-chat-rooms")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "chat_rooms" },
-        () => fetchCounts()
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "chat_rooms" }, () => fetchCounts())
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [chatOpen, fetchCounts]);
 
   const handleLogout = async () => {
@@ -161,12 +112,14 @@ export function AppSidebar() {
     { path: "/cs-trails", icon: Route, label: t("nav.journeys") },
   ];
 
-
   const npsItems = [
     { path: "/nps/dashboard", icon: BarChart3, label: t("nav.metrics") },
     { path: "/nps/campaigns", icon: Send, label: t("nav.surveys") },
     { path: "/nps/nps-settings", icon: Settings, label: t("npsSettings.navLabel") },
   ];
+
+  // Group label style
+  const groupLabelCls = "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70";
 
   return (
     <Sidebar className="border-r" collapsible="icon">
@@ -175,15 +128,15 @@ export function AppSidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Zap className="h-4 w-4" />
           </div>
-          {!collapsed && <span className="text-lg font-semibold">Journey CS</span>}
+          {!collapsed && <span className="text-lg font-bold">Journey CS</span>}
         </Link>
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Customer Success Menu */}
+        {/* Customer Success */}
         {hasPermission('cs', 'view') && (
           <SidebarGroup>
-            <SidebarGroupLabel>{t("cs.title")}</SidebarGroupLabel>
+            <SidebarGroupLabel className={groupLabelCls}>{t("cs.title")}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {csItems.map((item) => (
@@ -198,12 +151,12 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Relatórios - unified reports menu */}
+        {/* Reports */}
         {showReports && (
           <SidebarGroup>
             <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full">
+                <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full`}>
                   <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /><span>{t("cs.reports")}</span></span>
                   {!collapsed && (reportsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
                 </SidebarGroupLabel>
@@ -247,7 +200,7 @@ export function AppSidebar() {
         {/* Cadastros */}
         {hasPermission('contacts', 'view') && (
           <SidebarGroup>
-            <SidebarGroupLabel>{t("nav.registry")}</SidebarGroupLabel>
+            <SidebarGroupLabel className={groupLabelCls}>{t("nav.registry")}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -265,12 +218,12 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* NPS Submenu */}
+        {/* NPS */}
         {hasPermission('nps', 'view') && (
           <SidebarGroup>
             <Collapsible open={npsOpen} onOpenChange={setNpsOpen}>
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full">
+                <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full`}>
                   <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /><span>NPS</span></span>
                   {!collapsed && (npsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
                 </SidebarGroupLabel>
@@ -292,12 +245,12 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Chat Module Submenu */}
+        {/* Chat */}
         {hasPermission('chat', 'view') && (
           <SidebarGroup>
             <Collapsible open={chatOpen} onOpenChange={setChatOpen}>
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full">
+                <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full`}>
                   <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /><span>{t("chat.module")}</span></span>
                   {!collapsed && (chatOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
                 </SidebarGroupLabel>
@@ -310,7 +263,7 @@ export function AppSidebar() {
                         <LayoutDashboard className="h-4 w-4" /><span>Dashboard</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                    {/* Workspace collapsible submenu */}
+                    {/* Workspace */}
                     <SidebarMenuItem>
                       <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
                         <div className="flex items-center pl-6">
@@ -322,9 +275,7 @@ export function AppSidebar() {
                           >
                             <Inbox className="h-4 w-4" />
                             <span>{t("chat.workspace.station")}</span>
-                            <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">
-                              {totalActiveChats}
-                            </Badge>
+                            <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">{totalActiveChats}</Badge>
                           </SidebarMenuButton>
                           <CollapsibleTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
@@ -336,11 +287,7 @@ export function AppSidebar() {
                           {teamAttendants.map((att) => (
                             <SidebarMenuItem key={att.id}>
                               <SidebarMenuButton
-                                onClick={() =>
-                                  att.user_id === user?.id
-                                    ? navigate("/admin/workspace")
-                                    : navigate(`/admin/workspace?attendant=${att.id}`)
-                                }
+                                onClick={() => att.user_id === user?.id ? navigate("/admin/workspace") : navigate(`/admin/workspace?attendant=${att.id}`)}
                                 isActive={
                                   att.user_id === user?.id
                                     ? location.pathname === "/admin/workspace" && !location.search.includes("attendant=")
@@ -351,13 +298,9 @@ export function AppSidebar() {
                               >
                                 <User className="h-3.5 w-3.5" />
                                 <span className="truncate">
-                                  {att.user_id === user?.id
-                                    ? `${t("chat.workspace.you")} ${att.display_name}`
-                                    : att.display_name}
+                                  {att.user_id === user?.id ? `${t("chat.workspace.you")} ${att.display_name}` : att.display_name}
                                 </span>
-                                <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">
-                                  {att.active_count}
-                                </Badge>
+                                <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1">{att.active_count}</Badge>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                           ))}
@@ -397,8 +340,8 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4">
-        <div className="flex flex-col gap-2">
+      <SidebarFooter className="border-t p-3">
+        <div className="flex flex-col gap-1">
           <SidebarMenuButton onClick={() => navigate("/profile")} isActive={isActive("/profile")} tooltip={t("profile.title")} className="w-full justify-start">
             <User className="h-4 w-4" />{!collapsed && <span>{t("profile.title")}</span>}
           </SidebarMenuButton>
@@ -407,7 +350,7 @@ export function AppSidebar() {
               <Settings className="h-4 w-4" />{!collapsed && <span>{t("nav.config")}</span>}
             </SidebarMenuButton>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 mt-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8"><Languages className="h-4 w-4" /></Button>

@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Plus, Route as RouteIcon, Trash2, Edit2, CheckCircle, Circle } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function CSTrailsPage() {
   const { t } = useLanguage();
@@ -145,10 +146,7 @@ export default function CSTrailsPage() {
     <SidebarLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">{t("cs.trails.title")}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t("cs.trails.subtitle")}</p>
-          </div>
+        <PageHeader title={t("cs.trails.title")} subtitle={t("cs.trails.subtitle")} />
           {canEditCS && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>

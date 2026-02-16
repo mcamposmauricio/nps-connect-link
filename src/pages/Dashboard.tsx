@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NPSHeatMap } from "@/components/NPSHeatMap";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface Stats {
   totalContacts: number;
@@ -443,10 +444,7 @@ const Dashboard = () => {
   return (
     <SidebarLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("dashboard.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("dashboard.npsHistory")}</p>
-        </div>
+        <PageHeader title={t("dashboard.title")} subtitle={t("dashboard.npsHistory")} />
 
         {/* View Mode Filter */}
         <Card className="p-4">

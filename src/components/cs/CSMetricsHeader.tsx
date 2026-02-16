@@ -1,5 +1,6 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Building2, DollarSign, Heart, AlertTriangle } from "lucide-react";
+import { MetricCard } from "@/components/ui/metric-card";
 
 interface CSMetricsHeaderProps {
   metrics: {
@@ -20,52 +21,36 @@ export function CSMetricsHeader({ metrics }: CSMetricsHeaderProps) {
     }).format(value);
   };
 
-  const cards = [
-    {
-      title: t("cs.metrics.totalCompanies"),
-      value: metrics.totalCompanies,
-      icon: Building2,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-    },
-    {
-      title: t("cs.metrics.totalMRR"),
-      value: formatCurrency(metrics.totalMRR),
-      icon: DollarSign,
-      color: "text-green-600",
-      bgColor: "bg-green-500/10",
-    },
-    {
-      title: t("cs.metrics.avgHealth"),
-      value: `${metrics.avgHealthScore}%`,
-      icon: Heart,
-      color: metrics.avgHealthScore >= 70 ? "text-green-600" : metrics.avgHealthScore >= 40 ? "text-yellow-600" : "text-destructive",
-      bgColor: metrics.avgHealthScore >= 70 ? "bg-green-500/10" : metrics.avgHealthScore >= 40 ? "bg-yellow-500/10" : "bg-destructive/10",
-    },
-    {
-      title: t("cs.metrics.atRisk"),
-      value: metrics.atRisk,
-      icon: AlertTriangle,
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
-    },
-  ];
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card, index) => (
-        <div key={index} className="rounded-lg border bg-card shadow-sm p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{card.title}</p>
-              <p className="text-2xl font-semibold mt-1">{card.value}</p>
-            </div>
-            <div className={`p-3 rounded-xl ${card.bgColor}`}>
-              <card.icon className={`h-5 w-5 ${card.color}`} />
-            </div>
-          </div>
-        </div>
-      ))}
+      <MetricCard
+        title={t("cs.metrics.totalCompanies")}
+        value={metrics.totalCompanies}
+        icon={Building2}
+        iconColor="text-primary"
+        iconBgColor="bg-primary/10"
+      />
+      <MetricCard
+        title={t("cs.metrics.totalMRR")}
+        value={formatCurrency(metrics.totalMRR)}
+        icon={DollarSign}
+        iconColor="text-accent"
+        iconBgColor="bg-accent/10"
+      />
+      <MetricCard
+        title={t("cs.metrics.avgHealth")}
+        value={`${metrics.avgHealthScore}%`}
+        icon={Heart}
+        iconColor={metrics.avgHealthScore >= 70 ? "text-accent" : metrics.avgHealthScore >= 40 ? "text-warning" : "text-destructive"}
+        iconBgColor={metrics.avgHealthScore >= 70 ? "bg-accent/10" : metrics.avgHealthScore >= 40 ? "bg-warning/10" : "bg-destructive/10"}
+      />
+      <MetricCard
+        title={t("cs.metrics.atRisk")}
+        value={metrics.atRisk}
+        icon={AlertTriangle}
+        iconColor="text-destructive"
+        iconBgColor="bg-destructive/10"
+      />
     </div>
   );
 }

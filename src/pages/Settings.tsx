@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import TeamSettingsTab from "@/components/TeamSettingsTab";
 import OrganizationSettingsTab from "@/components/OrganizationSettingsTab";
 import ExternalApiTab from "@/components/ExternalApiTab";
+import { PageHeader } from "@/components/ui/page-header";
 
 const Settings = () => {
   const { t } = useLanguage();
@@ -24,12 +25,7 @@ const Settings = () => {
   return (
     <SidebarLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("settings.pageSubtitle")}
-          </p>
-        </div>
+        <PageHeader title={t("settings.title")} subtitle={t("settings.pageSubtitle")} />
 
         <Tabs defaultValue="team" className="space-y-6">
           <TabsList className="w-full lg:w-auto lg:inline-flex flex-wrap">

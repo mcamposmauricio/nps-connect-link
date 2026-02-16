@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import SidebarLayout from "@/components/SidebarLayout";
 import { CSKanbanBoard } from "@/components/cs/CSKanbanBoard";
 import { CSMetricsHeader } from "@/components/cs/CSMetricsHeader";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function CSDashboard() {
   const { t } = useLanguage();
@@ -52,10 +53,7 @@ export default function CSDashboard() {
   return (
     <SidebarLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("cs.dashboard.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("cs.dashboard.subtitle")}</p>
-        </div>
+        <PageHeader title={t("cs.dashboard.title")} subtitle={t("cs.dashboard.subtitle")} />
 
         <CSMetricsHeader metrics={metrics} />
 

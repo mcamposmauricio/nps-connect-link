@@ -16,6 +16,7 @@ import { useDashboardStats, DashboardFilters } from "@/hooks/useDashboardStats";
 import { useAttendantQueues } from "@/hooks/useChatRealtime";
 import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/ui/page-header";
 
 const AdminDashboard = () => {
   const { t } = useLanguage();
@@ -227,10 +228,7 @@ const AdminDashboard = () => {
     <SidebarLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">{t("chat.dashboard.title")}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t("chat.dashboard.subtitle")}</p>
-          </div>
+          <PageHeader title={t("chat.dashboard.title")} subtitle={t("chat.dashboard.subtitle")} />
           <span className="text-[10px] text-muted-foreground">
             Atualizado {lastRefreshLabel()}
           </span>
