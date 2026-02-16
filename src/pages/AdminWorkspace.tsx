@@ -96,6 +96,14 @@ const AdminWorkspace = () => {
   const handleAssignRoom = async (roomId: string) => {
     if (!user) return;
 
+    // Fetch user profile display_name to use as attendant name
+    const { data: userProfile } = await supabase
+      .from("user_profiles")
+      .select("display_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const profileName = userProfile?.display_name || user.email?.split("@")[0] || "Admin";
+
     let { data: profile } = await supabase
       .from("attendant_profiles")
       .select("id")
@@ -108,7 +116,7 @@ const AdminWorkspace = () => {
         .insert({
           user_id: user.id,
           csm_id: user.id,
-          display_name: user.email?.split("@")[0] ?? "Admin",
+          display_name: profileName,
           status: "online",
         })
         .select("id")
@@ -120,7 +128,7 @@ const AdminWorkspace = () => {
         if (!csmId) {
           const { data: newCsm } = await supabase
             .from("csms")
-            .insert({ user_id: user.id, name: user.email?.split("@")[0] ?? "Admin", email: user.email ?? "", is_chat_enabled: true })
+            .insert({ user_id: user.id, name: profileName, email: user.email ?? "", is_chat_enabled: true })
             .select("id")
             .single();
           csmId = newCsm?.id;
