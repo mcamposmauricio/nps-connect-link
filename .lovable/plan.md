@@ -1,75 +1,56 @@
 
 
-# Correcao de 3 Bugs: Navegacao, Flickering e Dark Mode
+# Correcao Definitiva do Flickering no Menu
 
-## Problemas Identificados
+## Causa Raiz
 
-### 1. "Visao Geral" navega para a Landing Page
-No `AppSidebar.tsx` (linha 113), o item "Visao Geral" tem `path: "/"`, que e a rota da `LandingPage`. O correto e `/cs-dashboard`.
+O hook `useAuth()` usa `useState` local. Cada vez que o usuario navega, o `SidebarLayout` remonta, criando uma **nova instancia** do `useAuth()` que comeca com `loading: true`. Isso exibe o spinner por um instante ate a sessao ser verificada novamente, causando o flicker.
 
-### 2. Menu piscando a cada clique
-O `SidebarLayout.tsx` executa `checkAuth` (chamada ao Supabase) toda vez que o componente monta. Como cada navegacao remonta o layout, isso causa um estado `loading = true` momentaneo que exibe o spinner e esconde o conteudo, gerando o "piscar". A solucao e usar o hook `useAuth` ja existente (que compartilha estado via cache) em vez de fazer uma chamada avulsa ao Supabase.
+## Solucao
 
-### 3. Botao Dark Mode nao funciona
-O `useTheme()` do `next-themes` requer um `ThemeProvider` envolvendo a aplicacao. Esse provider nao existe no `App.tsx` nem no `main.tsx`. Sem ele, `setTheme()` nao faz nada.
+Transformar o `useAuth` em um **Context Provider** no nivel da aplicacao. Assim, o estado de autenticacao e carregado **uma unica vez** e compartilhado por todos os componentes que precisam dele.
 
----
+## Mudancas
 
-## Solucoes
+### 1. Criar `src/contexts/AuthContext.tsx` (novo arquivo)
 
-### Arquivo 1: `src/components/AppSidebar.tsx`
-- Alterar linha 113: `path: "/"` para `path: "/cs-dashboard"`
+- Mover toda a logica de `useAuth.ts` (getSession, roles, permissions, tenant) para dentro de um `AuthProvider`
+- Criar o contexto com `createContext` e expor via `useAuth()` hook
+- O estado `loading` so sera `true` na primeira carga da aplicacao
 
-### Arquivo 2: `src/components/SidebarLayout.tsx`
-- Remover a logica manual de `checkAuth` com `useState(loading)` e `supabase.auth.getSession()`
-- Usar o hook `useAuth()` que ja existe no projeto e gerencia sessao de forma centralizada
-- Isso elimina o estado de loading intermediario que causa o flickering
+### 2. Atualizar `src/hooks/useAuth.ts`
 
-### Arquivo 3: `src/App.tsx`
-- Importar `ThemeProvider` de `next-themes`
-- Envolver toda a aplicacao com `<ThemeProvider attribute="class" defaultTheme="light">`
-- O atributo `attribute="class"` adiciona a classe `dark` ao elemento `<html>`, que e como o Tailwind CSS aplica dark mode
+- Simplificar para apenas consumir o `AuthContext`
+- Manter a mesma interface de retorno (`user`, `isAdmin`, `loading`, etc.) para compatibilidade total
+- Nenhuma pagina precisa ser alterada pois todas usam `useAuth()` da mesma forma
 
----
+### 3. Atualizar `src/App.tsx`
 
-## Detalhes Tecnicos
+- Envolver a aplicacao com `<AuthProvider>` dentro do `BrowserRouter` (precisa de acesso ao router para navegacao)
+- Posicionar acima das `<Routes>` para que o estado persista entre navegacoes
 
-### SidebarLayout simplificado
+### 4. Atualizar `src/components/SidebarLayout.tsx`
+
+- O `useAuth()` agora vem do contexto compartilhado
+- Na primeira visita, `loading` sera `true` e mostrara o spinner
+- Em navegacoes subsequentes, `loading` ja sera `false` e o layout renderiza instantaneamente sem flicker
+
+## Por que isso resolve
+
 ```text
-Antes:
-  - useState(loading) = true
-  - useEffect -> supabase.auth.getSession() -> se nao tem sessao, redireciona -> setLoading(false)
-  - Enquanto loading, mostra spinner (causa o flash)
+Antes (hook local):
+  Clica no menu → SidebarLayout remonta → useAuth() novo → loading=true → SPINNER → fetch → loading=false → renderiza
 
-Depois:
-  - useAuth() -> { user, loading }
-  - Se loading, mostra spinner (so na primeira carga, nao em cada navegacao)
-  - Se !user e !loading, redireciona
-  - Sem remontagem do estado entre navegacoes
+Depois (context global):
+  Clica no menu → SidebarLayout remonta → useAuth() do contexto → loading=false (ja carregado) → renderiza IMEDIATAMENTE
 ```
 
-### ThemeProvider no App.tsx
-```text
-<ThemeProvider attribute="class" defaultTheme="light">
-  <QueryClientProvider>
-    <LanguageProvider>
-      <TooltipProvider>
-        ...
-      </TooltipProvider>
-    </LanguageProvider>
-  </QueryClientProvider>
-</ThemeProvider>
-```
+## Arquivos
 
-O `attribute="class"` faz o provider adicionar/remover a classe `dark` no `<html>`, ativando as variaveis CSS do dark mode definidas no `index.css`.
-
----
-
-## Arquivos Modificados
-
-| # | Arquivo | Mudanca |
-|---|---------|---------|
-| 1 | `src/components/AppSidebar.tsx` | Corrigir path do "Visao Geral" de `/` para `/cs-dashboard` |
-| 2 | `src/components/SidebarLayout.tsx` | Substituir checkAuth manual por useAuth(), eliminar loading desnecessario |
-| 3 | `src/App.tsx` | Adicionar ThemeProvider do next-themes envolvendo a app |
+| # | Arquivo | Acao |
+|---|---------|------|
+| 1 | `src/contexts/AuthContext.tsx` | Criar - Provider com toda a logica de autenticacao |
+| 2 | `src/hooks/useAuth.ts` | Modificar - Consumir do contexto em vez de gerenciar estado local |
+| 3 | `src/App.tsx` | Modificar - Adicionar `<AuthProvider>` envolvendo as rotas |
+| 4 | `src/components/SidebarLayout.tsx` | Sem mudanca necessaria - funciona automaticamente |
 
