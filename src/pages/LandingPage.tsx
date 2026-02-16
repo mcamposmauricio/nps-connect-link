@@ -103,15 +103,16 @@ const LandingPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant="gradient"
+              variant="default"
               onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="bg-accent text-white hover:bg-accent/90"
             >
               {t("landing.nav.earlyAccess")}
             </Button>
             <Button
               onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
-              variant={isLoggedIn ? "gradient" : "outline"}
-              className={!isLoggedIn ? "border-white/20 text-white hover:bg-white/10 hover:text-white" : ""}
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10 hover:text-white"
             >
               {isLoggedIn ? t("landing.nav.goToDashboard") : t("landing.nav.login")}
             </Button>
@@ -174,7 +175,7 @@ const LandingPage = () => {
                   />
                   {errors.company && <p className="text-destructive text-xs mt-1">{errors.company}</p>}
                 </div>
-                <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-accent text-white hover:bg-accent/90" disabled={loading}>
                   {loading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("landing.form.submitting")}</>
                   ) : (
