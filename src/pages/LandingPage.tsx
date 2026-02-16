@@ -6,10 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import DashboardMockup from "@/components/DashboardMockup";
 import LandingBackgroundMockups from "@/components/LandingBackgroundMockups";
 import LandingFeatures from "@/components/landing/LandingFeatures";
-import LandingDifferentials from "@/components/landing/LandingDifferentials";
 import {
   Zap,
   ArrowRight,
@@ -113,109 +111,81 @@ const LandingPage = () => {
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="flex-1 relative flex items-center z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: messaging + form */}
-            <div className="space-y-6">
-              <Badge className="bg-accent/20 text-accent border-accent/30 text-sm px-3 py-1 animate-fade-in-up delay-0">
-                {t("landing.hero.badge")}
-              </Badge>
-
-              <h1 className="text-4xl lg:text-5xl font-bold text-white leading-tight animate-fade-in-up delay-100">
-                {t("landing.hero.title")}
-              </h1>
-
-              <p className="text-lg text-white/60 leading-relaxed max-w-lg animate-fade-in-up delay-200">
-                {t("landing.hero.subtitle")}
-              </p>
-
-              {/* Form */}
-              <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300">
-                {submitted ? (
-                  <div className="text-center py-8">
-                    <CheckCircle2 className="h-12 w-12 text-accent mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-white mb-2">{t("landing.form.success")}</h3>
-                    <p className="text-white/60 text-sm">{t("landing.form.successDesc")}</p>
-                    <Button variant="outline" className="mt-4 border-white/20 text-white hover:bg-white/10" onClick={() => setSubmitted(false)}>
-                      {t("landing.form.submit")}
-                    </Button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white">{t("landing.form.title")}</h3>
-                    <div>
-                      <Input
-                        placeholder={t("landing.form.name")}
-                        value={form.name}
-                        onChange={(e) => handleChange("name", e.target.value)}
-                        required
-                        className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
-                      />
-                      {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
-                    </div>
-                    <div>
-                      <Input
-                        type="email"
-                        placeholder={t("landing.form.email")}
-                        value={form.email}
-                        onChange={(e) => handleChange("email", e.target.value)}
-                        required
-                        className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
-                      />
-                      {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
-                    </div>
-                    <div>
-                      <Input
-                        placeholder={t("landing.form.company")}
-                        value={form.company}
-                        onChange={(e) => handleChange("company", e.target.value)}
-                        required
-                        className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
-                      />
-                      {errors.company && <p className="text-destructive text-xs mt-1">{errors.company}</p>}
-                    </div>
-                    <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
-                      {loading ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("landing.form.submitting")}</>
-                      ) : (
-                        <>{t("landing.form.submit")}<ArrowRight className="ml-2 h-4 w-4" /></>
-                      )}
-                    </Button>
-                  </form>
-                )}
-              </div>
-            </div>
-
-            {/* Right: Dashboard mockup */}
-            <div className="hidden lg:block">
-              <DashboardMockup />
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Features Section */}
       <LandingFeatures />
 
-      {/* Differentials Section */}
-      <LandingDifferentials />
+      {/* Hero centralizado */}
+      <section className="relative z-10 pb-20">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <Badge className="bg-accent/20 text-accent border-accent/30 text-sm px-3 py-1 animate-fade-in-up delay-0">
+            {t("landing.hero.badge")}
+          </Badge>
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 py-8 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-white">
-              <Zap className="h-3 w-3" />
-            </div>
-            <span className="font-semibold text-white">Journey CS</span>
-          </div>
-          <p className="text-sm text-white/40">
-            © {new Date().getFullYear()} Journey CS. {t("landing.footer.rights")}
+          <h1 className="text-4xl lg:text-5xl font-bold text-white leading-tight animate-fade-in-up delay-100">
+            {t("landing.hero.title")}
+          </h1>
+
+          <p className="text-lg text-white/60 leading-relaxed animate-fade-in-up delay-200">
+            {t("landing.hero.subtitle")}
           </p>
+
+          {/* Form */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl animate-fade-in-up delay-300 text-left">
+            {submitted ? (
+              <div className="text-center py-8">
+                <CheckCircle2 className="h-12 w-12 text-accent mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">{t("landing.form.success")}</h3>
+                <p className="text-white/60 text-sm">{t("landing.form.successDesc")}</p>
+                <Button variant="outline" className="mt-4 border-white/20 text-white hover:bg-white/10" onClick={() => setSubmitted(false)}>
+                  {t("landing.form.submit")}
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">{t("landing.form.title")}</h3>
+                <div>
+                  <Input
+                    placeholder={t("landing.form.name")}
+                    value={form.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    required
+                    className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
+                  />
+                  {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
+                </div>
+                <div>
+                  <Input
+                    type="email"
+                    placeholder={t("landing.form.email")}
+                    value={form.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    required
+                    className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
+                  />
+                  {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
+                </div>
+                <div>
+                  <Input
+                    placeholder={t("landing.form.company")}
+                    value={form.company}
+                    onChange={(e) => handleChange("company", e.target.value)}
+                    required
+                    className="bg-white/10 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-accent"
+                  />
+                  {errors.company && <p className="text-destructive text-xs mt-1">{errors.company}</p>}
+                </div>
+                <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("landing.form.submitting")}</>
+                  ) : (
+                    <>{t("landing.form.submit")}<ArrowRight className="ml-2 h-4 w-4" /></>
+                  )}
+                </Button>
+              </form>
+            )}
+          </div>
         </div>
-      </footer>
+      </section>
     </div>
   );
 };
