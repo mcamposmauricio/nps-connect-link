@@ -110,7 +110,7 @@ export function AppSidebar() {
   };
 
   const csItems = [
-    { path: "/", icon: LayoutDashboard, label: t("nav.overview") },
+    { path: "/cs-dashboard", icon: LayoutDashboard, label: t("nav.overview") },
     { path: "/cs-trails", icon: Route, label: t("nav.journeys") },
   ];
 
