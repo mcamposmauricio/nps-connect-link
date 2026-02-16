@@ -153,73 +153,6 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Reports */}
-        {showReports && (
-          <SidebarGroup>
-            <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
-              <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full`}>
-                  <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /><span>{t("cs.reports")}</span></span>
-                  {!collapsed && (reportsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
-                </SidebarGroupLabel>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {hasPermission('cs', 'view') && (
-                      <>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/cs-health")} isActive={isActive("/cs-health")} tooltip={t("nav.health")} className="pl-6">
-                            <Heart className="h-4 w-4" /><span>{t("nav.health")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/cs-churn")} isActive={isActive("/cs-churn")} tooltip={t("nav.risk")} className="pl-6">
-                            <TrendingDown className="h-4 w-4" /><span>{t("nav.risk")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/cs-financial")} isActive={isActive("/cs-financial")} tooltip={t("nav.revenue")} className="pl-6">
-                            <DollarSign className="h-4 w-4" /><span>{t("nav.revenue")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      </>
-                    )}
-                    {hasPermission('chat', 'view') && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/admin/gerencial")} isActive={isActive("/admin/gerencial")} tooltip={t("chat.gerencial.title")} className="pl-6">
-                          <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </SidebarGroup>
-        )}
-
-        {/* Cadastros */}
-        {hasPermission('contacts', 'view') && (
-          <SidebarGroup>
-            <SidebarGroupLabel className={groupLabelCls}>{t("nav.registry")}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={() => navigate("/nps/contacts")} isActive={isActive("/nps/contacts")} tooltip={t("nav.companies")}>
-                    <Building2 className="h-4 w-4" /><span>{t("nav.companies")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={() => navigate("/nps/people")} isActive={isActive("/nps/people")} tooltip={t("nav.people")}>
-                    <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
         {/* NPS */}
         {hasPermission('nps', 'view') && (
           <SidebarGroup>
@@ -338,6 +271,73 @@ export function AppSidebar() {
                 </SidebarGroupContent>
               </CollapsibleContent>
             </Collapsible>
+          </SidebarGroup>
+        )}
+
+        {/* Reports */}
+        {showReports && (
+          <SidebarGroup>
+            <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 flex items-center justify-between w-full`}>
+                  <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /><span>{t("cs.reports")}</span></span>
+                  {!collapsed && (reportsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {hasPermission('cs', 'view') && (
+                      <>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/cs-health")} isActive={isActive("/cs-health")} tooltip={t("nav.health")} className="pl-6">
+                            <Heart className="h-4 w-4" /><span>{t("nav.health")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/cs-churn")} isActive={isActive("/cs-churn")} tooltip={t("nav.risk")} className="pl-6">
+                            <TrendingDown className="h-4 w-4" /><span>{t("nav.risk")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/cs-financial")} isActive={isActive("/cs-financial")} tooltip={t("nav.revenue")} className="pl-6">
+                            <DollarSign className="h-4 w-4" /><span>{t("nav.revenue")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </>
+                    )}
+                    {hasPermission('chat', 'view') && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/admin/gerencial")} isActive={isActive("/admin/gerencial")} tooltip={t("chat.gerencial.title")} className="pl-6">
+                          <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
+
+        {/* Cadastros */}
+        {hasPermission('contacts', 'view') && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={groupLabelCls}>{t("nav.registry")}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => navigate("/nps/contacts")} isActive={isActive("/nps/contacts")} tooltip={t("nav.companies")}>
+                    <Building2 className="h-4 w-4" /><span>{t("nav.companies")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => navigate("/nps/people")} isActive={isActive("/nps/people")} tooltip={t("nav.people")}>
+                    <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
           </SidebarGroup>
         )}
       </SidebarContent>
