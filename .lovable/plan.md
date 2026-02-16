@@ -1,56 +1,44 @@
 
 
-# Correcao Definitiva do Flickering no Menu
+# Correcao: Login Travado + Contraste do Botao em Dark Mode
 
-## Causa Raiz
+## Problema 1: Login nao funciona
 
-O hook `useAuth()` usa `useState` local. Cada vez que o usuario navega, o `SidebarLayout` remonta, criando uma **nova instancia** do `useAuth()` que comeca com `loading: true`. Isso exibe o spinner por um instante ate a sessao ser verificada novamente, causando o flicker.
+**Causa raiz**: O callback `onAuthStateChange` no `AuthContext.tsx` faz `await loadUserData(currentUser)` diretamente. A documentacao do Supabase alerta que chamadas async dentro desse callback podem causar deadlock — o listener bloqueia e impede a navegacao pos-login.
 
-## Solucao
+Os logs de rede confirmam que o login retorna 200 com sucesso, mas a aplicacao trava apos a resposta porque o callback esta bloqueado.
 
-Transformar o `useAuth` em um **Context Provider** no nivel da aplicacao. Assim, o estado de autenticacao e carregado **uma unica vez** e compartilhado por todos os componentes que precisam dele.
+**Solucao**: Usar `setTimeout(fn, 0)` para deferir a chamada `loadUserData` fora do callback, evitando o deadlock. A inicializacao (`init`) continua com `await` normal porque nao esta dentro do listener.
 
-## Mudancas
+## Problema 2: Botao com contraste quebrado no dark mode
 
-### 1. Criar `src/contexts/AuthContext.tsx` (novo arquivo)
+**Causa raiz**: A tela de login usa `bg-dark-hero` (fundo escuro fixo) independente do tema. No dark mode, as variaveis `--primary` e `--accent` mudam para valores ligeiramente diferentes, mas o problema real e que o botao `variant="gradient"` nao tem contraste suficiente contra o card glass escuro.
 
-- Mover toda a logica de `useAuth.ts` (getSession, roles, permissions, tenant) para dentro de um `AuthProvider`
-- Criar o contexto com `createContext` e expor via `useAuth()` hook
-- O estado `loading` so sera `true` na primeira carga da aplicacao
+**Solucao**: Forcar cores absolutas no botao de login da pagina Auth, independentes do tema, ja que a tela de login e sempre escura. Usar classes explicitas como `!bg-gradient-to-r !from-[#4338ca] !to-[#10b981] !text-white` no botao.
 
-### 2. Atualizar `src/hooks/useAuth.ts`
+---
 
-- Simplificar para apenas consumir o `AuthContext`
-- Manter a mesma interface de retorno (`user`, `isAdmin`, `loading`, etc.) para compatibilidade total
-- Nenhuma pagina precisa ser alterada pois todas usam `useAuth()` da mesma forma
+## Mudancas Tecnicas
 
-### 3. Atualizar `src/App.tsx`
+### Arquivo 1: `src/contexts/AuthContext.tsx`
 
-- Envolver a aplicacao com `<AuthProvider>` dentro do `BrowserRouter` (precisa de acesso ao router para navegacao)
-- Posicionar acima das `<Routes>` para que o estado persista entre navegacoes
+- Separar o `onAuthStateChange` da logica async
+- No callback, apenas atualizar `user` sincronamente
+- Deferir `loadUserData` com `setTimeout(() => loadUserData(currentUser), 0)` para evitar deadlock
+- Manter o `init` com `await` normal (nao esta dentro do listener)
 
-### 4. Atualizar `src/components/SidebarLayout.tsx`
+### Arquivo 2: `src/pages/Auth.tsx`
 
-- O `useAuth()` agora vem do contexto compartilhado
-- Na primeira visita, `loading` sera `true` e mostrara o spinner
-- Em navegacoes subsequentes, `loading` ja sera `false` e o layout renderiza instantaneamente sem flicker
+- Substituir `variant="gradient"` no botao de login por classes CSS fixas que garantem contraste em qualquer tema
+- O botao usara: `bg-gradient-to-r from-indigo-600 to-emerald-500 text-white font-semibold hover:opacity-90 shadow-md`
+- Isso garante que as cores do botao nao mudem com o tema, ja que a tela de login tem fundo escuro fixo
 
-## Por que isso resolve
+---
 
-```text
-Antes (hook local):
-  Clica no menu → SidebarLayout remonta → useAuth() novo → loading=true → SPINNER → fetch → loading=false → renderiza
+## Arquivos Modificados
 
-Depois (context global):
-  Clica no menu → SidebarLayout remonta → useAuth() do contexto → loading=false (ja carregado) → renderiza IMEDIATAMENTE
-```
-
-## Arquivos
-
-| # | Arquivo | Acao |
-|---|---------|------|
-| 1 | `src/contexts/AuthContext.tsx` | Criar - Provider com toda a logica de autenticacao |
-| 2 | `src/hooks/useAuth.ts` | Modificar - Consumir do contexto em vez de gerenciar estado local |
-| 3 | `src/App.tsx` | Modificar - Adicionar `<AuthProvider>` envolvendo as rotas |
-| 4 | `src/components/SidebarLayout.tsx` | Sem mudanca necessaria - funciona automaticamente |
+| # | Arquivo | Mudanca |
+|---|---------|--------|
+| 1 | `src/contexts/AuthContext.tsx` | Deferir loadUserData no onAuthStateChange para evitar deadlock |
+| 2 | `src/pages/Auth.tsx` | Botao com cores fixas (nao dependentes do tema) para manter contraste |
 
