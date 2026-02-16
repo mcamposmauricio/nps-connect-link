@@ -927,8 +927,7 @@ export default {
   "landing.nav.goToDashboard": "Ir para o Painel",
   "landing.hero.badge": "Early Access",
   "landing.hero.title": "Algo novo está chegando",
-  "landing.hero.subtitle":
-    "Uma plataforma completa de Customer Success com NPS inteligente e chat in-app. Inscreva-se para ser o primeiro a saber.",
+  "landing.hero.subtitle": "",
   "landing.comingSoon": "Em breve",
   "landing.form.title": "Seja o primeiro a saber",
   "landing.form.name": "Nome completo",
