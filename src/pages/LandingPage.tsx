@@ -103,17 +103,15 @@ const LandingPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              size="sm"
               onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-accent text-white hover:bg-accent/90 h-9"
+              className="bg-accent text-white hover:bg-accent/90 h-9 px-4 text-sm"
             >
               {t("landing.nav.earlyAccess")}
             </Button>
             <Button
-              size="sm"
               onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
               variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 hover:text-white h-9"
+              className="border-white/20 text-white hover:bg-white/10 hover:text-white h-9 px-4 text-sm"
             >
               {isLoggedIn ? t("landing.nav.goToDashboard") : t("landing.nav.login")}
             </Button>
