@@ -3,9 +3,10 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, Route, Heart, TrendingDown, DollarSign, Users, BarChart3, Send, Settings,
   ChevronDown, ChevronRight, LogOut, Languages, Zap, Building2, MessageSquare, Headphones,
-  TrendingUp, History, Flag, User, Inbox,
+  TrendingUp, History, Flag, User, Inbox, Moon, Sun,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTheme } from "next-themes";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +35,7 @@ export function AppSidebar() {
   const { t, language, setLanguage } = useLanguage();
   const { user, isAdmin, hasPermission } = useAuth();
   const { state } = useSidebar();
+  const { theme, setTheme } = useTheme();
   const collapsed = state === "collapsed";
 
   const [npsOpen, setNpsOpen] = useState(true);
@@ -360,6 +362,9 @@ export function AppSidebar() {
                 <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>{language === "pt-BR" && "✓ "}Português (BR)</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="h-8 w-8">
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
