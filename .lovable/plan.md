@@ -1,52 +1,74 @@
 
 
-# Imagens decorativas de fundo na Landing Page
+# Reestilizar Landing Page com mais informacoes e mockups visiveis
 
-## O que sera feito
+## Objetivo
 
-Adicionar 3 mockups CSS decorativos posicionados como elementos de fundo absolutos, esmaecidos (opacity baixa), representando:
+Transformar a landing page de um layout minimalista "coming soon" para um layout "early stage" mais informativo, mantendo o tom de antecipacao mas adicionando secoes que mostram visualmente o que o produto oferece: **Chat in-app**, **NPS** e **Dashboard CS**.
 
-1. **Chat in-app** - Mockup de uma janela de chat com bolhas de mensagens
-2. **NPS** - Mockup com gauge/score e escala de 0-10
-3. **Dashboard CS** - Mockup com indicadores e graficos (similar ao DashboardMockup existente, mas simplificado)
+## Mudancas
 
-Esses elementos serao posicionados em pontos diferentes do fundo da pagina com `position: absolute`, `opacity: 0.06~0.08`, rotacao leve e escala grande para criar um efeito visual sutil e elegante.
+### 1. Secao de Features com Mockups Visiveis (nova secao)
 
-## Abordagem
+Adicionar uma secao abaixo do hero com 3 cards de feature lado a lado, cada um contendo:
 
-Criar componentes CSS puro (sem imagens externas) seguindo o mesmo padrao do `DashboardMockup.tsx` ja existente. Isso garante carregamento instantaneo e consistencia visual com o design system.
+- **Chat in-app**: Icone + titulo + descricao curta ("Converse com seus clientes em tempo real, direto no seu produto") + mockup CSS estilizado do chat (similar ao que ja existe no background mas com opacity mais alta ~0.3-0.5, visivel de verdade)
+- **NPS**: Icone + titulo + descricao ("Mensure a satisfacao com pesquisas NPS automatizadas e acompanhe a evolucao") + mockup do NPS score
+- **Dashboard CS**: Icone + titulo + descricao ("Indicadores de saude, churn, MRR e CSAT em um unico painel") + mockup do dashboard
+
+Cada card tera fundo glassmorphism (`bg-white/5 border-white/10 backdrop-blur`) e os mockups internos terao opacity mais alta para serem identificaveis.
+
+### 2. Reestilizar Hero
+
+- Manter badge "Early Access" e formulario
+- Atualizar subtitulo para ser um pouco mais descritivo
+- Remover os badges "Coming Soon" de NPS e Chat (serao substituidos pela secao de features)
+- Manter o DashboardMockup no lado direito
+
+### 3. Secao "Por que Journey CS?" (nova secao simples)
+
+3 colunas com icones e textos curtos destacando diferenciais:
+- "Tudo em um so lugar" - CS + NPS + Chat integrados
+- "Dados em tempo real" - Dashboards e alertas automaticos  
+- "Facil de usar" - Setup rapido, sem complexidade
+
+### 4. Atualizar Background Mockups
+
+Manter os mockups de fundo mas ajustar levemente as posicoes para nao conflitar com a nova secao de features.
+
+### 5. Atualizar traducoes
+
+Adicionar novas chaves no `pt-BR.ts` e `en.ts` para os textos das novas secoes.
 
 ---
 
-## Mudancas Tecnicas
+## Arquivos a modificar
 
-### Arquivo 1: `src/components/LandingBackgroundMockups.tsx` (novo)
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/LandingPage.tsx` | Reestilizar hero, adicionar secao de features e secao de diferenciais |
+| `src/components/LandingBackgroundMockups.tsx` | Ajustar posicoes dos mockups de fundo |
+| `src/locales/pt-BR.ts` | Adicionar traducoes das novas secoes |
+| `src/locales/en.ts` | Adicionar traducoes das novas secoes |
 
-Componente com 3 mockups decorativos posicionados com absolute:
+## Estrutura da pagina resultante
 
-- **ChatMockup**: Janela com header, bolhas de mensagem (remetente/destinatario), input de texto
-- **NPSMockup**: Card com titulo "NPS Score", numero grande "72", barra de escala colorida (detractor/passive/promoter)
-- **CSIndicatorsMockup**: Grid com 4 mini cards de KPI + mini grafico de linha/area
+```text
++-------------------------------------------+
+|  Navbar (logo + botao login)              |
++-------------------------------------------+
+|  Hero: titulo + subtitulo + formulario    |
+|  [esquerda]          [DashboardMockup]    |
++-------------------------------------------+
+|  Features: 3 cards com mockups visiveis   |
+|  [Chat in-app]  [NPS]  [Dashboard CS]    |
++-------------------------------------------+
+|  Diferenciais: 3 colunas com icones       |
+|  [Integrado]  [Tempo real]  [Facil]       |
++-------------------------------------------+
+|  Footer                                   |
++-------------------------------------------+
+```
 
-Cada um tera:
-- `position: absolute` com coordenadas especificas
-- `opacity: 0.06` a `0.08` para efeito esmaecido
-- `transform: rotate()` leve para dinamismo
-- `pointer-events: none` para nao interferir na interacao
-- Bordas e cores em `white/10` e `accent` seguindo o design system
+Os mockups de fundo (esmaecidos) continuam no background global para manter a profundidade visual.
 
-### Arquivo 2: `src/pages/LandingPage.tsx` (editar)
-
-- Importar e renderizar `<LandingBackgroundMockups />` dentro do container principal (`min-h-screen bg-dark-hero`), antes do conteudo, com `z-0` para ficar atras de tudo
-
----
-
-## Posicionamento dos mockups
-
-| Mockup | Posicao | Rotacao | Escala |
-|--------|---------|---------|--------|
-| Chat in-app | top-right (top: 10%, right: -5%) | -12deg | ~80% |
-| NPS | bottom-left (bottom: 15%, left: -3%) | 8deg | ~75% |
-| CS Dashboard | bottom-right (bottom: 5%, right: 10%) | -6deg | ~90% |
-
-Os 3 mockups ficam distribuidos pelo fundo sem sobrepor diretamente o conteudo central, criando profundidade visual.
