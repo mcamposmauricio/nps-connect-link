@@ -941,14 +941,18 @@ export default {
   "landing.footer.rights": "Todos os direitos reservados.",
 
   // Landing Features
-  "landing.features.title": "Tudo que você precisa para Customer Success",
-  "landing.features.subtitle": "Chat in-app, NPS automatizado e dashboards de indicadores — integrados em uma única plataforma.",
+  "landing.features.title": "Tudo que seu time de CS precisa",
+  "landing.features.subtitle":
+    "Chat in-app, NPS automatizado, gestão de carteira e dashboards de indicadores — Tudo em uma única plataforma.",
   "landing.features.chat.title": "Chat in-app",
-  "landing.features.chat.desc": "Converse com seus clientes em tempo real, direto dentro do seu produto. Atendimento ágil sem sair da plataforma.",
+  "landing.features.chat.desc":
+    "Converse com seus clientes em tempo real, direto dentro do seu produto. Atendimento ágil sem sair da plataforma.",
   "landing.features.nps.title": "NPS Inteligente",
-  "landing.features.nps.desc": "Mensure a satisfação com pesquisas NPS automatizadas e acompanhe a evolução dos seus clientes.",
+  "landing.features.nps.desc":
+    "Mensure a satisfação com pesquisas NPS automatizadas e acompanhe a evolução dos seus clientes.",
   "landing.features.cs.title": "Dashboard CS",
-  "landing.features.cs.desc": "Indicadores de saúde, churn, MRR e CSAT em um único painel. Tome decisões baseadas em dados.",
+  "landing.features.cs.desc":
+    "Indicadores de saúde, churn, MRR e CSAT em um único painel. Tome decisões baseadas em dados.",
 
   // Landing Differentials
   "landing.diff.title": "Por que Journey CS?",
