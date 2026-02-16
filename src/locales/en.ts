@@ -70,7 +70,7 @@ export default {
   "cs.trailStatus.active": "Active",
   "cs.trailStatus.completed": "Completed",
   "cs.trailStatus.paused": "Paused",
-  
+
   // CS NPS Trail
   "cs.npsTrail.addedToCampaign": "Added to Campaign",
   "cs.npsTrail.emailSent": "Email Sent",
@@ -262,7 +262,8 @@ export default {
   "contacts.companyDocument": "CNPJ",
   "contacts.externalId": "External ID",
   "contacts.externalIdPlaceholder": "E.g., cust_12345",
-  "contacts.externalIdHelp": "ID used in your system to identify this company. Required for embeddable NPS widget integration.",
+  "contacts.externalIdHelp":
+    "ID used in your system to identify this company. Required for embeddable NPS widget integration.",
 
   // CNPJ
   "cnpj.searching": "Searching CNPJ data...",
@@ -378,7 +379,8 @@ export default {
   "campaigns.saving": "Saving...",
   "campaigns.deleteCampaign": "Delete Campaign",
   "campaigns.deleteConfirmTitle": "Delete Campaign?",
-  "campaigns.deleteConfirmDescription": "This action cannot be undone. All information and responses for this campaign will be permanently deleted.",
+  "campaigns.deleteConfirmDescription":
+    "This action cannot be undone. All information and responses for this campaign will be permanently deleted.",
   "campaigns.deleteSuccess": "Campaign deleted successfully",
   "campaigns.deleteError": "Error deleting campaign",
   "campaigns.deleteBlockedActive": "Active campaigns cannot be deleted. Pause or complete it first.",
@@ -389,7 +391,8 @@ export default {
   "campaigns.channelEmailDescription": "Send NPS survey via email to contacts",
   "campaigns.channelEmbedded": "Embedded Widget",
   "campaigns.channelEmbeddedDescription": "Display NPS survey inside your application via widget",
-  "campaigns.channelHelp": "Select one or more channels. The first channel to receive a response automatically invalidates the others for that contact.",
+  "campaigns.channelHelp":
+    "Select one or more channels. The first channel to receive a response automatically invalidates the others for that contact.",
   "campaigns.selectAtLeastOneChannel": "Select at least one delivery channel",
 
   // Campaign Form
@@ -492,7 +495,8 @@ export default {
   "settings.apiKeys.createSuccess": "API key created successfully!",
   "settings.apiKeys.deleteSuccess": "API key deleted successfully!",
   "settings.apiKeys.deleteTitle": "Delete API Key?",
-  "settings.apiKeys.deleteDescription": "This action is irreversible. Any integration using this key will stop working.",
+  "settings.apiKeys.deleteDescription":
+    "This action is irreversible. Any integration using this key will stop working.",
   "settings.apiKeys.noKeys": "No API keys created",
   "settings.apiKeys.created": "Created",
   "settings.apiKeys.lastUsed": "Last used",
@@ -856,7 +860,8 @@ export default {
   "chat.settings.apiKeys.title": "Chat API Keys",
   "chat.settings.apiKeys.description": "Manage API keys for chat widget integration",
   "chat.settings.apiKeys.integrationCode": "Chat Integration Code",
-  "chat.settings.apiKeys.integrationDescription": "Copy the code below and paste it into your website HTML to integrate the chat widget",
+  "chat.settings.apiKeys.integrationDescription":
+    "Copy the code below and paste it into your website HTML to integrate the chat widget",
   "chat.settings.widgetConfig": "Widget Configuration",
   "chat.settings.widgetConfigDesc": "Customize the chat widget appearance and position",
   "chat.settings.companyName": "Company Name",
@@ -922,7 +927,6 @@ export default {
   "landing.nav.goToDashboard": "Go to Dashboard",
   "landing.hero.badge": "Early Access",
   "landing.hero.title": "Something new is coming",
-  "landing.hero.subtitle": "A complete Customer Success platform with smart NPS and in-app chat. Sign up to be the first to know.",
   "landing.comingSoon": "Coming Soon",
   "landing.form.title": "Be the first to know",
   "landing.form.name": "Full name",
@@ -938,9 +942,11 @@ export default {
   "landing.features.title": "Everything you need for Customer Success",
   "landing.features.subtitle": "In-app chat, automated NPS, and CS dashboards — all integrated in one platform.",
   "landing.features.chat.title": "In-app Chat",
-  "landing.features.chat.desc": "Talk to your customers in real time, right inside your product. Fast support without leaving the platform.",
+  "landing.features.chat.desc":
+    "Talk to your customers in real time, right inside your product. Fast support without leaving the platform.",
   "landing.features.nps.title": "Smart NPS",
-  "landing.features.nps.desc": "Measure satisfaction with automated NPS surveys and track your customers' evolution over time.",
+  "landing.features.nps.desc":
+    "Measure satisfaction with automated NPS surveys and track your customers' evolution over time.",
   "landing.features.cs.title": "CS Dashboard",
   "landing.features.cs.desc": "Health, churn, MRR, and CSAT indicators in a single panel. Make data-driven decisions.",
 
@@ -1023,15 +1029,18 @@ export default {
   // Bulk Import
   "bulkImport.titleCompanies": "Import Companies via CSV",
   "bulkImport.titleContacts": "Import Contacts via CSV",
-  "bulkImport.configDescription": "Configure optional custom fields that will be added as extra columns in the CSV template.",
+  "bulkImport.configDescription":
+    "Configure optional custom fields that will be added as extra columns in the CSV template.",
   "bulkImport.next": "Next",
   "bulkImport.back": "Back",
   "bulkImport.instructionsTitle": "Instructions",
   "bulkImport.step1": "Configure custom fields in the previous step (optional)",
   "bulkImport.step2": "Download the CSV template by clicking the button below",
   "bulkImport.step3": "Fill in the data following the template format",
-  "bulkImport.step4CompanyEmail": "The \"empresa_email\" column must contain the email of a company already registered in the system",
-  "bulkImport.step5ExternalId": "The \"external_id\" column is the user identifier in your external system. It will be used to automatically link chat and NPS when embedded. Without it, the user will be treated as an anonymous visitor.",
+  "bulkImport.step4CompanyEmail":
+    'The "empresa_email" column must contain the email of a company already registered in the system',
+  "bulkImport.step5ExternalId":
+    'The "external_id" column is the user identifier in your external system. It will be used to automatically link chat and NPS when embedded. Without it, the user will be treated as an anonymous visitor.',
   "bulkImport.step6Upload": "Upload the filled file below",
   "bulkImport.downloadTemplate": "Download CSV template",
   "bulkImport.dropzone": "Click or drag a CSV file here",
@@ -1071,7 +1080,8 @@ export default {
   "externalApi.endpointDescription": "Endpoint URL and authentication instructions",
   "externalApi.endpoint": "Endpoint",
   "externalApi.authTitle": "Authentication",
-  "externalApi.authDescription": "Send the API key in the x-api-key header of each request. Only keys with the import_ prefix are accepted on this endpoint.",
+  "externalApi.authDescription":
+    "Send the API key in the x-api-key header of each request. Only keys with the import_ prefix are accepted on this endpoint.",
   "externalApi.payloadsTitle": "Expected Payloads",
   "externalApi.payloadsDescription": "Complete JSON payload examples and ready-to-use cURL commands",
   "externalApi.companiesJson": "JSON Companies",
@@ -1107,9 +1117,12 @@ export default {
   "externalApi.fields.departamento": "Department",
   "externalApi.fields.contatoPrincipal": "Whether this is the primary contact",
   "externalApi.fields.externalId": "User ID in the external system. Essential for Chat and NPS widget integration",
-  "externalApi.customFieldsExplanation": "Free JSON object with up to 10 key/value pairs. Keys are the field names and values are the content. These fields can be edited later via the web interface. No pre-configuration needed — any key is accepted.",
-  "externalApi.externalIdExplanation": "The external_id is the user identifier in your external system. When the Chat or NPS widget is embedded in your system, the external_id automatically identifies the user, locates the linked company, and loads personalized campaigns, banners, and history. Without it, the user will be treated as an anonymous visitor.",
-  "externalApi.skipDuplicatesExplanation": "When skip_duplicates is true, records with existing email or CNPJ will be silently ignored. When false (default), the API will return an error for each duplicate found.",
+  "externalApi.customFieldsExplanation":
+    "Free JSON object with up to 10 key/value pairs. Keys are the field names and values are the content. These fields can be edited later via the web interface. No pre-configuration needed — any key is accepted.",
+  "externalApi.externalIdExplanation":
+    "The external_id is the user identifier in your external system. When the Chat or NPS widget is embedded in your system, the external_id automatically identifies the user, locates the linked company, and loads personalized campaigns, banners, and history. Without it, the user will be treated as an anonymous visitor.",
+  "externalApi.skipDuplicatesExplanation":
+    "When skip_duplicates is true, records with existing email or CNPJ will be silently ignored. When false (default), the API will return an error for each duplicate found.",
   "externalApi.responsesTitle": "API Responses",
   "externalApi.successResponse": "Success Response (200)",
   "externalApi.errorResponses": "Error Responses",
