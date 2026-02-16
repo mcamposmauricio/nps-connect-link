@@ -943,7 +943,7 @@ export default {
   // Landing Features
   "landing.features.title": "Única ferramenta que o time de CS precisa!",
   "landing.features.subtitle":
-    "Chat in-app, NPS automatizado, gestão de carteira e dashboards de indicadores — Tudo em uma única plataforma.",
+    "Monitoramento de churn, Chat in-app, NPS automatizado e gestão de indicadores com dashboards — Em uma única plataforma.",
   "landing.features.chat.title": "Chat in-app",
   "landing.features.chat.desc":
     "Converse com seus clientes em tempo real, direto dentro do seu produto. Atendimento ágil sem sair da plataforma.",
