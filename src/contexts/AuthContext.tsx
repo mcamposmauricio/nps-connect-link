@@ -15,6 +15,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isChatEnabled: boolean;
   loading: boolean;
+  userDataLoading: boolean;
   tenantId: string | null;
   permissions: UserPermission[];
   hasPermission: (module: string, action: 'view' | 'edit' | 'delete' | 'manage') => boolean;
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userDataLoading, setUserDataLoading] = useState(false);
 
   const hasPermission = useCallback(
     (module: string, action: 'view' | 'edit' | 'delete' | 'manage'): boolean => {
@@ -48,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loadUserData = useCallback(async (currentUser: User) => {
+    setUserDataLoading(true);
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
@@ -92,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id" }
     );
+    setUserDataLoading(false);
   }, []);
 
   useEffect(() => {
@@ -111,12 +115,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
+        // Use setTimeout to avoid Supabase auth deadlock, but track loading state
+        setUserDataLoading(true);
         setTimeout(() => loadUserData(currentUser), 0);
       } else {
         setIsAdmin(false);
         setIsChatEnabled(false);
         setPermissions([]);
         setTenantId(null);
+        setUserDataLoading(false);
       }
     });
 
@@ -124,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUserData]);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isChatEnabled, loading, tenantId, permissions, hasPermission }}>
+    <AuthContext.Provider value={{ user, isAdmin, isChatEnabled, loading, userDataLoading, tenantId, permissions, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

@@ -33,7 +33,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
-  const { user, isAdmin, hasPermission } = useAuth();
+  const { user, isAdmin, hasPermission, userDataLoading } = useAuth();
   const { state } = useSidebar();
   const { theme, setTheme } = useTheme();
   const collapsed = state === "collapsed";
@@ -135,6 +135,15 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {userDataLoading ? (
+          // Skeleton while permissions are loading (prevents blank menu on production/custom domain)
+          <div className="p-3 space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-8 rounded-md bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <>
         {/* Customer Success */}
         {hasPermission('cs', 'view') && (
           <SidebarGroup>
@@ -339,6 +348,8 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+        )}
+          </>
         )}
       </SidebarContent>
 
