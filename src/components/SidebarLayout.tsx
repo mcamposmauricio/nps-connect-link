@@ -10,15 +10,20 @@ interface SidebarLayoutProps {
 
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, userDataLoading, tenantId, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
+    if (!loading && !userDataLoading) {
+      if (!user) {
+        navigate("/auth");
+      } else if (!tenantId && !isAdmin) {
+        // Authenticated but no tenant = no valid invite, block access
+        navigate("/pending-approval");
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, userDataLoading, tenantId, isAdmin, navigate]);
 
-  if (loading) {
+  if (loading || userDataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

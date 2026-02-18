@@ -86,15 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setTenantId(profile?.tenant_id ?? null);
 
-    await supabase.from("user_profiles").upsert(
-      {
-        user_id: currentUser.id,
-        email: currentUser.email ?? "",
-        display_name: currentUser.user_metadata?.display_name || currentUser.email?.split("@")[0] || "",
-        last_sign_in_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
+    // Only update last_sign_in_at if profile already exists (no upsert — prevents orphan profile creation)
+    if (profile) {
+      await supabase.from("user_profiles")
+        .update({ last_sign_in_at: new Date().toISOString() })
+        .eq("user_id", currentUser.id);
+    }
     setUserDataLoading(false);
   }, []);
 
