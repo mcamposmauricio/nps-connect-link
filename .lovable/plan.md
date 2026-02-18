@@ -1,138 +1,116 @@
 
+# Problema: Acesso sem Convite — Diagnóstico e Correção
 
-# Plano de Implementacao - Correcoes e Melhorias
+## Causa Raiz Real (3 camadas)
 
-## Escopo
+### Camada 1 — Autenticação aberta no Supabase
+O signup está **habilitado sem restrições** no projeto de autenticação. Qualquer pessoa que já tenha um usuário criado (mesmo de uma época anterior ao produto) consegue fazer `signInWithPassword`. O `mcampos.mauricio@gmail.com` foi criado em **outubro de 2025** — antes mesmo do produto existir — e conseguiu logar porque a conta de autenticação já existia.
 
-Implementar as correcoes e melhorias identificadas na revisao critica, priorizando itens que nao quebrem fluxos existentes. Itens organizados em 4 blocos.
-
----
-
-## Bloco 1: Seguranca (Critico)
-
-### 1.1 Sanitizacao de busca (SQL Injection)
-- **Arquivos**: `src/pages/Dashboard.tsx`, `src/pages/People.tsx`
-- Criar funcao utilitaria `sanitizeFilterValue(term)` em `src/lib/utils.ts` que escapa caracteres especiais do filtro Supabase (`,`, `(`, `)`, `.`, `"`)
-- Aplicar nos `.or()` das buscas de contatos
-
-### 1.2 Prevencao de resposta NPS duplicada
-- **Arquivo**: `src/pages/NPSResponse.tsx`
-- Antes de inserir na tabela `responses`, verificar se ja existe uma resposta com o mesmo `campaign_id + contact_id`
-- Se existir, mostrar mensagem "Voce ja respondeu esta pesquisa" e marcar como `submitted`
-
-### 1.3 Corrigir rota legada em Campaigns.tsx
-- **Arquivo**: `src/pages/Campaigns.tsx` (linha 243)
-- Mudar `navigate(/campaigns/${campaign.id})` para `navigate(/nps/campaigns/${campaign.id})`
-- Tambem corrigir em Dashboard.tsx (linha 738) o mesmo padrao
-
----
-
-## Bloco 2: Performance
-
-### 2.1 Debounce na busca de People
-- **Arquivo**: `src/pages/People.tsx`
-- Separar `search` (valor digitado) de `debouncedSearch` (valor usado na queryKey)
-- Usar `useEffect` com `setTimeout` de 300ms para atualizar `debouncedSearch`
-- Passar `debouncedSearch` na queryKey em vez de `search`
-
-### 2.2 Otimizar N+1 queries em Dashboard (fetchCampaignStats)
-- **Arquivo**: `src/pages/Dashboard.tsx`
-- Em vez de fazer 1 query por campanha, buscar todas as respostas dos campaign_ids de uma vez
-- Agrupar no client por `campaign_id`
-
----
-
-## Bloco 3: UX e Funcionalidade
-
-### 3.1 Busca/filtro na pagina de Empresas (Contacts)
-- **Arquivo**: `src/pages/Contacts.tsx`
-- Adicionar campo de busca por nome/CNPJ acima da grid
-- Filtrar localmente (ja carrega tudo) pelo texto digitado
-
-### 3.2 Remover limite de 5 em empresas em risco (Churn)
-- **Arquivo**: `src/pages/CSChurnPage.tsx`
-- Remover `.slice(0, 5)` e mostrar todas as empresas em risco
-- Adicionar scroll se a lista for grande
-
-### 3.3 Visual consistente na pagina Esqueci Senha
-- **Arquivo**: `src/pages/ForgotPassword.tsx`
-- Alinhar ao tema dark usado em Auth.tsx (`bg-dark-hero`) em vez do gradiente claro atual
-
----
-
-## Bloco 4: Limpeza de Codigo
-
-### 4.1 Remover Layout.tsx (codigo morto)
-- **Arquivo**: `src/components/Layout.tsx`
-- Deletar o arquivo -- nenhuma rota o utiliza
-
-### 4.2 Corrigir hardcoded strings no NPSResponse
-- **Arquivo**: `src/pages/NPSResponse.tsx`
-- Mover "Link invalido", "Obrigado!", "Erro", etc. para as chaves de traducao nos arquivos `pt-BR.ts` e `en.ts`
-
----
-
-## Detalhes Tecnicos
-
-### Funcao de sanitizacao (utils.ts)
+### Camada 2 — AuthContext cria perfil para qualquer usuário autenticado
+O `loadUserData` em `AuthContext.tsx` (linhas 89-97) faz um `upsert` na tabela `user_profiles` para **qualquer usuário que faça login**:
 
 ```typescript
-export function sanitizeFilterValue(value: string): string {
-  return value.replace(/[,()."\\]/g, '');
-}
+await supabase.from("user_profiles").upsert(
+  {
+    user_id: currentUser.id,
+    email: currentUser.email ?? "",
+    display_name: ...,
+    last_sign_in_at: new Date().toISOString(),
+  },
+  { onConflict: "user_id" }
+);
 ```
 
-### Debounce em People.tsx
+Isso significa que qualquer usuário de autenticação — mesmo sem convite — entra no sistema e ganha um perfil com `invite_status: "accepted"`, mas sem `tenant_id`. O perfil do `mcampos.mauricio@gmail.com` foi **criado hoje às 20:38** justamente por esse upsert.
+
+### Camada 3 — Sem validação pós-login
+`SidebarLayout.tsx` apenas verifica se há um `user` autenticado. Não valida se esse usuário tem `tenant_id` ou permissões. Resultado: usuário entra, não vê nada, fica na tela em branco.
+
+---
+
+## Mapa dos Usuários no Banco
+
+| Email | Criado em Auth | tenant_id | invite_status | Role |
+|-------|---------------|-----------|---------------|------|
+| mauriciotadeu_campos@hotmail.com | out/2025 | ✅ 9d0baccf | accepted | admin |
+| camposmauricio_o.o@hotmail.com | fev/2026 | ✅ 9d0baccf | accepted | - |
+| felipe@marqponto.com.br | fev/2026 | ✅ 9d0baccf | accepted | - |
+| lucas@marqponto.com.br | fev/2026 | ✅ 9d0baccf | accepted | - |
+| **mcampos.mauricio@gmail.com** | **out/2025** | **❌ null** | accepted | **none** |
+
+---
+
+## Solução em 3 Partes
+
+### Parte 1 — Remover o upsert automático de perfil no AuthContext (crítico)
+
+O `upsert` que cria perfil para qualquer usuário autenticado deve ser **removido**. O perfil só deve ser criado pelo fluxo de convite. O `last_sign_in_at` deve ser atualizado apenas se o perfil já existir (UPDATE, não upsert).
+
+**Arquivo:** `src/contexts/AuthContext.tsx`
 
 ```typescript
-const [search, setSearch] = useState("");
-const [debouncedSearch, setDebouncedSearch] = useState("");
+// ANTES (cria perfil para qualquer um):
+await supabase.from("user_profiles").upsert({ user_id, email, ... }, { onConflict: "user_id" });
+
+// DEPOIS (só atualiza se já existe):
+await supabase.from("user_profiles")
+  .update({ last_sign_in_at: new Date().toISOString() })
+  .eq("user_id", currentUser.id);
+```
+
+### Parte 2 — Bloquear acesso no SidebarLayout para usuários sem tenant (crítico)
+
+Após o carregamento dos dados, se o usuário está autenticado mas não tem `tenant_id` E não é admin, redirecionar para `/pending-approval` com mensagem clara.
+
+**Arquivo:** `src/components/SidebarLayout.tsx`
+
+```typescript
+const { user, loading, userDataLoading, tenantId, isAdmin } = useAuth();
 
 useEffect(() => {
-  const timer = setTimeout(() => setDebouncedSearch(search), 300);
-  return () => clearTimeout(timer);
-}, [search]);
+  if (!loading && !userDataLoading) {
+    if (!user) {
+      navigate("/auth");
+    } else if (!tenantId && !isAdmin) {
+      // Usuário autenticado mas sem tenant = sem convite válido
+      navigate("/pending-approval");
+    }
+  }
+}, [user, loading, userDataLoading, tenantId, isAdmin, navigate]);
 
-// queryKey usa debouncedSearch em vez de search
-```
-
-### Verificacao de duplicata em NPSResponse.tsx
-
-```typescript
-// Antes do insert
-const { data: existing } = await supabase
-  .from("responses")
-  .select("id")
-  .eq("campaign_id", campaignData.campaign_id)
-  .eq("contact_id", campaignData.contact_id)
-  .maybeSingle();
-
-if (existing) {
-  setSubmitted(true);
-  return;
+// Mostrar loading enquanto userDataLoading for true também
+if (loading || userDataLoading) {
+  return <spinner />;
 }
 ```
 
-### Novas chaves de traducao
+### Parte 3 — Corrigir dados do mcampos.mauricio (SQL)
 
-| Chave | pt-BR | en |
-|-------|-------|----|
-| `nps.response.invalidLink` | Link invalido | Invalid link |
-| `nps.response.invalidLinkDesc` | Este link nao e valido ou expirou. | This link is not valid or has expired. |
-| `nps.response.thanks` | Obrigado! | Thank you! |
-| `nps.response.successDesc` | Sua resposta foi enviada com sucesso. | Your response was submitted successfully. |
-| `nps.response.error` | Erro | Error |
-| `nps.response.errorDesc` | Nao foi possivel carregar a pesquisa. | Could not load the survey. |
-| `nps.response.errorSubmit` | Nao foi possivel enviar sua resposta. | Could not submit your response. |
-| `nps.response.alreadyResponded` | Voce ja respondeu esta pesquisa. | You have already responded to this survey. |
+O perfil órfão precisa ser removido ou o usuário de autenticação deletado. Como ele não foi convidado, o correto é remover o `user_profile` criado indevidamente pelo upsert, para que ele não consiga mais entrar — ou desativar o usuário de auth.
+
+**SQL a executar:**
+
+```sql
+-- Remover o perfil órfão criado indevidamente pelo upsert
+DELETE FROM user_profiles WHERE user_id = 'c24cb1ed-3b26-4599-b8d1-97f6f8536cae';
+```
+
+> O usuário de autenticação (`auth.users`) não pode ser deletado via SQL direto pelo código — mas com o upsert removido e o bloqueio no SidebarLayout, ele será redirecionado para `/pending-approval` mesmo que tente logar.
 
 ---
 
-## O que NAO sera alterado
+## Arquivos a Modificar
 
-- Nao sera criada RPC para aggregates NPS (mudanca grande demais, risco de quebra)
-- Nao sera alterado o AuthContext (upsert no login funciona e e necessario)
-- Nao sera alterado o fluxo de autenticacao/rotas protegidas (SidebarLayout ja protege)
-- Nao sera mexido no AppSidebar (consolidacao de queries requer views no banco)
-- Nao sera adicionado i18n no AdminDashboard (escopo muito grande, tratado separadamente)
+| Arquivo | Mudança |
+|---------|---------|
+| `src/contexts/AuthContext.tsx` | Substituir `upsert` por `update` no `last_sign_in_at` |
+| `src/components/SidebarLayout.tsx` | Adicionar validação de `tenantId` pós-login e mostrar spinner durante `userDataLoading` |
+| SQL (migration) | `DELETE FROM user_profiles` para o perfil órfão |
+
+## O que NÃO será alterado
+
+- Fluxo de convite (funciona corretamente)
+- Fluxo de login via `signInWithPassword` (correto — quem não tem tenant é bloqueado antes de ver o sistema)
+- Tabela `user_roles` (segurança do RBAC mantida)
+- Supabase Auth signup (não há como desabilitar via código — mas o bloqueio no SidebarLayout resolve na prática)
 
