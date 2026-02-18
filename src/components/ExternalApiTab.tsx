@@ -75,6 +75,38 @@ const ExternalApiTab = () => {
   "skip_duplicates": true
 }`;
 
+  const companiesUpdatePayload = `{
+  "type": "companies",
+  "update_existing": true,
+  "data": [
+    {
+      "nome": "Empresa X Ltda",
+      "email": "contato@empresax.com",
+      "telefone": "(11) 91111-2222",
+      "setor": "Tecnologia e Inovação",
+      "custom_fields": {
+        "plano": "Enterprise Plus"
+      }
+    }
+  ]
+}`;
+
+  const contactsUpdatePayload = `{
+  "type": "contacts",
+  "update_existing": true,
+  "data": [
+    {
+      "nome": "João Silva",
+      "email": "joao@empresax.com",
+      "empresa_email": "contato@empresax.com",
+      "cargo": "VP Comercial",
+      "custom_fields": {
+        "nivel_acesso": "superadmin"
+      }
+    }
+  ]
+}`;
+
   const curlCompanies = `curl -X POST "${endpointUrl}" \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: YOUR_IMPORT_API_KEY" \\
@@ -89,7 +121,8 @@ const ExternalApiTab = () => {
   "success": true,
   "summary": {
     "total": 10,
-    "imported": 8,
+    "imported": 6,
+    "updated": 2,
     "skipped": 1,
     "errors": [
       {
@@ -195,9 +228,11 @@ const ExternalApiTab = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="companies-json">
-            <TabsList className="w-full flex-wrap">
+            <TabsList className="w-full flex-wrap h-auto gap-1">
               <TabsTrigger value="companies-json">{t("externalApi.companiesJson")}</TabsTrigger>
               <TabsTrigger value="contacts-json">{t("externalApi.contactsJson")}</TabsTrigger>
+              <TabsTrigger value="companies-update">{t("externalApi.companiesJsonUpdate")}</TabsTrigger>
+              <TabsTrigger value="contacts-update">{t("externalApi.contactsJsonUpdate")}</TabsTrigger>
               <TabsTrigger value="curl-companies">cURL {t("externalApi.companies")}</TabsTrigger>
               <TabsTrigger value="curl-contacts">cURL {t("externalApi.contacts")}</TabsTrigger>
             </TabsList>
@@ -211,6 +246,18 @@ const ExternalApiTab = () => {
               <div className="relative">
                 <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto max-h-96"><code>{contactsPayload}</code></pre>
                 <CopyButton text={contactsPayload} id="contacts-json" />
+              </div>
+            </TabsContent>
+            <TabsContent value="companies-update">
+              <div className="relative">
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto max-h-96"><code>{companiesUpdatePayload}</code></pre>
+                <CopyButton text={companiesUpdatePayload} id="companies-update" />
+              </div>
+            </TabsContent>
+            <TabsContent value="contacts-update">
+              <div className="relative">
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto max-h-96"><code>{contactsUpdatePayload}</code></pre>
+                <CopyButton text={contactsUpdatePayload} id="contacts-update" />
               </div>
             </TabsContent>
             <TabsContent value="curl-companies">
@@ -314,6 +361,12 @@ const ExternalApiTab = () => {
           <div className="mt-3 p-4 bg-muted rounded-lg">
             <h4 className="font-medium text-sm mb-2">skip_duplicates</h4>
             <p className="text-sm text-muted-foreground">{t("externalApi.skipDuplicatesExplanation")}</p>
+          </div>
+
+          {/* update_existing explanation */}
+          <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <h4 className="font-medium text-sm mb-2">update_existing</h4>
+            <p className="text-sm text-muted-foreground">{t("externalApi.updateExistingExplanation")}</p>
           </div>
         </CardContent>
       </Card>

@@ -1129,6 +1129,11 @@ export default {
     "O external_id é o identificador do usuário no seu sistema externo. Quando o widget de Chat ou NPS estiver embedado no seu sistema, o external_id identifica automaticamente o usuário, localiza a empresa vinculada e carrega campanhas, banners e histórico personalizado. Sem ele, o usuário será tratado como visitante anônimo.",
   "externalApi.skipDuplicatesExplanation":
     "Quando skip_duplicates é true, registros com email ou CNPJ já existente serão ignorados silenciosamente. Quando false (padrão), a API retornará erro para cada duplicata encontrada.",
+  "externalApi.updateExistingExplanation":
+    "Quando update_existing é true, registros com email ou CNPJ já existente serão atualizados com os novos dados enviados. Os custom_fields são mesclados — campos existentes não enviados são preservados. Use junto com skip_duplicates: false para atualizar existentes e inserir novos em uma única chamada.",
+  "externalApi.updated": "Atualizados",
+  "externalApi.companiesJsonUpdate": "JSON Empresas (Update)",
+  "externalApi.contactsJsonUpdate": "JSON Contatos (Update)",
   "externalApi.responsesTitle": "Respostas da API",
   "externalApi.successResponse": "Resposta de Sucesso (200)",
   "externalApi.errorResponses": "Respostas de Erro",

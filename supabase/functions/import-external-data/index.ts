@@ -87,7 +87,7 @@ serve(async (req) => {
 
     // --- Parse body ---
     const body = await req.json();
-    const { type, data, skip_duplicates = false } = body;
+    const { type, data, skip_duplicates = false, update_existing = false } = body;
 
     if (!type || !data) {
       return new Response(JSON.stringify({ error: 'type and data are required' }), {
@@ -112,18 +112,26 @@ serve(async (req) => {
 
     const errors: { row: number; email?: string; reason: string }[] = [];
     let imported = 0;
+    let updated = 0;
     let skipped = 0;
 
     if (type === 'companies') {
-      // Fetch existing emails/cnpjs for duplicate check
+      // Fetch existing companies with id for duplicate check and update
       const { data: existing } = await supabase
         .from('contacts')
-        .select('email, company_document')
+        .select('id, email, company_document')
         .eq('is_company', true)
         .eq('tenant_id', tenantId);
 
-      const existingEmails = new Set((existing || []).map(c => c.email?.toLowerCase().trim()));
-      const existingCnpjs = new Set((existing || []).filter(c => c.company_document).map(c => c.company_document!.replace(/\D/g, '')));
+      const existingEmailMap = new Map<string, string>(); // email -> id
+      const existingCnpjMap = new Map<string, string>();  // cnpjDigits -> id
+
+      for (const c of existing || []) {
+        existingEmailMap.set(c.email.toLowerCase().trim(), c.id);
+        if (c.company_document) {
+          existingCnpjMap.set(c.company_document.replace(/\D/g, ''), c.id);
+        }
+      }
 
       const BATCH = 50;
       for (let i = 0; i < data.length; i += BATCH) {
@@ -153,14 +161,46 @@ serve(async (req) => {
           const emailLower = email.toLowerCase();
           const cnpjDigits = row.cnpj ? row.cnpj.replace(/\D/g, '') : '';
 
-          if (existingEmails.has(emailLower) || (cnpjDigits && existingCnpjs.has(cnpjDigits))) {
-            if (skip_duplicates) { skipped++; continue; }
-            errors.push({ row: rowIdx, email, reason: 'Duplicate email or CNPJ' });
+          const existingId = existingEmailMap.get(emailLower)
+            || (cnpjDigits ? existingCnpjMap.get(cnpjDigits) : null);
+
+          if (existingId) {
+            if (update_existing) {
+              // Fetch current custom_fields for merge
+              const { data: cur } = await supabase
+                .from('contacts')
+                .select('custom_fields')
+                .eq('id', existingId)
+                .single();
+              const mergedCf = { ...(cur?.custom_fields || {}), ...(row.custom_fields || {}) };
+
+              await supabase.from('contacts').update({
+                name: row.nome.trim(),
+                phone: row.telefone || null,
+                company_document: row.cnpj || null,
+                trade_name: row.nome_fantasia || null,
+                company_sector: row.setor || null,
+                street: row.rua || null,
+                street_number: row.numero || null,
+                complement: row.complemento || null,
+                neighborhood: row.bairro || null,
+                city: row.cidade || null,
+                state: row.estado || null,
+                zip_code: row.cep || null,
+                custom_fields: mergedCf,
+              }).eq('id', existingId);
+
+              updated++;
+            } else if (skip_duplicates) {
+              skipped++;
+            } else {
+              errors.push({ row: rowIdx, email, reason: 'Duplicate email or CNPJ' });
+            }
             continue;
           }
 
-          existingEmails.add(emailLower);
-          if (cnpjDigits) existingCnpjs.add(cnpjDigits);
+          existingEmailMap.set(emailLower, 'pending');
+          if (cnpjDigits) existingCnpjMap.set(cnpjDigits, 'pending');
 
           toInsert.push({
             user_id: userId,
@@ -209,15 +249,16 @@ serve(async (req) => {
         companyMap.set(c.email.toLowerCase().trim(), c.id);
       }
 
-      // Fetch existing contact emails per company
+      // Fetch existing contacts with id for duplicate check and update
       const { data: existingContacts } = await supabase
         .from('company_contacts')
-        .select('email, company_id')
+        .select('id, email, company_id')
         .eq('tenant_id', tenantId);
 
-      const existingContactSet = new Set(
-        (existingContacts || []).map(c => `${c.company_id}::${c.email.toLowerCase().trim()}`)
-      );
+      const existingContactMap = new Map<string, string>(); // "company_id::email" -> id
+      for (const c of existingContacts || []) {
+        existingContactMap.set(`${c.company_id}::${c.email.toLowerCase().trim()}`, c.id);
+      }
 
       const BATCH = 50;
       for (let i = 0; i < data.length; i += BATCH) {
@@ -255,13 +296,38 @@ serve(async (req) => {
           }
 
           const dupKey = `${companyId}::${email.toLowerCase()}`;
-          if (existingContactSet.has(dupKey)) {
-            if (skip_duplicates) { skipped++; continue; }
-            errors.push({ row: rowIdx, email, reason: 'Contact already exists in this company' });
+          const existingContactId = existingContactMap.get(dupKey);
+
+          if (existingContactId) {
+            if (update_existing) {
+              // Fetch current custom_fields for merge
+              const { data: cur } = await supabase
+                .from('company_contacts')
+                .select('custom_fields')
+                .eq('id', existingContactId)
+                .single();
+              const mergedCf = { ...(cur?.custom_fields || {}), ...(row.custom_fields || {}) };
+
+              await supabase.from('company_contacts').update({
+                name: row.nome.trim(),
+                phone: row.telefone || null,
+                role: row.cargo || null,
+                department: row.departamento || null,
+                is_primary: row.contato_principal === true,
+                external_id: row.external_id || null,
+                custom_fields: mergedCf,
+              }).eq('id', existingContactId);
+
+              updated++;
+            } else if (skip_duplicates) {
+              skipped++;
+            } else {
+              errors.push({ row: rowIdx, email, reason: 'Contact already exists in this company' });
+            }
             continue;
           }
 
-          existingContactSet.add(dupKey);
+          existingContactMap.set(dupKey, 'pending');
 
           toInsert.push({
             user_id: userId,
@@ -295,7 +361,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        summary: { total: data.length, imported, skipped, errors },
+        summary: { total: data.length, imported, updated, skipped, errors },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
