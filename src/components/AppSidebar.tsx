@@ -1,9 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
-  LayoutDashboard, Route, Heart, TrendingDown, DollarSign, Users, BarChart3, Send, Settings,
-  ChevronDown, ChevronRight, LogOut, Languages, Building2, MessageSquare, Headphones,
-  TrendingUp, History, Flag, User, Inbox, Moon, Sun,
+  LayoutDashboard,
+  Route,
+  Heart,
+  TrendingDown,
+  DollarSign,
+  Users,
+  BarChart3,
+  Send,
+  Settings,
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  Languages,
+  Building2,
+  MessageSquare,
+  Headphones,
+  TrendingUp,
+  History,
+  Flag,
+  User,
+  Inbox,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "next-themes";
@@ -13,11 +33,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
@@ -44,7 +76,7 @@ export function AppSidebar() {
   const [reportsOpen, setReportsOpen] = useState(true);
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
 
-  const showReports = hasPermission('cs', 'view') || hasPermission('chat', 'view');
+  const showReports = hasPermission("cs", "view") || hasPermission("chat", "view");
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
 
   const isActive = (path: string) => location.pathname === path;
@@ -55,36 +87,59 @@ export function AppSidebar() {
   const fetchCounts = useCallback(async () => {
     if (!user?.id) return;
     const { data: myProfile } = await supabase
-      .from("attendant_profiles").select("id").eq("user_id", user.id).maybeSingle();
+      .from("attendant_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
     let attendants: any[] = [];
     if (isAdmin) {
       const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id");
       attendants = data ?? [];
     } else if (myProfile) {
-      const { data: myTeams } = await supabase.from("chat_team_members").select("team_id").eq("attendant_id", myProfile.id);
+      const { data: myTeams } = await supabase
+        .from("chat_team_members")
+        .select("team_id")
+        .eq("attendant_id", myProfile.id);
       if (myTeams && myTeams.length > 0) {
         const teamIds = myTeams.map((t: any) => t.team_id);
-        const { data: teamMembers } = await supabase.from("chat_team_members").select("attendant_id").in("team_id", teamIds);
+        const { data: teamMembers } = await supabase
+          .from("chat_team_members")
+          .select("attendant_id")
+          .in("team_id", teamIds);
         const uniqueIds = [...new Set((teamMembers ?? []).map((m: any) => m.attendant_id))];
         if (uniqueIds.length > 0) {
-          const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id").in("id", uniqueIds);
+          const { data } = await supabase
+            .from("attendant_profiles")
+            .select("id, display_name, user_id")
+            .in("id", uniqueIds);
           attendants = data ?? [];
         }
       } else {
-        const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id").eq("user_id", user.id);
+        const { data } = await supabase
+          .from("attendant_profiles")
+          .select("id, display_name, user_id")
+          .eq("user_id", user.id);
         attendants = data ?? [];
       }
     }
 
-    const { data: activeRooms } = await supabase.from("chat_rooms").select("attendant_id").in("status", ["active", "waiting"]);
+    const { data: activeRooms } = await supabase
+      .from("chat_rooms")
+      .select("attendant_id")
+      .in("status", ["active", "waiting"]);
     const counts: Record<string, number> = {};
     (activeRooms ?? []).forEach((r: any) => {
       if (r.attendant_id) counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
     });
 
     const sorted = attendants
-      .map((a: any) => ({ id: a.id, display_name: a.display_name, user_id: a.user_id, active_count: counts[a.id] || 0 }))
+      .map((a: any) => ({
+        id: a.id,
+        display_name: a.display_name,
+        user_id: a.user_id,
+        active_count: counts[a.id] || 0,
+      }))
       .sort((a, b) => {
         if (a.user_id === user.id) return -1;
         if (b.user_id === user.id) return 1;
@@ -100,7 +155,9 @@ export function AppSidebar() {
       .channel("sidebar-chat-rooms")
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_rooms" }, () => fetchCounts())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [chatOpen, fetchCounts]);
 
   const handleLogout = async () => {
@@ -121,15 +178,16 @@ export function AppSidebar() {
   ];
 
   // Active item style — subtle bg + Metric Blue left border
-  const activeItemCls = "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
+  const activeItemCls =
+    "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
   const groupLabelCls = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-2 py-1.5";
 
   return (
     <Sidebar className="border-r border-white/[0.06]" collapsible="icon">
-      <SidebarHeader className="border-b border-white/[0.06] px-2 py-6">
+      <SidebarHeader className="border-b border-white/[0.06] px-4 py-5">
         <Link to="/" className="flex items-center justify-center gap-3 min-w-0 w-full">
           {collapsed ? (
-          <img src="/logo-icon-dark.svg" alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
+            <img src="/logo-icon-dark.svg" alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
           ) : (
             <img src="/logo-dark.svg" alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
           )}
@@ -146,7 +204,7 @@ export function AppSidebar() {
         ) : (
           <>
             {/* Customer Success */}
-            {hasPermission('cs', 'view') && (
+            {hasPermission("cs", "view") && (
               <SidebarGroup>
                 <SidebarGroupLabel className={groupLabelCls}>{t("cs.title")}</SidebarGroupLabel>
                 <SidebarGroupContent>
@@ -159,7 +217,8 @@ export function AppSidebar() {
                           tooltip={item.label}
                           className={cn(isActive(item.path) ? activeItemCls : "hover:bg-sidebar-accent")}
                         >
-                          <item.icon className="h-4 w-4" /><span>{item.label}</span>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
@@ -169,13 +228,19 @@ export function AppSidebar() {
             )}
 
             {/* NPS */}
-            {hasPermission('nps', 'view') && (
+            {hasPermission("nps", "view") && (
               <SidebarGroup>
                 <Collapsible open={npsOpen} onOpenChange={setNpsOpen}>
                   <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
-                      <span className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5" /><span>NPS</span></span>
-                      {!collapsed && (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    <SidebarGroupLabel
+                      className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        <span>NPS</span>
+                      </span>
+                      {!collapsed &&
+                        (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -189,7 +254,8 @@ export function AppSidebar() {
                               tooltip={item.label}
                               className={cn("pl-6", isActive(item.path) ? activeItemCls : "hover:bg-sidebar-accent")}
                             >
-                              <item.icon className="h-4 w-4" /><span>{item.label}</span>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         ))}
@@ -201,13 +267,19 @@ export function AppSidebar() {
             )}
 
             {/* Chat */}
-            {hasPermission('chat', 'view') && (
+            {hasPermission("chat", "view") && (
               <SidebarGroup>
                 <Collapsible open={chatOpen} onOpenChange={setChatOpen}>
                   <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
-                      <span className="flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5" /><span>{t("chat.module")}</span></span>
-                      {!collapsed && (chatOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    <SidebarGroupLabel
+                      className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span>{t("chat.module")}</span>
+                      </span>
+                      {!collapsed &&
+                        (chatOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -218,9 +290,13 @@ export function AppSidebar() {
                             onClick={() => navigate("/admin/dashboard")}
                             isActive={isActive("/admin/dashboard")}
                             tooltip={t("chat.dashboard.title")}
-                            className={cn("pl-6", isActive("/admin/dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}
+                            className={cn(
+                              "pl-6",
+                              isActive("/admin/dashboard") ? activeItemCls : "hover:bg-sidebar-accent",
+                            )}
                           >
-                            <LayoutDashboard className="h-4 w-4" /><span>Dashboard</span>
+                            <LayoutDashboard className="h-4 w-4" />
+                            <span>Dashboard</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
 
@@ -229,14 +305,22 @@ export function AppSidebar() {
                           <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
                             <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
                               <SidebarMenuButton
-                                onClick={(e) => { e.stopPropagation(); navigate("/admin/workspace"); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate("/admin/workspace");
+                                }}
                                 isActive={location.pathname === "/admin/workspace"}
                                 tooltip={t("chat.workspace.station")}
-                                className={cn("flex-1", location.pathname === "/admin/workspace" ? activeItemCls : "hover:bg-sidebar-accent")}
+                                className={cn(
+                                  "flex-1",
+                                  location.pathname === "/admin/workspace" ? activeItemCls : "hover:bg-sidebar-accent",
+                                )}
                               >
                                 <Inbox className="h-4 w-4" />
                                 <span>{t("chat.workspace.station")}</span>
-                                <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{totalActiveChats}</Badge>
+                                <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">
+                                  {totalActiveChats}
+                                </Badge>
                               </SidebarMenuButton>
                               <CollapsibleTrigger asChild>
                                 <Button
@@ -245,7 +329,11 @@ export function AppSidebar() {
                                   className="h-6 w-6 shrink-0"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  {workspaceOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  {workspaceOpen ? (
+                                    <ChevronDown className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3" />
+                                  )}
                                 </Button>
                               </CollapsibleTrigger>
                             </div>
@@ -261,7 +349,8 @@ export function AppSidebar() {
                                     }}
                                     isActive={
                                       att.user_id === user?.id
-                                        ? location.pathname === "/admin/workspace" && !location.search.includes("attendant=")
+                                        ? location.pathname === "/admin/workspace" &&
+                                          !location.search.includes("attendant=")
                                         : location.search.includes(`attendant=${att.id}`)
                                     }
                                     tooltip={att.display_name}
@@ -269,9 +358,13 @@ export function AppSidebar() {
                                   >
                                     <User className="h-3.5 w-3.5" />
                                     <span className="truncate">
-                                      {att.user_id === user?.id ? `${t("chat.workspace.you")} ${att.display_name}` : att.display_name}
+                                      {att.user_id === user?.id
+                                        ? `${t("chat.workspace.you")} ${att.display_name}`
+                                        : att.display_name}
                                     </span>
-                                    <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{att.active_count}</Badge>
+                                    <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">
+                                      {att.active_count}
+                                    </Badge>
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
                               ))}
@@ -284,32 +377,46 @@ export function AppSidebar() {
                             onClick={() => navigate("/admin/history")}
                             isActive={isActive("/admin/history")}
                             tooltip={t("chat.history.title")}
-                            className={cn("pl-6", isActive("/admin/history") ? activeItemCls : "hover:bg-sidebar-accent")}
+                            className={cn(
+                              "pl-6",
+                              isActive("/admin/history") ? activeItemCls : "hover:bg-sidebar-accent",
+                            )}
                           >
-                            <History className="h-4 w-4" /><span>{t("chat.history.title")}</span>
+                            <History className="h-4 w-4" />
+                            <span>{t("chat.history.title")}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
 
-                        {hasPermission('chat', 'manage') && (
+                        {hasPermission("chat", "manage") && (
                           <>
                             <SidebarMenuItem>
                               <SidebarMenuButton
                                 onClick={() => navigate("/admin/banners")}
                                 isActive={isActive("/admin/banners")}
                                 tooltip={t("banners.title")}
-                                className={cn("pl-6", isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent")}
+                                className={cn(
+                                  "pl-6",
+                                  isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent",
+                                )}
                               >
-                                <Flag className="h-4 w-4" /><span>{t("banners.title")}</span>
+                                <Flag className="h-4 w-4" />
+                                <span>{t("banners.title")}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
                               <SidebarMenuButton
                                 onClick={() => navigate("/admin/settings")}
-                                isActive={isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")}
+                                isActive={
+                                  isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")
+                                }
                                 tooltip={t("chat.settings.title")}
-                                className={cn("pl-6", isActive("/admin/settings") ? activeItemCls : "hover:bg-sidebar-accent")}
+                                className={cn(
+                                  "pl-6",
+                                  isActive("/admin/settings") ? activeItemCls : "hover:bg-sidebar-accent",
+                                )}
                               >
-                                <Settings className="h-4 w-4" /><span>{t("chat.settings.title")}</span>
+                                <Settings className="h-4 w-4" />
+                                <span>{t("chat.settings.title")}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                           </>
@@ -326,24 +433,34 @@ export function AppSidebar() {
               <SidebarGroup>
                 <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
                   <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
-                      <span className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5" /><span>{t("cs.reports")}</span></span>
-                      {!collapsed && (reportsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    <SidebarGroupLabel
+                      className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        <span>{t("cs.reports")}</span>
+                      </span>
+                      {!collapsed &&
+                        (reportsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarGroupContent>
                       <SidebarMenu>
-                        {hasPermission('cs', 'view') && (
+                        {hasPermission("cs", "view") && (
                           <>
                             <SidebarMenuItem>
                               <SidebarMenuButton
                                 onClick={() => navigate("/cs-health")}
                                 isActive={isActive("/cs-health")}
                                 tooltip={t("nav.health")}
-                                className={cn("pl-6", isActive("/cs-health") ? activeItemCls : "hover:bg-sidebar-accent")}
+                                className={cn(
+                                  "pl-6",
+                                  isActive("/cs-health") ? activeItemCls : "hover:bg-sidebar-accent",
+                                )}
                               >
-                                <Heart className="h-4 w-4" /><span>{t("nav.health")}</span>
+                                <Heart className="h-4 w-4" />
+                                <span>{t("nav.health")}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
@@ -351,9 +468,13 @@ export function AppSidebar() {
                                 onClick={() => navigate("/cs-churn")}
                                 isActive={isActive("/cs-churn")}
                                 tooltip={t("nav.risk")}
-                                className={cn("pl-6", isActive("/cs-churn") ? activeItemCls : "hover:bg-sidebar-accent")}
+                                className={cn(
+                                  "pl-6",
+                                  isActive("/cs-churn") ? activeItemCls : "hover:bg-sidebar-accent",
+                                )}
                               >
-                                <TrendingDown className="h-4 w-4" /><span>{t("nav.risk")}</span>
+                                <TrendingDown className="h-4 w-4" />
+                                <span>{t("nav.risk")}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
@@ -361,22 +482,30 @@ export function AppSidebar() {
                                 onClick={() => navigate("/cs-financial")}
                                 isActive={isActive("/cs-financial")}
                                 tooltip={t("nav.revenue")}
-                                className={cn("pl-6", isActive("/cs-financial") ? activeItemCls : "hover:bg-sidebar-accent")}
+                                className={cn(
+                                  "pl-6",
+                                  isActive("/cs-financial") ? activeItemCls : "hover:bg-sidebar-accent",
+                                )}
                               >
-                                <DollarSign className="h-4 w-4" /><span>{t("nav.revenue")}</span>
+                                <DollarSign className="h-4 w-4" />
+                                <span>{t("nav.revenue")}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                           </>
                         )}
-                        {hasPermission('chat', 'view') && (
+                        {hasPermission("chat", "view") && (
                           <SidebarMenuItem>
                             <SidebarMenuButton
                               onClick={() => navigate("/admin/gerencial")}
                               isActive={isActive("/admin/gerencial")}
                               tooltip={t("chat.gerencial.title")}
-                              className={cn("pl-6", isActive("/admin/gerencial") ? activeItemCls : "hover:bg-sidebar-accent")}
+                              className={cn(
+                                "pl-6",
+                                isActive("/admin/gerencial") ? activeItemCls : "hover:bg-sidebar-accent",
+                              )}
                             >
-                              <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
+                              <TrendingUp className="h-4 w-4" />
+                              <span>{t("chat.gerencial.title")}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )}
@@ -388,7 +517,7 @@ export function AppSidebar() {
             )}
 
             {/* Cadastros */}
-            {hasPermission('contacts', 'view') && (
+            {hasPermission("contacts", "view") && (
               <SidebarGroup>
                 <SidebarGroupLabel className={groupLabelCls}>{t("nav.registry")}</SidebarGroupLabel>
                 <SidebarGroupContent>
@@ -400,7 +529,8 @@ export function AppSidebar() {
                         tooltip={t("nav.companies")}
                         className={cn(isActive("/nps/contacts") ? activeItemCls : "hover:bg-sidebar-accent")}
                       >
-                        <Building2 className="h-4 w-4" /><span>{t("nav.companies")}</span>
+                        <Building2 className="h-4 w-4" />
+                        <span>{t("nav.companies")}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -410,7 +540,8 @@ export function AppSidebar() {
                         tooltip={t("nav.people")}
                         className={cn(isActive("/nps/people") ? activeItemCls : "hover:bg-sidebar-accent")}
                       >
-                        <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
+                        <Users className="h-4 w-4" />
+                        <span>{t("nav.people")}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
@@ -429,16 +560,21 @@ export function AppSidebar() {
             tooltip={t("profile.title")}
             className={cn("w-full justify-start", isActive("/profile") ? activeItemCls : "hover:bg-sidebar-accent")}
           >
-            <User className="h-4 w-4" />{!collapsed && <span>{t("profile.title")}</span>}
+            <User className="h-4 w-4" />
+            {!collapsed && <span>{t("profile.title")}</span>}
           </SidebarMenuButton>
-          {hasPermission('settings', 'view') && (
+          {hasPermission("settings", "view") && (
             <SidebarMenuButton
               onClick={() => navigate("/nps/settings")}
               isActive={isActive("/nps/settings")}
               tooltip={t("nav.config")}
-              className={cn("w-full justify-start", isActive("/nps/settings") ? activeItemCls : "hover:bg-sidebar-accent")}
+              className={cn(
+                "w-full justify-start",
+                isActive("/nps/settings") ? activeItemCls : "hover:bg-sidebar-accent",
+              )}
             >
-              <Settings className="h-4 w-4" />{!collapsed && <span>{t("nav.config")}</span>}
+              <Settings className="h-4 w-4" />
+              {!collapsed && <span>{t("nav.config")}</span>}
             </SidebarMenuButton>
           )}
           <div className="flex items-center gap-1 mt-1">
@@ -449,8 +585,12 @@ export function AppSidebar() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top">
-                <DropdownMenuItem onClick={() => setLanguage("en")}>{language === "en" && "✓ "}English</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>{language === "pt-BR" && "✓ "}Português (BR)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("en")}>
+                  {language === "en" && "✓ "}English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>
+                  {language === "pt-BR" && "✓ "}Português (BR)
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button
