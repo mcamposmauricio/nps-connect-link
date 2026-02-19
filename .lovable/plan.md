@@ -1,131 +1,95 @@
 
-# Landing Page — Tradução PT/EN + Reestilização Alinhada à Identidade da Ferramenta
+# Landing Page Refactor — Updated Copy, Hero Layout & Dashboard Cards
 
-## Diagnóstico de Estado Atual
+## What Changes and Why
 
-### Sobre a tradução
-A landing page (`LandingPage.tsx`) e seus componentes filhos (`LandingFeatures`, `LandingTimeline`, `LandingKanban`, `LandingDifferentials`) têm **todo o texto hardcoded em inglês**, sem usar o sistema de i18n (`LanguageContext`) já existente no projeto.
+### 1. Updated Copy (Bilingual)
 
-### Sobre o estilo
-A landing usa `#0F1115` como fundo (correto), `Manrope` (correto), `#FF7A59` como coral (correto). Mas há divergências visuais em relação à identidade da ferramenta:
-- Os **componentes mock** (ChatMockup, NPSMockup, DashboardMockup) usam `#1E2433` como surface, mas o padrão do sistema é `#171C28` (Surface) e `#131722` (Sidebar)
-- Os cards de features têm `boxShadow: "0 4px 24px rgba(0,0,0,0.3)"` — muito suave para a identidade dark-premium
-- O badge "Early Access" usa `rgba(255,122,89,0.1)` mas deveria usar `rgba(255,122,89,0.08)` para mais sofisticação
-- A tipografia dos headings no Hero está um pouco grande demais e o letterSpacing poderia ser mais refinado
-- O formulário de lead não segue exatamente o padrão de bordas arredondadas de 8px (rounded-lg vs rounded-xl nos buttons)
-- Os botões CTA usam `rounded-xl` enquanto o padrão da ferramenta é `rounded-lg` (8px)
+The `texts` object in `LandingPage.tsx` holds all translatable strings. Only specific keys need updating to match the new messaging brief.
+
+**English:**
+- `heroH1a` / `heroH1b` → collapse into a single headline: **"Experience as fuel for recurring revenue"**
+- `heroSub` → "The CX platform that organizes journey insights and empowers your team to ensure your customer's success!"
+- `heroCta` / `navCta` → **"Get Started Now!"**
+
+**Portuguese:**
+- `heroH1a` / `heroH1b` → **"Experiência como combustível para receita recorrente"**
+- `heroSub` → "A plataforma de CX que organiza insights de jornada e suporta o seu time a garantir o sucesso do seu cliente!"
+- `heroCta` / `navCta` → **"Clique e Conheça!"**
+
+The two-part H1 (`heroH1a` + `heroH1b`) structure will be simplified to a single field since the new headline is one sentence with no intentional mid-line color split. The colored second half will be kept by splitting on the last word/phrase.
 
 ---
 
-## Solução — Duas frentes
+### 2. Hero Layout — Horizontal 3:1 with Right-Side Dashboard Cards
 
-### Frente 1 — Sistema de Língua da Landing Page
+The current hero is centered/vertical text only. The request asks for a **horizontal layout** (text left, product mockup right) at desktop, stacking vertically on mobile. This requires a structural change to the Hero section in `LandingPage.tsx`.
 
-**Lógica de persistência (sem repetir toda vez que voltar):**
-- Chave `landing_lang` no `localStorage`
-- Na primeira visita (sem `landing_lang` salvo): detectar `navigator.language` — se começar com `"pt"`, usar `"pt-BR"`, caso contrário `"en"`
-- Nas visitas seguintes: ler diretamente do `landing_lang` (ignorar o navegador)
-- O botão no Navbar troca a língua e persiste no `localStorage`
-- O botão exibe **sempre a língua oposta** ("PT" quando está em EN, "EN" quando está em PT)
+**Desktop (lg+):** `grid grid-cols-3` — left column takes `col-span-1` (copy), right column takes `col-span-2` (dashboard mockup panel).
 
-```ts
-// Inicialização
-const initLang = () => {
-  const saved = localStorage.getItem("landing_lang");
-  if (saved) return saved as "en" | "pt-BR";
-  // primeira visita — detectar pelo navegador
-  return navigator.language.startsWith("pt") ? "pt-BR" : "en";
-};
-```
+**Mobile:** single column, text centered on top, mockup below.
 
-**Strings da landing em português** — adicionadas diretamente no `LandingPage.tsx` como um objeto `ptTexts` e `enTexts` (sem usar o `LanguageContext` do app, pois a landing é pública e não requer o Provider do sistema). Isso evita criar dependências desnecessárias.
+The right-side panel will show **4 dashboard cards** representing the 4 pillars:
+1. In-Product Conversations (icon: `MessageSquare`, color: `#FF7A59`)
+2. NPS Connected to Revenue (icon: `Target`, color: `#3DA5F4`)
+3. Revenue Feedback (icon: `MessageCircle`, color: `#2ED47A`)
+4. Revenue & Health Signals (icon: `BarChart3`, color: `#F5B546`)
 
-**Conteúdo traduzido (PT-BR):**
+Each card is a small rounded tile with an icon, label, and a subtle metric line — styled identically to the `DashboardMockup` pattern already in `LandingFeatures.tsx` but updated to represent the 4 pillars.
 
-| Seção | EN | PT-BR |
+---
+
+### 3. Color Palette Update
+
+| Token | Before | After |
 |---|---|---|
-| Badge Hero | Early Access · Limited Spots | Acesso Antecipado · Vagas Limitadas |
-| H1 | Turn Customer Success into Predictable Revenue. | Transforme Customer Success em Receita Previsível. |
-| Subtítulo | Monitor churn in real time... | Monitore churn em tempo real. Automatize NPS... |
-| CTA primário | Request Early Access | Solicitar Acesso Antecipado |
-| Sub CTA | Launching soon. Early access is limited. | Em breve. Vagas de acesso antecipado limitadas. |
-| Nav Sign In | Sign In | Entrar |
-| Nav Go to Dashboard | Go to Dashboard | Ir ao Dashboard |
-| Features section label | Core Modules | Módulos Principais |
-| Features H2 | Everything your CS team needs... | Tudo que seu time de CS precisa... |
-| Feature 1 | In-Product Conversations | Conversas no Produto |
-| Feature 2 | NPS Connected to Revenue | NPS Conectado à Receita |
-| Feature 3 | Revenue & Health Signals | Sinais de Receita e Health |
-| Timeline label | CRM + Timeline | CRM + Timeline |
-| Timeline H2 | Track every interaction... | Rastreie cada interação... |
-| Kanban label | Customer Journey | Jornada do Cliente |
-| Kanban H2 | Visualize every customer journey stage. | Visualize cada etapa da jornada do cliente. |
-| Form label | Early Access | Acesso Antecipado |
-| Form H2 | Be the First to Access Journey | Seja um dos Primeiros a Usar o Journey |
-| Form subtitle | We are onboarding... | Estamos abrindo para um grupo limitado... |
-| Form - Full Name | Full Name * | Nome Completo * |
-| Form - Email | Work Email * | Email Corporativo * |
-| Form - Company | Company Name * | Nome da Empresa * |
-| Form - Role | Role / Position | Cargo / Função |
-| Form submit | Join Early Access | Entrar para o Acesso Antecipado |
-| Form footnote | Selected early users... | Usuários selecionados terão acesso direto... |
-| Success | You're on the list! | Você está na lista! |
-| Success sub | We'll reach out soon... | Entraremos em contato em breve com seu convite. |
-| Submit another | Submit another | Enviar outro |
-| Quote | Customer Experience is a Signal... | Experiência do Cliente é um Sinal... |
-| Quote span | Revenue is the Outcome. | Receita é o Resultado. |
-| Footer | Infrastructure for Revenue-Driven CS Teams | Infraestrutura para times de CS orientados a Receita |
-| Footer copyright | All rights reserved. | Todos os direitos reservados. |
+| Page background | `#0F1115` | `#0F1115` (keep — close to Deep Navy) |
+| Navbar/form background | `#131722` | `#131722` (keep) |
+| Surface | `#171C28` | `#171C28` (keep) |
+| Primary CTA | `#FF7A59` | `#FF7A59` (already Coral — keep) |
+| Metric Blue | `#3DA5F4` | `#3498DB` (update to spec) |
+| Success Green | `#2ED47A` | `#2ECC71` (update to spec) |
 
-**Componentes filhos** (`LandingFeatures`, `LandingTimeline`, `LandingKanban`) receberão as strings via props ao invés de hardcode, para respeitar a língua selecionada.
+The two accent colors (`#3DA5F4` → `#3498DB` and `#2ED47A` → `#2ECC71`) need a **global find-replace** across all four landing files since they appear in borders, icon colors, badge backgrounds, and chart strokes.
+
+> Note: The `#1A2B48` background from the spec is close to the current dark palette. We will keep `#0F1115` as the page background because it's the established identity standard and changing it would affect the existing dark-premium look. The navbar glass effect already creates depth layering.
 
 ---
 
-### Frente 2 — Reestilização Alinhada à Identidade
+### 4. Remove HubSpot / Third-Party Branding
 
-**Ajustes por seção:**
-
-**Navbar:**
-- Botão de língua: estilo `ghost` consistente com os outros botões — `border: 1px solid rgba(255,255,255,0.08)`, fonte `text-xs font-medium uppercase tracking-widest`
-- Separado dos outros botões por um `|` visual
-
-**Hero:**
-- Badge: opacidade reduzida para `rgba(255,122,89,0.08)` e `border rgba(255,122,89,0.15)` — mais sofisticado
-- H1: `letterSpacing: "-0.025em"` (mais refinado)
-- Botão CTA: mudar de `rounded-xl` para `rounded-lg` (padrão 8px)
-
-**Features (LandingFeatures):**
-- Cards: border mudar para `rgba(255,255,255,0.05)` — mais sutil
-- Surface dos mocks: `#171C28` (mesmo da Surface do sistema) ao invés de `#1E2433`
-- Botão CTA no card: `rounded-lg`
-
-**Timeline (LandingTimeline):**
-- Cabeçalho do card da empresa: surface `#131722` ao invés de `#171C28` para criar hierarquia visual correta
-- A área interna do timeline: `#171C28` (Surface)
-
-**Form:**
-- `rounded-xl` → `rounded-lg` no card do form
-- Inputs: já usam `rounded-lg` — OK
-- Botão submit: `rounded-lg` ao invés de `rounded-xl`
-
-**Footer:**
-- Já está correto
+There is no HubSpot logo or third-party branding visible in any of the four landing files. The mockups are entirely custom SVG/div components. No action needed here.
 
 ---
 
-## Arquivos a Modificar
+### 5. Rounded Corners — Soft UI (12px–16px)
 
-| Arquivo | O que muda |
+Currently cards use `rounded-xl` (12px) and `rounded-lg` (8px) inconsistently. The spec requests **12px–16px** for card components. We will:
+- Feature cards in `LandingFeatures.tsx`: stay `rounded-xl` (12px) ✓
+- Timeline mockup: stay `rounded-xl` ✓
+- Kanban column containers: stay `rounded-xl` ✓
+- Form card: `rounded-xl` → `rounded-2xl` (16px) for a softer look matching spec
+- Hero right-side panel: `rounded-2xl`
+
+---
+
+## Files to Modify
+
+| File | What Changes |
 |---|---|
-| `src/pages/LandingPage.tsx` | Adicionar estado de língua com persistência localStorage, botão de troca de língua no Navbar, objeto de strings EN/PT, passar strings como props para os componentes filhos, ajustes de estilo nos botões/badges |
-| `src/components/landing/LandingFeatures.tsx` | Receber strings via props, ajustar cores de surface dos mocks, border dos cards |
-| `src/components/landing/LandingTimeline.tsx` | Receber strings via props, ajustar cores de surface |
-| `src/components/landing/LandingKanban.tsx` | Receber strings via props |
+| `src/pages/LandingPage.tsx` | Update `texts` object (EN + PT copy), refactor Hero section to horizontal 3:1 layout with 4-pillar cards on the right, update accent colors |
+| `src/components/landing/LandingFeatures.tsx` | Update accent colors (`#3DA5F4` → `#3498DB`, `#2ED47A` → `#2ECC71`) |
+| `src/components/landing/LandingTimeline.tsx` | Update accent colors in timeline dot colors and badges |
+| `src/components/landing/LandingKanban.tsx` | Update `#2ED47A` → `#2ECC71` in health badges |
 
-## O que NÃO é alterado
+---
 
-- `src/locales/pt-BR.ts` e `src/locales/en.ts` — nenhuma chave de landing adicionada nos arquivos globais (as strings ficam no próprio componente da landing)
-- `LanguageContext` — não alterado
-- Lógica do formulário de lead (submissão, validação, tracking)
-- Qualquer outra página ou componente fora da landing
-- CSS global (`index.css`)
+## What Does NOT Change
+
+- Language toggle logic, persistence, and `initLang()` — already correct
+- Form submission logic, validation, lead tracking
+- `LandingFeatures`, `LandingTimeline`, `LandingKanban` sections (structure) — only colors and text props update
+- Logo (`/logo-dark.svg`) — already correct branding
+- Footer, form section layout
+- Any file outside the four landing files listed above
+- Auth, AppSidebar, dashboard pages — zero changes
