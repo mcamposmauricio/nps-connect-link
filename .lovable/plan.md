@@ -1,177 +1,155 @@
 
-# Padronização Tipográfica — Manrope System Scale
+# Landing Page Redesign — Journey Early Access
 
-## Diagnóstico
+## Overview
 
-A tipografia está definida de forma **inconsistente** em ~35 arquivos:
+A complete rebuild of `src/pages/LandingPage.tsx` and its supporting component files. The old "features first, then form" layout is replaced by a full-length conversion-focused page with 7 structured sections, premium dark aesthetics, and two new product mockups (Kanban + CRM Timeline).
 
-- `h1` aparece como `text-2xl font-bold`, `text-4xl font-bold`, `text-[28px] font-medium` — sem padrão
-- `font-bold` e `font-semibold` são usados intercambiavelmente sem hierarquia
-- Não há uma escala tipográfica global definida em CSS — cada componente improvisa
-- O `PageHeader` (componente reutilizado) usa `text-[28px]` em vez de um token semântico
-
-## Estratégia
-
-Ao invés de editar 35+ arquivos individualmente (frágil, risco de regressão), a solução é definir a escala **em dois pontos centrais**:
-
-1. **`tailwind.config.ts`** — adicionar tokens de fonte semânticos (`fontSize`) com line-height e letter-spacing já embutidos
-2. **`src/index.css`** — aplicar via `@layer base` as regras para `h1`, `h2`, `h3`, `body` globalmente
-3. **`src/components/ui/page-header.tsx`** — atualizar para usar o token correto (`text-h1`)
-4. **`src/components/ui/card.tsx`** — ajustar `CardTitle` de `font-semibold` para `font-medium`
-5. **`src/components/ui/dialog.tsx`** — ajustar título de dialog para escala subheadline
-6. **`src/components/ui/button.tsx`** — confirmar que já usa `font-medium` ✓ (já está correto)
+The `leads` table already supports the `role` field, so the expanded form (Name, Work Email, Company, Role) requires no database migration.
 
 ---
 
-## Escala Tipográfica Definida
+## Files to Create / Modify
 
-| Token | Tamanho | Peso | Uso |
-|---|---|---|---|
-| `h1` / `text-h1` | 36px (clamp 32–40px) | Medium (500) | Títulos de página |
-| `h2` / `text-h2` | 20px | Regular (400) | Subheadlines, seções |
-| `h3` / `text-h3` | 18px | Medium (500) | Títulos de card, grupos |
-| `body` | 15px | Regular (400) | Conteúdo geral |
-| `text-sm` | 14px | Regular (400) | Labels, helper text |
-| Botões | 14px | Medium (500) | Já correto no `button.tsx` |
-
-Todos com `tracking-normal` (letter-spacing: 0) — sem exageros.
-
----
-
-## Mudanças Planejadas
-
-### 1. `tailwind.config.ts` — Adicionar tokens de fonte semânticos
-
-```ts
-extend: {
-  fontSize: {
-    // H1 — clamp entre 32 e 40px, centralizado em 36px
-    'h1': ['clamp(32px, 2.5vw, 40px)', { lineHeight: '1.2', fontWeight: '500', letterSpacing: '0' }],
-    // Subheadline
-    'h2': ['20px', { lineHeight: '1.4', fontWeight: '400', letterSpacing: '0' }],
-    // Card titles / section labels
-    'h3': ['18px', { lineHeight: '1.4', fontWeight: '500', letterSpacing: '0' }],
-    // Body text
-    'body-md': ['15px', { lineHeight: '1.6', fontWeight: '400', letterSpacing: '0' }],
-  }
-}
-```
-
-### 2. `src/index.css` — Regras globais via `@layer base`
-
-Adicionar ao bloco `@layer base` existente:
-
-```css
-@layer base {
-  /* ... variáveis CSS já existentes ... */
-
-  /* Escala tipográfica global */
-  h1 {
-    font-size: clamp(32px, 2.5vw, 40px);
-    font-weight: 500;
-    line-height: 1.2;
-    letter-spacing: 0;
-  }
-
-  h2 {
-    font-size: 20px;
-    font-weight: 400;
-    line-height: 1.4;
-    letter-spacing: 0;
-  }
-
-  h3 {
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 1.4;
-    letter-spacing: 0;
-  }
-
-  body {
-    font-size: 15px;
-    font-weight: 400;
-    line-height: 1.6;
-    letter-spacing: 0;
-  }
-}
-```
-
-Isso resolve automaticamente todos os `<h1>`, `<h2>`, `<h3>` espalhados no sistema sem tocar em cada arquivo.
-
-### 3. `src/components/ui/page-header.tsx` — Usar token correto
-
-```tsx
-// ANTES
-<h1 className="text-[28px] font-medium tracking-normal leading-tight">{title}</h1>
-<p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-
-// DEPOIS
-<h1 className="text-h1">{title}</h1>
-<p className="text-[15px] text-muted-foreground mt-1">{subtitle}</p>
-```
-
-O `text-h1` aplica automaticamente tamanho, peso e line-height corretos via o token Tailwind definido acima.
-
-### 4. `src/components/ui/card.tsx` — CardTitle de semibold para medium
-
-```tsx
-// ANTES
-<h3 ref={ref} className={cn("text-xl font-semibold leading-none tracking-tight", className)} {...props} />
-
-// DEPOIS
-<h3 ref={ref} className={cn("text-h3 leading-none", className)} {...props} />
-```
-
-### 5. `src/components/ui/dialog.tsx` — Dialog title para escala subheadline
-
-```tsx
-// ANTES
-className={cn("text-lg font-semibold leading-none tracking-tight", className)}
-
-// DEPOIS
-className={cn("text-h3 leading-none", className)}
-```
-
-### 6. `src/components/ui/alert-dialog.tsx` — Mesmo ajuste
-
-```tsx
-// ANTES
-className={cn("text-lg font-semibold", className)}
-
-// DEPOIS
-className={cn("text-h3", className)}
-```
-
----
-
-## Efeito Cascata (automático, sem edições adicionais)
-
-Com as regras globais de `h1`, `h2`, `h3` no `@layer base`, os seguintes arquivos se corrigem **automaticamente**:
-
-- `AdminBanners.tsx` — `<h1 className="text-2xl font-bold">` → o `font-bold` será sobrescrito pela regra global
-- `AdminChatHistory.tsx` — `<h1 className="text-2xl font-semibold">`
-- `OrganizationSettingsTab.tsx` — `<h2 className="text-2xl font-bold">`
-- `CampaignDetails.tsx` — `<h1 className="text-4xl font-bold">`
-
-> **Nota**: Classes Tailwind como `font-bold` têm especificidade de classe CSS, enquanto regras `@layer base` têm especificidade de elemento. Portanto, onde há conflito, os utilitários Tailwind vencerão. Por isso também ajustamos os 4 arquivos de componentes UI (card, dialog, alert-dialog, page-header) que são os mais críticos e reutilizados.
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Mudança |
+| File | Action |
 |---|---|
-| `tailwind.config.ts` | Adicionar tokens `text-h1`, `text-h2`, `text-h3`, `text-body-md` |
-| `src/index.css` | Adicionar regras globais `h1`, `h2`, `h3`, `body` no `@layer base` |
-| `src/components/ui/page-header.tsx` | Usar `text-h1` em vez de `text-[28px] font-medium tracking-normal` |
-| `src/components/ui/card.tsx` | `CardTitle` usar `text-h3` em vez de `text-xl font-semibold tracking-tight` |
-| `src/components/ui/dialog.tsx` | `DialogTitle` usar `text-h3` em vez de `text-lg font-semibold tracking-tight` |
-| `src/components/ui/alert-dialog.tsx` | `AlertDialogTitle` usar `text-h3` em vez de `text-lg font-semibold` |
+| `src/pages/LandingPage.tsx` | Full rewrite — orchestrates all sections, form state, submit logic |
+| `src/components/landing/LandingFeatures.tsx` | Rewrite — updated copy, mockups refined, English copy |
+| `src/components/landing/LandingKanban.tsx` | New — Kanban pipeline mockup section |
+| `src/components/landing/LandingTimeline.tsx` | New — CRM Timeline section |
+| `src/components/LandingBackgroundMockups.tsx` | Remove — background mockups replaced by inline sections |
 
-## O que NÃO será alterado
+---
 
-- Lógica de negócio, hooks, queries
-- Estrutura de rotas e permissões
-- Cores, espaçamentos, bordas
-- Componentes de badge, button (já correto), input
-- Edge functions e banco de dados
+## Section-by-Section Plan
+
+### Section 1 — Navbar
+- Logo (`/logo-dark.svg`) on the left
+- Two buttons right-aligned:
+  - Ghost: "Enter Dashboard" → navigates to `/auth` or `/cs-dashboard`
+  - Primary coral (`#FF7A59`): "Request Early Access" → smooth scroll to `#early-access`
+- `sticky top-0 z-50`, `backdrop-blur-xl`, border-bottom `rgba(255,255,255,0.06)`
+- No heavy shadow
+
+### Section 2 — Hero
+- Full-viewport-height centered text block
+- Headline: **"Turn Customer Success into Predictable Revenue."** — `text-[44px]` Medium, white
+- Subheadline (5 lines): Monitor churn / Automate NPS / Track health / Engage in-product / Manage journeys — `text-[18px]` Regular, `rgba(255,255,255,0.65)`
+- Primary CTA button: "Request Early Access" (coral, large)
+- Microcopy below: "Launching soon. Early access is limited." — `text-sm`, `rgba(255,255,255,0.40)`
+- Subtle radial glow behind the text (coral at ~5% opacity)
+- Animated entrance with `animate-fade-in-up`
+
+### Section 3 — Core Modules (3 cards)
+Rewrite of `LandingFeatures.tsx` with English copy:
+
+| Card | Title | Description |
+|---|---|---|
+| Chat | In-Product Conversations | Engage customers directly inside your product. Resolve friction faster and create retention opportunities in real time. |
+| NPS | NPS Connected to Revenue | Automated NPS flows connected to health score and churn prediction. |
+| Dashboard | Revenue & Health Signals | Churn, MRR impact, CSAT and engagement in one executive view. |
+
+- Card background: `#171C28`, border `rgba(255,255,255,0.06)`, radius `12px`
+- Mockups refined with the existing CSS-only approach but higher-fidelity (actual values visible: "72", "MRR R$142k", etc.)
+- Metric Blue accent (`#3DA5F4`) for the NPS bar promoter segment
+
+### Section 4 — Customer Journey Kanban (New: `LandingKanban.tsx`)
+
+Horizontal Kanban board — CSS mockup, not interactive:
+
+```
+[ Onboarding ] [ Adoption ] [ Expansion ] [ Risk ] [ Renewal ]
+```
+
+Each column contains:
+- Column header with stage name + count badge
+- 2–3 client cards per column, each with:
+  - Company initials avatar
+  - Company name (placeholder text bars)
+  - Health badge (colored dot + label: Healthy / At Risk / Critical)
+  - MRR stub value
+
+Risk column: cards use `#FF5C5C/15` border tint
+Expansion column: cards use `#2ED47A/15` border tint
+
+Copy above the board:
+- H2: "Visualize every customer journey stage."
+- Subtext: "Move accounts based on signals — not assumptions."
+
+On mobile: `overflow-x-auto` horizontal scroll
+
+### Section 5 — CRM Timeline (New: `LandingTimeline.tsx`)
+
+Split layout: left copy, right mockup card.
+
+Mockup card (`#171C28`, border `rgba(255,255,255,0.06)`):
+- Header row: company name, Health badge (green), MRR chip, Risk chip
+- Vertical timeline below with 5–6 events:
+
+| Event | Color dot | Label |
+|---|---|---|
+| NPS submission | `#3DA5F4` | "NPS: 9 — Promoter" |
+| Chat interaction | `#3DA5F4` | "Support chat closed" |
+| Feature usage spike | `#2ED47A` | "Feature adoption +40%" |
+| Risk alert | `#FF5C5C` | "Health dropped to 52" |
+| Expansion opportunity | `#2ED47A` | "Upsell signal detected" |
+| Renewal action | `#F5B546` | "Renewal in 30 days" |
+
+Copy left:
+- H2: "Track every interaction. Every signal. Every opportunity."
+- Body: "From first onboarding to renewal — everything in one timeline."
+
+On mobile: stacks vertically (copy on top, mockup below)
+
+### Section 6 — Early Access Form (`id="early-access"`)
+
+Centered card (`max-w-lg`), `#171C28` background:
+- Title: "Be the First to Access Journey" — H2 white
+- Subtext: "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data."
+- Four fields: Full Name, Work Email, Company Name, Role/Position
+- CTA Button: "Join Early Access" — coral (`#FF7A59`), full width
+- Microcopy below button: "Selected early users will have direct access to the founding team and influence the product roadmap."
+- Success state: checkmark + confirmation message (existing behavior preserved)
+- Validation: zod schema extended with `role` field
+- Submit: inserts into existing `leads` table including `role`
+
+### Section 7 — Final CTA Strip
+
+Dark strip, centered:
+- Quote headline: `"Customer Experience is a Signal. Revenue is the Outcome."`
+- Button: "Request Early Access" → scroll to `#early-access`
+
+### Footer
+- Logo + tagline
+- Copyright line
+
+---
+
+## Design Tokens Applied
+
+All inline styles and classes will use the design system tokens:
+
+```
+Background:   #0F1115
+Cards:        #171C28
+Secondary:    #1E2433
+Text:         #F2F4F8
+Text muted:   rgba(255,255,255,0.65)
+Border:       rgba(255,255,255,0.06)
+Coral CTA:    #FF7A59
+Metric Blue:  #3DA5F4
+Success:      #2ED47A
+Warning:      #F5B546
+Danger:       #FF5C5C
+Radius:       12px (cards), 8px (buttons/inputs)
+```
+
+---
+
+## What Is NOT Changed
+
+- Backend / `leads` table schema — already has `role` field
+- Auth flow, routing, protected pages
+- Any non-landing components (sidebar, app pages, etc.)
+- `supabase/config.toml`, `client.ts`, `types.ts`
+- All design system CSS variables and Tailwind config (already set)
