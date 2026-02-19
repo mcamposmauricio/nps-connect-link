@@ -71,10 +71,35 @@ export function AppSidebar() {
   const { theme, setTheme } = useTheme();
   const collapsed = state === "collapsed";
 
-  const [npsOpen, setNpsOpen] = useState(true);
-  const [chatOpen, setChatOpen] = useState(true);
-  const [reportsOpen, setReportsOpen] = useState(true);
-  const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [npsOpen, setNpsOpen] = useState(
+    () => localStorage.getItem("sidebar-nps-open") !== "false"
+  );
+  const [chatOpen, setChatOpen] = useState(
+    () => localStorage.getItem("sidebar-chat-open") !== "false"
+  );
+  const [reportsOpen, setReportsOpen] = useState(
+    () => localStorage.getItem("sidebar-reports-open") !== "false"
+  );
+  const [workspaceOpen, setWorkspaceOpen] = useState(
+    () => localStorage.getItem("sidebar-workspace-open") !== "false"
+  );
+
+  const handleNpsOpen = (open: boolean) => {
+    setNpsOpen(open);
+    localStorage.setItem("sidebar-nps-open", String(open));
+  };
+  const handleChatOpen = (open: boolean) => {
+    setChatOpen(open);
+    localStorage.setItem("sidebar-chat-open", String(open));
+  };
+  const handleReportsOpen = (open: boolean) => {
+    setReportsOpen(open);
+    localStorage.setItem("sidebar-reports-open", String(open));
+  };
+  const handleWorkspaceOpen = (open: boolean) => {
+    setWorkspaceOpen(open);
+    localStorage.setItem("sidebar-workspace-open", String(open));
+  };
 
   const showReports = hasPermission("cs", "view") || hasPermission("chat", "view");
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
@@ -233,7 +258,7 @@ export function AppSidebar() {
             {/* NPS */}
             {hasPermission("nps", "view") && (
               <SidebarGroup>
-                <Collapsible open={npsOpen} onOpenChange={setNpsOpen}>
+                <Collapsible open={npsOpen} onOpenChange={handleNpsOpen}>
                   <CollapsibleTrigger asChild>
                     <SidebarGroupLabel
                       className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
@@ -272,7 +297,7 @@ export function AppSidebar() {
             {/* Chat */}
             {hasPermission("chat", "view") && (
               <SidebarGroup>
-                <Collapsible open={chatOpen} onOpenChange={setChatOpen}>
+                <Collapsible open={chatOpen} onOpenChange={handleChatOpen}>
                   <CollapsibleTrigger asChild>
                     <SidebarGroupLabel
                       className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
@@ -305,7 +330,7 @@ export function AppSidebar() {
 
                         {/* Workspace */}
                         <SidebarMenuItem>
-                          <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
+                          <Collapsible open={workspaceOpen} onOpenChange={handleWorkspaceOpen}>
                             <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
                               <SidebarMenuButton
                                 onClick={(e) => {
@@ -434,7 +459,7 @@ export function AppSidebar() {
             {/* Reports */}
             {showReports && (
               <SidebarGroup>
-                <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
+                <Collapsible open={reportsOpen} onOpenChange={handleReportsOpen}>
                   <CollapsibleTrigger asChild>
                     <SidebarGroupLabel
                       className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
