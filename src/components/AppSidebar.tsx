@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Route,
@@ -213,13 +213,22 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-2 py-6">
-        <Link to="/" className="flex items-center justify-center gap-3 min-w-0 w-full">
+        <button
+          onClick={() => {
+            if (isAdmin) navigate("/admin/dashboard");
+            else if (hasPermission("cs", "view")) navigate("/cs-dashboard");
+            else if (hasPermission("nps", "view")) navigate("/nps/dashboard");
+            else if (hasPermission("chat", "view")) navigate("/admin/dashboard");
+            else navigate("/nps/dashboard");
+          }}
+          className="flex items-center justify-center gap-3 min-w-0 w-full"
+        >
           {collapsed ? (
             <img src={iconSrc} alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
           ) : (
             <img src={logoSrc} alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
           )}
-        </Link>
+        </button>
       </SidebarHeader>
 
       <SidebarContent>
@@ -330,7 +339,7 @@ export function AppSidebar() {
 
                         {/* Workspace */}
                         <SidebarMenuItem>
-                          <Collapsible open={workspaceOpen} onOpenChange={handleWorkspaceOpen}>
+                          <Collapsible open={workspaceOpen}>
                             <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
                               <SidebarMenuButton
                                 onClick={(e) => {
@@ -350,20 +359,21 @@ export function AppSidebar() {
                                   {totalActiveChats}
                                 </Badge>
                               </SidebarMenuButton>
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 shrink-0"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {workspaceOpen ? (
-                                    <ChevronDown className="h-3 w-3" />
-                                  ) : (
-                                    <ChevronRight className="h-3 w-3" />
-                                  )}
-                                </Button>
-                              </CollapsibleTrigger>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWorkspaceOpen(!workspaceOpen);
+                                }}
+                              >
+                                {workspaceOpen ? (
+                                  <ChevronDown className="h-3 w-3" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3" />
+                                )}
+                              </Button>
                             </div>
                             <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                               {teamAttendants.map((att) => (
