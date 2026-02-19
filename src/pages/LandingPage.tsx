@@ -54,8 +54,14 @@ const LandingPage = () => {
   const [form, setForm] = useState({ name: "", email: "", company: "", role: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [tracking, setTracking] = useState({
-    utm_source: "", utm_medium: "", utm_campaign: "", utm_content: "", utm_term: "",
-    referrer: "", landing_page: "", user_agent: "",
+    utm_source: "",
+    utm_medium: "",
+    utm_campaign: "",
+    utm_content: "",
+    utm_term: "",
+    referrer: "",
+    landing_page: "",
+    user_agent: "",
   });
 
   useEffect(() => {
@@ -78,8 +84,7 @@ const LandingPage = () => {
     if (errors[field]) setErrors((p) => ({ ...p, [field]: "" }));
   };
 
-  const scrollToForm = () =>
-    document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
+  const scrollToForm = () => document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +92,9 @@ const LandingPage = () => {
     const result = leadSchema.safeParse(form);
     if (!result.success) {
       const fe: Record<string, string> = {};
-      result.error.errors.forEach((err) => { if (err.path[0]) fe[err.path[0] as string] = err.message; });
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) fe[err.path[0] as string] = err.message;
+      });
       setErrors(fe);
       return;
     }
@@ -112,10 +119,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}
-    >
+    <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       {/* ── SECTION 1: NAVBAR ─────────────────────────────── */}
       <nav
         className="sticky top-0 z-50"
@@ -130,7 +134,7 @@ const LandingPage = () => {
             className="flex items-center cursor-pointer"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           >
-            <img src="/logo-dark.svg" alt="Journey" className="h-9 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-18 w-auto" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -166,8 +170,11 @@ const LandingPage = () => {
         <div
           className="absolute pointer-events-none"
           style={{
-            top: "20%", left: "50%", transform: "translate(-50%,-50%)",
-            width: 600, height: 400,
+            top: "20%",
+            left: "50%",
+            transform: "translate(-50%,-50%)",
+            width: 600,
+            height: 400,
             background: "radial-gradient(ellipse, rgba(255,122,89,0.06) 0%, transparent 70%)",
           }}
         />
@@ -189,7 +196,8 @@ const LandingPage = () => {
             className="font-medium text-white mb-6 animate-fade-in-up delay-100"
             style={{ fontSize: "clamp(32px, 5vw, 52px)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
-            Turn Customer Success into<br />
+            Turn Customer Success into
+            <br />
             <span style={{ color: "rgba(255,122,89,0.8)" }}>Predictable Revenue.</span>
           </h1>
 
@@ -203,7 +211,8 @@ const LandingPage = () => {
               margin: "0 auto 40px",
             }}
           >
-            Monitor churn in real time. Automate NPS. Track customer health. Engage customers in-product. Manage journeys and revenue signals in one unified platform.
+            Monitor churn in real time. Automate NPS. Track customer health. Engage customers in-product. Manage
+            journeys and revenue signals in one unified platform.
           </p>
 
           <div className="animate-fade-in-up delay-300 flex flex-col items-center gap-3">
@@ -233,16 +242,15 @@ const LandingPage = () => {
       <LandingTimeline />
 
       {/* ── SECTION 5: EARLY ACCESS FORM ─────────────────── */}
-      <section
-        id="early-access"
-        className="py-14 px-4 relative overflow-hidden"
-        style={{ background: "#0F1115" }}
-      >
+      <section id="early-access" className="py-14 px-4 relative overflow-hidden" style={{ background: "#0F1115" }}>
         <div
           className="absolute pointer-events-none"
           style={{
-            bottom: 0, left: "50%", transform: "translateX(-50%)",
-            width: 800, height: 300,
+            bottom: 0,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 800,
+            height: 300,
             background: "radial-gradient(ellipse, rgba(61,165,244,0.05) 0%, transparent 70%)",
           }}
         />
@@ -255,7 +263,8 @@ const LandingPage = () => {
               Be the First to Access Journey
             </h2>
             <p className="text-base" style={{ color: "rgba(255,255,255,0.5)" }}>
-              We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.
+              We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from
+              customer data.
             </p>
           </div>
 
@@ -285,12 +294,12 @@ const LandingPage = () => {
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div>
-                  <LandingInput
-                    placeholder="Full Name *"
-                    value={form.name}
-                    onChange={(v) => handleChange("name", v)}
-                  />
-                  {errors.name && <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>{errors.name}</p>}
+                  <LandingInput placeholder="Full Name *" value={form.name} onChange={(v) => handleChange("name", v)} />
+                  {errors.name && (
+                    <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>
+                      {errors.name}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <LandingInput
@@ -299,7 +308,11 @@ const LandingPage = () => {
                     value={form.email}
                     onChange={(v) => handleChange("email", v)}
                   />
-                  {errors.email && <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>{errors.email}</p>}
+                  {errors.email && (
+                    <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <LandingInput
@@ -307,7 +320,11 @@ const LandingPage = () => {
                     value={form.company}
                     onChange={(v) => handleChange("company", v)}
                   />
-                  {errors.company && <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>{errors.company}</p>}
+                  {errors.company && (
+                    <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>
+                      {errors.company}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <LandingInput
@@ -324,9 +341,13 @@ const LandingPage = () => {
                   style={{ background: "#FF7A59", color: "#fff" }}
                 >
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Submitting…
+                    </>
                   ) : (
-                    <><ArrowRight className="w-4 h-4" /> Join Early Access</>
+                    <>
+                      <ArrowRight className="w-4 h-4" /> Join Early Access
+                    </>
                   )}
                 </button>
 
@@ -348,11 +369,9 @@ const LandingPage = () => {
         }}
       >
         <div className="max-w-2xl mx-auto">
-          <p
-            className="font-medium text-white mb-6"
-            style={{ fontSize: "clamp(20px, 3vw, 30px)", lineHeight: 1.4 }}
-          >
-            "Customer Experience is a Signal.<br />
+          <p className="font-medium text-white mb-6" style={{ fontSize: "clamp(20px, 3vw, 30px)", lineHeight: 1.4 }}>
+            "Customer Experience is a Signal.
+            <br />
             <span style={{ color: "rgba(255,122,89,0.75)" }}>Revenue is the Outcome."</span>
           </p>
           <button
@@ -367,13 +386,10 @@ const LandingPage = () => {
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────── */}
-      <footer
-        className="py-10 px-4"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.05)", background: "#0F1115" }}
-      >
+      <footer className="py-10 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", background: "#0F1115" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo-dark.svg" alt="Journey" className="h-8 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-17 w-auto" />
             <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
               Infrastructure for Revenue-Driven CS Teams
             </span>
