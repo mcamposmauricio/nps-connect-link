@@ -95,7 +95,7 @@ const LandingPage = () => {
       <nav className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <img src="/logo-dark.png" alt="Journey" className="h-8 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-8 w-auto" />
           </div>
           <div className="flex items-stretch gap-2">
             <button

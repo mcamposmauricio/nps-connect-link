@@ -25,7 +25,7 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
   if (loading || userDataLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <img src="/logo-icon-dark.png" alt="Journey" className="h-12 w-12 animate-pulse" />
+        <img src="/logo-icon-dark.svg" alt="Journey" className="h-12 w-12 animate-pulse" />
       </div>
     );
   }

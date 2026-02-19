@@ -46,7 +46,7 @@ const ForgotPassword = () => {
     <div className="min-h-screen flex items-center justify-center bg-dark-hero p-4">
       <Card className="w-full max-w-md p-8 shadow-xl border-white/10 bg-card/80 backdrop-blur-sm">
         <div className="flex justify-center mb-8">
-          <img src="/logo-dark.png" alt="Journey" className="h-10 w-auto" />
+          <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
         </div>
 
         {sent ? (

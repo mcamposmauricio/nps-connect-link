@@ -154,7 +154,7 @@ const Auth = () => {
       <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
         <div className={cardClasses}>
           <div className="flex justify-center mb-6">
-            <img src="/logo-dark.png" alt="Journey" className="h-10 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
           </div>
           <div className="text-center mb-6">
             <Badge variant="accent" className="mb-2">
@@ -193,7 +193,7 @@ const Auth = () => {
     <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
       <div className={cardClasses + " animate-scale-in"}>
         <div className="flex justify-center mb-8">
-          <img src="/logo-dark.png" alt="Journey" className="h-10 w-auto" />
+          <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

@@ -129,9 +129,9 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-white/[0.06] px-4 py-4">
         <Link to="/" className="flex items-center gap-3 min-w-0">
           {collapsed ? (
-            <img src="/logo-icon-dark.png" alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
+          <img src="/logo-icon-dark.svg" alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
           ) : (
-            <img src="/logo-dark.png" alt="Journey" className="h-8 w-auto object-contain" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-8 w-auto object-contain" />
           )}
         </Link>
       </SidebarHeader>
@@ -227,9 +227,9 @@ export function AppSidebar() {
                         {/* Workspace */}
                         <SidebarMenuItem>
                           <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
-                            <div className="flex items-center pl-6">
+                            <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
                               <SidebarMenuButton
-                                onClick={() => navigate("/admin/workspace")}
+                                onClick={(e) => { e.stopPropagation(); navigate("/admin/workspace"); }}
                                 isActive={location.pathname === "/admin/workspace"}
                                 tooltip={t("chat.workspace.station")}
                                 className={cn("flex-1", location.pathname === "/admin/workspace" ? activeItemCls : "hover:bg-sidebar-accent")}
@@ -239,7 +239,12 @@ export function AppSidebar() {
                                 <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{totalActiveChats}</Badge>
                               </SidebarMenuButton>
                               <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   {workspaceOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                                 </Button>
                               </CollapsibleTrigger>
@@ -248,7 +253,12 @@ export function AppSidebar() {
                               {teamAttendants.map((att) => (
                                 <SidebarMenuItem key={att.id}>
                                   <SidebarMenuButton
-                                    onClick={() => att.user_id === user?.id ? navigate("/admin/workspace") : navigate(`/admin/workspace?attendant=${att.id}`)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      att.user_id === user?.id
+                                        ? navigate("/admin/workspace")
+                                        : navigate(`/admin/workspace?attendant=${att.id}`);
+                                    }}
                                     isActive={
                                       att.user_id === user?.id
                                         ? location.pathname === "/admin/workspace" && !location.search.includes("attendant=")
