@@ -134,7 +134,7 @@ const LandingPage = () => {
             className="flex items-center cursor-pointer"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           >
-            <img src="/logo-dark.svg" alt="Journey" className="h-18 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-12 w-auto" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -389,7 +389,7 @@ const LandingPage = () => {
       <footer className="py-10 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", background: "#0F1115" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo-dark.svg" alt="Journey" className="h-17 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
             <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
               Infrastructure for Revenue-Driven CS Teams
             </span>
