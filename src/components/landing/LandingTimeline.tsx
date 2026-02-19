@@ -5,11 +5,11 @@ type LandingTimelineTexts = {
 };
 
 const timelineEvents = [
-  { dot: "#3DA5F4", label: "NPS: 9 — Promoter", sub: "Submitted via email campaign", time: "2d ago" },
-  { dot: "#3DA5F4", label: "Support chat closed", sub: "Resolved in 4 min · CSAT 5/5", time: "5d ago" },
-  { dot: "#2ED47A", label: "Feature adoption +40%", sub: "Analytics module usage spike", time: "1w ago" },
+  { dot: "#3498DB", label: "NPS: 9 — Promoter", sub: "Submitted via email campaign", time: "2d ago" },
+  { dot: "#3498DB", label: "Support chat closed", sub: "Resolved in 4 min · CSAT 5/5", time: "5d ago" },
+  { dot: "#2ECC71", label: "Feature adoption +40%", sub: "Analytics module usage spike", time: "1w ago" },
   { dot: "#FF5C5C", label: "Health dropped to 52", sub: "Risk alert triggered automatically", time: "2w ago" },
-  { dot: "#2ED47A", label: "Upsell signal detected", sub: "3 users activated Premium features", time: "3w ago" },
+  { dot: "#2ECC71", label: "Upsell signal detected", sub: "3 users activated Premium features", time: "3w ago" },
   { dot: "#F5B546", label: "Renewal in 30 days", sub: "Action assigned to CSM · $12k ARR", time: "1mo ago" },
 ];
 
@@ -54,7 +54,7 @@ const LandingTimeline = ({ t }: { t: LandingTimelineTexts }) => (
           >
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0"
-              style={{ background: "rgba(61,165,244,0.12)", color: "#3DA5F4" }}
+            style={{ background: "rgba(52,152,219,0.12)", color: "#3498DB" }}
             >
               RM
             </div>
@@ -65,13 +65,13 @@ const LandingTimeline = ({ t }: { t: LandingTimelineTexts }) => (
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(46,212,122,0.12)", color: "#2ED47A" }}
+                style={{ background: "rgba(46,204,113,0.12)", color: "#2ECC71" }}
               >
                 ● Health 84
               </span>
               <span
                 className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(61,165,244,0.08)", color: "#3DA5F4" }}
+                style={{ background: "rgba(52,152,219,0.08)", color: "#3498DB" }}
               >
                 $12k MRR
               </span>

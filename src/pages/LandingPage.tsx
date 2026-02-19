@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import LandingFeatures from "@/components/landing/LandingFeatures";
 import LandingTimeline from "@/components/landing/LandingTimeline";
 import LandingKanban from "@/components/landing/LandingKanban";
-import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, MessageSquare, Target, MessageCircle, BarChart3 } from "lucide-react";
 import { z } from "zod";
 
 /* ─── Language system ─────────────────────────────────────── */
@@ -22,13 +22,13 @@ const texts = {
   en: {
     navSignIn: "Sign In",
     navDashboard: "Go to Dashboard",
-    navCta: "Request Early Access",
+    navCta: "Get Started Now!",
     heroBadge: "Early Access · Limited Spots",
-    heroH1a: "Turn Customer Success into",
-    heroH1b: "Predictable Revenue.",
+    heroH1a: "Experience as fuel for",
+    heroH1b: "recurring revenue",
     heroSub:
-      "Monitor churn in real time. Automate NPS. Track customer health. Engage customers in-product. Manage journeys and revenue signals in one unified platform.",
-    heroCta: "Request Early Access",
+      "The CX platform that organizes journey insights and empowers your team to ensure your customer's success!",
+    heroCta: "Get Started Now!",
     heroSubCta: "Launching soon. Early access is limited.",
     featuresLabel: "Core Modules",
     featuresH2a: "Everything your CS team needs.",
@@ -74,13 +74,13 @@ const texts = {
   "pt-BR": {
     navSignIn: "Entrar",
     navDashboard: "Ir ao Dashboard",
-    navCta: "Solicitar Acesso Antecipado",
+    navCta: "Clique e Conheça!",
     heroBadge: "Acesso Antecipado · Vagas Limitadas",
-    heroH1a: "Transforme Customer Success em",
-    heroH1b: "Receita Previsível.",
+    heroH1a: "Experiência como combustível para",
+    heroH1b: "receita recorrente",
     heroSub:
-      "Monitore churn em tempo real. Automatize NPS. Rastreie a saúde do cliente. Engaje clientes no produto. Gerencie jornadas e sinais de receita em uma plataforma unificada.",
-    heroCta: "Solicitar Acesso Antecipado",
+      "A plataforma de CX que organiza insights de jornada e suporta o seu time a garantir o sucesso do seu cliente!",
+    heroCta: "Clique e Conheça!",
     heroSubCta: "Em breve. Vagas de acesso antecipado limitadas.",
     featuresLabel: "Módulos Principais",
     featuresH2a: "Tudo que seu time de CS precisa.",
@@ -308,15 +308,15 @@ const LandingPage = () => {
 
       {/* ── SECTION 2: HERO ───────────────────────────────── */}
       <section
-        className="relative flex flex-col items-center justify-center text-center py-20 px-4 overflow-hidden"
-        style={{ minHeight: "72vh" }}
+        className="relative py-16 px-4 overflow-hidden"
+        style={{ minHeight: "72vh", display: "flex", alignItems: "center" }}
       >
         {/* Glow */}
         <div
           className="absolute pointer-events-none"
           style={{
-            top: "20%",
-            left: "50%",
+            top: "30%",
+            left: "30%",
             transform: "translate(-50%,-50%)",
             width: 600,
             height: 400,
@@ -324,57 +324,101 @@ const LandingPage = () => {
           }}
         />
 
-        <div className="relative z-10 max-w-3xl mx-auto">
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium uppercase tracking-widest mb-8 animate-fade-in-up delay-0"
-            style={{
-              background: "rgba(255,122,89,0.08)",
-              border: "1px solid rgba(255,122,89,0.15)",
-              color: "rgba(255,122,89,0.8)",
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            {t.heroBadge}
-          </div>
-
-          <h1
-            className="font-medium text-white mb-6 animate-fade-in-up delay-100"
-            style={{ fontSize: "clamp(30px, 4.5vw, 48px)", lineHeight: 1.18, letterSpacing: "-0.025em" }}
-          >
-            {t.heroH1a}
-            <br />
-            <span style={{ color: "rgba(255,122,89,0.75)" }}>{t.heroH1b}</span>
-          </h1>
-
-          <p
-            className="animate-fade-in-up delay-200"
-            style={{
-              fontSize: "clamp(14px, 1.8vw, 17px)",
-              lineHeight: 1.75,
-              color: "rgba(255,255,255,0.5)",
-              maxWidth: 540,
-              margin: "0 auto 40px",
-            }}
-          >
-            {t.heroSub}
-          </p>
-
-          <div className="animate-fade-in-up delay-300 flex flex-col items-center gap-3">
-            <button
-              onClick={scrollToForm}
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-medium text-base transition-all duration-150 hover:opacity-90 hover:translate-y-[-1px]"
+        <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Copy */}
+          <div className="flex flex-col items-start text-left">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium uppercase tracking-widest mb-8 animate-fade-in-up delay-0"
               style={{
-                background: "#FF7A59",
-                color: "#fff",
-                boxShadow: "0 8px 28px rgba(255,122,89,0.22)",
+                background: "rgba(255,122,89,0.08)",
+                border: "1px solid rgba(255,122,89,0.15)",
+                color: "rgba(255,122,89,0.8)",
               }}
             >
-              {t.heroCta}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.28)" }}>
-              {t.heroSubCta}
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+              {t.heroBadge}
+            </div>
+
+            <h1
+              className="font-medium text-white mb-6 animate-fade-in-up delay-100"
+              style={{ fontSize: "clamp(28px, 4vw, 48px)", lineHeight: 1.18, letterSpacing: "-0.025em" }}
+            >
+              {t.heroH1a}
+              <br />
+              <span style={{ color: "rgba(255,122,89,0.85)" }}>{t.heroH1b}</span>
+            </h1>
+
+            <p
+              className="animate-fade-in-up delay-200 mb-10"
+              style={{
+                fontSize: "clamp(14px, 1.6vw, 16px)",
+                lineHeight: 1.75,
+                color: "rgba(255,255,255,0.5)",
+                maxWidth: 480,
+              }}
+            >
+              {t.heroSub}
             </p>
+
+            <div className="animate-fade-in-up delay-300 flex flex-col items-start gap-3">
+              <button
+                onClick={scrollToForm}
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-medium text-base transition-all duration-150 hover:opacity-90 hover:translate-y-[-1px]"
+                style={{
+                  background: "#FF7A59",
+                  color: "#fff",
+                  boxShadow: "0 8px 28px rgba(255,122,89,0.22)",
+                }}
+              >
+                {t.heroCta}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.28)" }}>
+                {t.heroSubCta}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: 4-Pillar Dashboard Cards */}
+          <div
+            className="animate-fade-in-up delay-200 rounded-2xl p-5 grid grid-cols-2 gap-3"
+            style={{
+              background: "#131722",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow: "0 32px 64px rgba(0,0,0,0.5)",
+            }}
+          >
+            {[
+              { icon: MessageSquare, label: "In-Product Conversations", metric: "142 active", delta: "+12%", color: "#FF7A59" },
+              { icon: Target, label: "NPS Connected to Revenue", metric: "NPS 72", delta: "+4pts", color: "#3498DB" },
+              { icon: MessageCircle, label: "Revenue Feedback", metric: "1,247 responses", delta: "+8%", color: "#2ECC71" },
+              { icon: BarChart3, label: "Revenue & Health Signals", metric: "$142k MRR", delta: "+3.2%", color: "#F5B546" },
+            ].map(({ icon: Icon, label, metric, delta, color }) => (
+              <div
+                key={label}
+                className="rounded-xl p-4 flex flex-col gap-3"
+                style={{
+                  background: "#171C28",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${color}14` }}
+                >
+                  <Icon style={{ color }} className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-medium leading-tight mb-2" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    {label}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-white">{metric}</span>
+                    <span className="text-[10px] font-medium" style={{ color: "#2ECC71" }}>{delta}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

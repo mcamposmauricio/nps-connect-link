@@ -9,18 +9,18 @@ const columns = [
     name: "Onboarding",
     count: 4,
     cards: [
-      { initials: "AC", name: "Acme Corp", health: "Healthy", healthColor: "#2ED47A", mrr: "$2.4k" },
-      { initials: "TN", name: "TechNova", health: "Healthy", healthColor: "#2ED47A", mrr: "$1.8k" },
+      { initials: "AC", name: "Acme Corp", health: "Healthy", healthColor: "#2ECC71", mrr: "$2.4k" },
+      { initials: "TN", name: "TechNova", health: "Healthy", healthColor: "#2ECC71", mrr: "$1.8k" },
     ],
-    borderColor: "rgba(61,165,244,0.12)",
+    borderColor: "rgba(52,152,219,0.12)",
   },
   {
     name: "Adoption",
     count: 7,
     cards: [
-      { initials: "GS", name: "GlobalSoft", health: "Healthy", healthColor: "#2ED47A", mrr: "$5.2k" },
+      { initials: "GS", name: "GlobalSoft", health: "Healthy", healthColor: "#2ECC71", mrr: "$5.2k" },
       { initials: "VX", name: "Vexor Inc", health: "At Risk", healthColor: "#F5B546", mrr: "$3.1k" },
-      { initials: "BP", name: "BluePeak", health: "Healthy", healthColor: "#2ED47A", mrr: "$4.7k" },
+      { initials: "BP", name: "BluePeak", health: "Healthy", healthColor: "#2ECC71", mrr: "$4.7k" },
     ],
     borderColor: "rgba(255,255,255,0.05)",
   },
@@ -28,11 +28,11 @@ const columns = [
     name: "Expansion",
     count: 3,
     cards: [
-      { initials: "RM", name: "Rampside", health: "Healthy", healthColor: "#2ED47A", mrr: "$12k" },
-      { initials: "SP", name: "Spark Labs", health: "Healthy", healthColor: "#2ED47A", mrr: "$8.5k" },
+      { initials: "RM", name: "Rampside", health: "Healthy", healthColor: "#2ECC71", mrr: "$12k" },
+      { initials: "SP", name: "Spark Labs", health: "Healthy", healthColor: "#2ECC71", mrr: "$8.5k" },
     ],
-    borderColor: "rgba(46,212,122,0.12)",
-    accent: "#2ED47A",
+    borderColor: "rgba(46,204,113,0.12)",
+    accent: "#2ECC71",
   },
   {
     name: "At Risk",
@@ -48,7 +48,7 @@ const columns = [
     name: "Renewal",
     count: 5,
     cards: [
-      { initials: "FG", name: "Forge Co", health: "Healthy", healthColor: "#2ED47A", mrr: "$9.2k" },
+      { initials: "FG", name: "Forge Co", health: "Healthy", healthColor: "#2ECC71", mrr: "$9.2k" },
       { initials: "NV", name: "Navex", health: "At Risk", healthColor: "#F5B546", mrr: "$4.4k" },
     ],
     borderColor: "rgba(245,181,70,0.12)",
@@ -61,7 +61,7 @@ const LandingKanban = ({ t }: { t: LandingKanbanTexts }) => (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Copy */}
       <div className="mb-10 animate-fade-in-up">
-        <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: "#3DA5F4" }}>
+        <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: "#3498DB" }}>
           {t.kanbanLabel}
         </p>
         <h2 className="text-[26px] font-medium text-white mb-3" style={{ lineHeight: 1.28, letterSpacing: "-0.02em" }}>
@@ -114,7 +114,7 @@ const LandingKanban = ({ t }: { t: LandingKanbanTexts }) => (
                   <div className="flex items-center gap-2">
                     <div
                       className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-semibold flex-shrink-0"
-                      style={{ background: "rgba(61,165,244,0.12)", color: "#3DA5F4" }}
+                      style={{ background: "rgba(52,152,219,0.12)", color: "#3498DB" }}
                     >
                       {card.initials}
                     </div>
