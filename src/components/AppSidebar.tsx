@@ -126,12 +126,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r border-white/[0.06]" collapsible="icon">
-      <SidebarHeader className="border-b border-white/[0.06] px-4 py-5">
-        <Link to="/" className="flex items-center gap-3 min-w-0">
+      <SidebarHeader className="border-b border-white/[0.06] px-2 py-6">
+        <Link to="/" className="flex items-center justify-center gap-3 min-w-0 w-full">
           {collapsed ? (
-          <img src="/logo-icon-dark.svg" alt="Journey" className="h-10 w-10 object-contain flex-shrink-0" />
+          <img src="/logo-icon-dark.svg" alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
           ) : (
-            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto object-contain max-w-[140px]" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
           )}
         </Link>
       </SidebarHeader>
