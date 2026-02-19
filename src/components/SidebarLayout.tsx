@@ -30,8 +30,13 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
     );
   }
 
+  const sidebarDefaultOpen = localStorage.getItem("sidebar-open") !== "false";
+
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      defaultOpen={sidebarDefaultOpen}
+      onOpenChange={(open) => localStorage.setItem("sidebar-open", String(open))}
+    >
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <main className="flex-1 flex flex-col">
