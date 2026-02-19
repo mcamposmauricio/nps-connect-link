@@ -57,7 +57,7 @@ const columns = [
 ];
 
 const LandingKanban = ({ t }: { t: LandingKanbanTexts }) => (
-  <section className="py-14" style={{ background: "#0F1115" }}>
+  <section className="py-8" style={{ background: "#0F1115" }}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Copy */}
       <div className="mb-10 animate-fade-in-up">

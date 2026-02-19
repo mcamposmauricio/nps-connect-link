@@ -14,7 +14,7 @@ const timelineEvents = [
 ];
 
 const LandingTimeline = ({ t }: { t: LandingTimelineTexts }) => (
-  <section className="py-14" style={{ background: "#0F1115" }}>
+  <section className="py-8" style={{ background: "#0F1115" }}>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid lg:grid-cols-2 gap-16 items-center">
         {/* Left copy */}
