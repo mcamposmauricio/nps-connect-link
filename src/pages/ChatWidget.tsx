@@ -89,6 +89,14 @@ const ChatWidget = () => {
     }
   }, [isOpen, isEmbed]);
 
+  // Force transparent background on html/body when embedded in iframe
+  useEffect(() => {
+    if (isEmbed) {
+      document.documentElement.style.background = "transparent";
+      document.body.style.background = "transparent";
+    }
+  }, [isEmbed]);
+
   const fetchHistory = useCallback(async (vId: string) => {
     setHistoryLoading(true);
     const { data } = await supabase
@@ -464,6 +472,7 @@ const ChatWidget = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: "transparent",
         }}
       >
         <button
@@ -767,6 +776,7 @@ const ChatWidget = () => {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            background: "transparent",
           }}
         >
           {widgetContent}
