@@ -365,7 +365,7 @@ export function AppSidebar() {
                                 </Button>
                               </CollapsibleTrigger>
                             </div>
-                            <CollapsibleContent>
+                            <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                               {teamAttendants.map((att) => (
                                 <SidebarMenuItem key={att.id}>
                                   <SidebarMenuButton

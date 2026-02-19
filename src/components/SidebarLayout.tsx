@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -11,6 +11,9 @@ interface SidebarLayoutProps {
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
   const navigate = useNavigate();
   const { user, loading, userDataLoading, tenantId, isAdmin } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => localStorage.getItem("sidebar-open") !== "false"
+  );
 
   useEffect(() => {
     if (!loading && !userDataLoading) {
@@ -30,12 +33,13 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
     );
   }
 
-  const sidebarDefaultOpen = localStorage.getItem("sidebar-open") !== "false";
-
   return (
     <SidebarProvider
-      defaultOpen={sidebarDefaultOpen}
-      onOpenChange={(open) => localStorage.setItem("sidebar-open", String(open))}
+      open={sidebarOpen}
+      onOpenChange={(open) => {
+        setSidebarOpen(open);
+        localStorage.setItem("sidebar-open", String(open));
+      }}
     >
       <div className="min-h-screen flex w-full">
         <AppSidebar />
