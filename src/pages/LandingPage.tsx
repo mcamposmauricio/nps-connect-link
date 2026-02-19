@@ -4,8 +4,126 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import LandingFeatures from "@/components/landing/LandingFeatures";
 import LandingTimeline from "@/components/landing/LandingTimeline";
+import LandingKanban from "@/components/landing/LandingKanban";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { z } from "zod";
+
+/* ─── Language system ─────────────────────────────────────── */
+
+type Lang = "en" | "pt-BR";
+
+const initLang = (): Lang => {
+  const saved = localStorage.getItem("landing_lang");
+  if (saved === "en" || saved === "pt-BR") return saved;
+  return navigator.language.startsWith("pt") ? "pt-BR" : "en";
+};
+
+const texts = {
+  en: {
+    navSignIn: "Sign In",
+    navDashboard: "Go to Dashboard",
+    navCta: "Request Early Access",
+    heroBadge: "Early Access · Limited Spots",
+    heroH1a: "Turn Customer Success into",
+    heroH1b: "Predictable Revenue.",
+    heroSub:
+      "Monitor churn in real time. Automate NPS. Track customer health. Engage customers in-product. Manage journeys and revenue signals in one unified platform.",
+    heroCta: "Request Early Access",
+    heroSubCta: "Launching soon. Early access is limited.",
+    featuresLabel: "Core Modules",
+    featuresH2a: "Everything your CS team needs.",
+    featuresH2b: "In one unified platform.",
+    featuresSub:
+      "From real-time conversations to automated NPS and executive dashboards — Journey unifies your customer intelligence.",
+    feature1Title: "In-Product Conversations",
+    feature1Desc:
+      "Engage customers directly inside your product. Resolve friction faster and create retention opportunities in real time.",
+    feature2Title: "NPS Connected to Revenue",
+    feature2Desc:
+      "Automated NPS flows connected to health score and churn prediction. Turn feedback into action.",
+    feature3Title: "Revenue & Health Signals",
+    feature3Desc:
+      "Churn, MRR impact, CSAT and engagement in one executive view. No more scattered dashboards.",
+    timelineLabel: "CRM + Timeline",
+    timelineH2: "Track every interaction.\nEvery signal.\nEvery opportunity.",
+    timelineSub:
+      "From first onboarding to renewal — every touchpoint, health change, and revenue signal captured in one unified timeline.",
+    kanbanLabel: "Customer Journey",
+    kanbanH2: "Visualize every customer journey stage.",
+    kanbanSub: "Move accounts based on signals — not assumptions.",
+    formLabel: "Early Access",
+    formH2: "Be the First to Access Journey",
+    formSub:
+      "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.",
+    fieldName: "Full Name *",
+    fieldEmail: "Work Email *",
+    fieldCompany: "Company Name *",
+    fieldRole: "Role / Position",
+    formCta: "Join Early Access",
+    formFootnote:
+      "Selected early users will have direct access to the founding team and influence the product roadmap.",
+    successTitle: "You're on the list!",
+    successSub: "We'll reach out soon with your early access invite.",
+    successBtn: "Submit another",
+    quote: '"Customer Experience is a Signal.',
+    quoteSpan: 'Revenue is the Outcome."',
+    footerTagline: "Infrastructure for Revenue-Driven CS Teams",
+    footerRights: "All rights reserved.",
+    langToggle: "PT",
+  },
+  "pt-BR": {
+    navSignIn: "Entrar",
+    navDashboard: "Ir ao Dashboard",
+    navCta: "Solicitar Acesso Antecipado",
+    heroBadge: "Acesso Antecipado · Vagas Limitadas",
+    heroH1a: "Transforme Customer Success em",
+    heroH1b: "Receita Previsível.",
+    heroSub:
+      "Monitore churn em tempo real. Automatize NPS. Rastreie a saúde do cliente. Engaje clientes no produto. Gerencie jornadas e sinais de receita em uma plataforma unificada.",
+    heroCta: "Solicitar Acesso Antecipado",
+    heroSubCta: "Em breve. Vagas de acesso antecipado limitadas.",
+    featuresLabel: "Módulos Principais",
+    featuresH2a: "Tudo que seu time de CS precisa.",
+    featuresH2b: "Em uma plataforma unificada.",
+    featuresSub:
+      "De conversas em tempo real a NPS automatizado e dashboards executivos — o Journey unifica sua inteligência de clientes.",
+    feature1Title: "Conversas no Produto",
+    feature1Desc:
+      "Engaje clientes diretamente dentro do seu produto. Resolva fricções mais rápido e crie oportunidades de retenção em tempo real.",
+    feature2Title: "NPS Conectado à Receita",
+    feature2Desc:
+      "Fluxos de NPS automatizados conectados ao health score e previsão de churn. Transforme feedback em ação.",
+    feature3Title: "Sinais de Receita e Health",
+    feature3Desc:
+      "Churn, impacto no MRR, CSAT e engajamento em uma visão executiva. Sem mais dashboards espalhados.",
+    timelineLabel: "CRM + Timeline",
+    timelineH2: "Rastreie cada interação.\nCada sinal.\nCada oportunidade.",
+    timelineSub:
+      "Do primeiro onboarding à renovação — cada touchpoint, mudança de health e sinal de receita capturado em uma timeline unificada.",
+    kanbanLabel: "Jornada do Cliente",
+    kanbanH2: "Visualize cada etapa da jornada do cliente.",
+    kanbanSub: "Mova contas com base em sinais — não em suposições.",
+    formLabel: "Acesso Antecipado",
+    formH2: "Seja um dos Primeiros a Usar o Journey",
+    formSub:
+      "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
+    fieldName: "Nome Completo *",
+    fieldEmail: "Email Corporativo *",
+    fieldCompany: "Nome da Empresa *",
+    fieldRole: "Cargo / Função",
+    formCta: "Entrar para o Acesso Antecipado",
+    formFootnote:
+      "Usuários selecionados terão acesso direto ao time fundador e influência no roadmap do produto.",
+    successTitle: "Você está na lista!",
+    successSub: "Entraremos em contato em breve com seu convite de acesso antecipado.",
+    successBtn: "Enviar outro",
+    quote: '"Experiência do Cliente é um Sinal.',
+    quoteSpan: 'Receita é o Resultado."',
+    footerTagline: "Infraestrutura para times de CS orientados a Receita",
+    footerRights: "Todos os direitos reservados.",
+    langToggle: "EN",
+  },
+};
 
 const leadSchema = z.object({
   name: z.string().trim().min(2, "Name too short").max(100),
@@ -34,11 +152,11 @@ const LandingInput = ({
     onChange={(e) => onChange(e.target.value)}
     className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors duration-150"
     style={{
-      background: "#1E2433",
+      background: "#1A1F2E",
       border: "1px solid rgba(255,255,255,0.08)",
       color: "#F2F4F8",
     }}
-    onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(255,122,89,0.5)")}
+    onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(255,122,89,0.4)")}
     onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
   />
 );
@@ -48,6 +166,7 @@ const LandingInput = ({
 const LandingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [lang, setLang] = useState<Lang>(initLang);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -64,6 +183,8 @@ const LandingPage = () => {
     user_agent: "",
   });
 
+  const t = texts[lang];
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setTracking({
@@ -78,6 +199,12 @@ const LandingPage = () => {
     });
     supabase.auth.getSession().then(({ data: { session } }) => setIsLoggedIn(!!session));
   }, []);
+
+  const toggleLang = () => {
+    const next: Lang = lang === "en" ? "pt-BR" : "en";
+    setLang(next);
+    localStorage.setItem("landing_lang", next);
+  };
 
   const handleChange = (field: string, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
@@ -124,9 +251,9 @@ const LandingPage = () => {
       <nav
         className="sticky top-0 z-50"
         style={{
-          background: "rgba(15,17,21,0.85)",
+          background: "rgba(15,17,21,0.9)",
           backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
@@ -136,26 +263,44 @@ const LandingPage = () => {
           >
             <img src="/logo-dark.svg" alt="Journey" className="h-12 w-auto" />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Lang toggle */}
+            <button
+              onClick={toggleLang}
+              className="text-xs font-medium uppercase tracking-widest px-3 h-8 rounded-lg transition-colors duration-150"
+              style={{
+                color: "rgba(255,255,255,0.5)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "transparent",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+            >
+              {t.langToggle}
+            </button>
+
+            {/* Divider */}
+            <span style={{ color: "rgba(255,255,255,0.1)", fontSize: 16 }}>|</span>
+
             <button
               onClick={() => navigate(isLoggedIn ? "/cs-dashboard" : "/auth")}
               className="text-sm px-4 h-9 rounded-lg transition-colors duration-150"
               style={{
-                color: "rgba(255,255,255,0.65)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.6)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 background: "transparent",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
             >
-              {isLoggedIn ? "Go to Dashboard" : "Sign In"}
+              {isLoggedIn ? t.navDashboard : t.navSignIn}
             </button>
             <button
               onClick={scrollToForm}
               className="text-sm px-4 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90"
               style={{ background: "#FF7A59", color: "#fff" }}
             >
-              Request Early Access
+              {t.navCta}
             </button>
           </div>
         </div>
@@ -175,7 +320,7 @@ const LandingPage = () => {
             transform: "translate(-50%,-50%)",
             width: 600,
             height: 400,
-            background: "radial-gradient(ellipse, rgba(255,122,89,0.06) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(255,122,89,0.05) 0%, transparent 70%)",
           }}
         />
 
@@ -183,63 +328,65 @@ const LandingPage = () => {
           <div
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium uppercase tracking-widest mb-8 animate-fade-in-up delay-0"
             style={{
-              background: "rgba(255,122,89,0.1)",
-              border: "1px solid rgba(255,122,89,0.2)",
-              color: "rgba(255,122,89,0.85)",
+              background: "rgba(255,122,89,0.08)",
+              border: "1px solid rgba(255,122,89,0.15)",
+              color: "rgba(255,122,89,0.8)",
             }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            Early Access · Limited Spots
+            {t.heroBadge}
           </div>
 
           <h1
             className="font-medium text-white mb-6 animate-fade-in-up delay-100"
-            style={{ fontSize: "clamp(32px, 5vw, 52px)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
+            style={{ fontSize: "clamp(30px, 4.5vw, 48px)", lineHeight: 1.18, letterSpacing: "-0.025em" }}
           >
-            Turn Customer Success into
+            {t.heroH1a}
             <br />
-            <span style={{ color: "rgba(255,122,89,0.8)" }}>Predictable Revenue.</span>
+            <span style={{ color: "rgba(255,122,89,0.75)" }}>{t.heroH1b}</span>
           </h1>
 
           <p
             className="animate-fade-in-up delay-200"
             style={{
-              fontSize: "clamp(15px, 2vw, 18px)",
-              lineHeight: 1.7,
-              color: "rgba(255,255,255,0.55)",
-              maxWidth: 560,
+              fontSize: "clamp(14px, 1.8vw, 17px)",
+              lineHeight: 1.75,
+              color: "rgba(255,255,255,0.5)",
+              maxWidth: 540,
               margin: "0 auto 40px",
             }}
           >
-            Monitor churn in real time. Automate NPS. Track customer health. Engage customers in-product. Manage
-            journeys and revenue signals in one unified platform.
+            {t.heroSub}
           </p>
 
           <div className="animate-fade-in-up delay-300 flex flex-col items-center gap-3">
             <button
               onClick={scrollToForm}
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-medium text-base transition-all duration-150 hover:opacity-90 hover:translate-y-[-1px]"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-medium text-base transition-all duration-150 hover:opacity-90 hover:translate-y-[-1px]"
               style={{
                 background: "#FF7A59",
                 color: "#fff",
-                boxShadow: "0 8px 32px rgba(255,122,89,0.25)",
+                boxShadow: "0 8px 28px rgba(255,122,89,0.22)",
               }}
             >
-              Request Early Access
+              {t.heroCta}
               <ArrowRight className="w-4 h-4" />
             </button>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-              Launching soon. Early access is limited.
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.28)" }}>
+              {t.heroSubCta}
             </p>
           </div>
         </div>
       </section>
 
       {/* ── SECTION 3: CORE MODULES ───────────────────────── */}
-      <LandingFeatures />
+      <LandingFeatures t={t} />
 
       {/* ── SECTION 4: TIMELINE ───────────────────────────── */}
-      <LandingTimeline />
+      <LandingTimeline t={t} />
+
+      {/* ── SECTION 4B: KANBAN ────────────────────────────── */}
+      <LandingKanban t={t} />
 
       {/* ── SECTION 5: EARLY ACCESS FORM ─────────────────── */}
       <section id="early-access" className="py-14 px-4 relative overflow-hidden" style={{ background: "#0F1115" }}>
@@ -249,52 +396,51 @@ const LandingPage = () => {
             bottom: 0,
             left: "50%",
             transform: "translateX(-50%)",
-            width: 800,
-            height: 300,
-            background: "radial-gradient(ellipse, rgba(61,165,244,0.05) 0%, transparent 70%)",
+            width: 700,
+            height: 280,
+            background: "radial-gradient(ellipse, rgba(61,165,244,0.04) 0%, transparent 70%)",
           }}
         />
         <div className="relative z-10 max-w-lg mx-auto">
           <div className="text-center mb-10">
             <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: "#3DA5F4" }}>
-              Early Access
+              {t.formLabel}
             </p>
-            <h2 className="text-[28px] font-medium text-white mb-3" style={{ lineHeight: 1.25 }}>
-              Be the First to Access Journey
+            <h2 className="text-[26px] font-medium text-white mb-3" style={{ lineHeight: 1.25, letterSpacing: "-0.02em" }}>
+              {t.formH2}
             </h2>
-            <p className="text-base" style={{ color: "rgba(255,255,255,0.5)" }}>
-              We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from
-              customer data.
+            <p className="text-[15px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {t.formSub}
             </p>
           </div>
 
           <div
-            className="rounded-2xl p-8"
+            className="rounded-xl p-8"
             style={{
-              background: "#171C28",
+              background: "#131722",
               border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
             }}
           >
             {submitted ? (
               <div className="text-center py-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-4" style={{ color: "#2ED47A" }} />
-                <h3 className="text-xl font-medium text-white mb-2">You're on the list!</h3>
-                <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  We'll reach out soon with your early access invite.
+                <h3 className="text-xl font-medium text-white mb-2">{t.successTitle}</h3>
+                <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  {t.successSub}
                 </p>
                 <button
                   onClick={() => setSubmitted(false)}
                   className="mt-5 text-sm px-4 py-2 rounded-lg transition-colors duration-150"
-                  style={{ color: "#FF7A59", border: "1px solid rgba(255,122,89,0.3)", background: "transparent" }}
+                  style={{ color: "#FF7A59", border: "1px solid rgba(255,122,89,0.25)", background: "transparent" }}
                 >
-                  Submit another
+                  {t.successBtn}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div>
-                  <LandingInput placeholder="Full Name *" value={form.name} onChange={(v) => handleChange("name", v)} />
+                  <LandingInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} />
                   {errors.name && (
                     <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>
                       {errors.name}
@@ -303,7 +449,7 @@ const LandingPage = () => {
                 </div>
                 <div>
                   <LandingInput
-                    placeholder="Work Email *"
+                    placeholder={t.fieldEmail}
                     type="email"
                     value={form.email}
                     onChange={(v) => handleChange("email", v)}
@@ -316,7 +462,7 @@ const LandingPage = () => {
                 </div>
                 <div>
                   <LandingInput
-                    placeholder="Company Name *"
+                    placeholder={t.fieldCompany}
                     value={form.company}
                     onChange={(v) => handleChange("company", v)}
                   />
@@ -328,7 +474,7 @@ const LandingPage = () => {
                 </div>
                 <div>
                   <LandingInput
-                    placeholder="Role / Position"
+                    placeholder={t.fieldRole}
                     value={form.role}
                     onChange={(v) => handleChange("role", v)}
                   />
@@ -337,7 +483,7 @@ const LandingPage = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl font-medium text-sm mt-1 transition-all duration-150 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-lg font-medium text-sm mt-1 transition-all duration-150 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                   style={{ background: "#FF7A59", color: "#fff" }}
                 >
                   {loading ? (
@@ -346,13 +492,13 @@ const LandingPage = () => {
                     </>
                   ) : (
                     <>
-                      <ArrowRight className="w-4 h-4" /> Join Early Access
+                      <ArrowRight className="w-4 h-4" /> {t.formCta}
                     </>
                   )}
                 </button>
 
-                <p className="text-center text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
-                  Selected early users will have direct access to the founding team and influence the product roadmap.
+                <p className="text-center text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.28)" }}>
+                  {t.formFootnote}
                 </p>
               </form>
             )}
@@ -365,37 +511,37 @@ const LandingPage = () => {
         className="py-14 px-4 text-center"
         style={{
           background: "linear-gradient(135deg, #131722 0%, #0F1115 50%, #131722 100%)",
-          borderTop: "1px solid rgba(255,255,255,0.05)",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
         }}
       >
         <div className="max-w-2xl mx-auto">
-          <p className="font-medium text-white mb-6" style={{ fontSize: "clamp(20px, 3vw, 30px)", lineHeight: 1.4 }}>
-            "Customer Experience is a Signal.
+          <p className="font-medium text-white mb-6" style={{ fontSize: "clamp(18px, 2.8vw, 28px)", lineHeight: 1.45, letterSpacing: "-0.02em" }}>
+            {t.quote}
             <br />
-            <span style={{ color: "rgba(255,122,89,0.75)" }}>Revenue is the Outcome."</span>
+            <span style={{ color: "rgba(255,122,89,0.7)" }}>{t.quoteSpan}</span>
           </p>
           <button
             onClick={scrollToForm}
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-medium text-sm transition-all duration-150 hover:opacity-90"
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-medium text-sm transition-all duration-150 hover:opacity-90"
             style={{ background: "#FF7A59", color: "#fff" }}
           >
-            Request Early Access
+            {t.heroCta}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────── */}
-      <footer className="py-10 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", background: "#0F1115" }}>
+      <footer className="py-10 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "#0F1115" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
-            <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-              Infrastructure for Revenue-Driven CS Teams
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.28)" }}>
+              {t.footerTagline}
             </span>
           </div>
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
-            © {new Date().getFullYear()} Journey. All rights reserved.
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
+            © {new Date().getFullYear()} Journey. {t.footerRights}
           </p>
         </div>
       </footer>
