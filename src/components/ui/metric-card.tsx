@@ -16,8 +16,8 @@ export function MetricCard({
   title,
   value,
   icon: Icon,
-  iconColor = "text-primary",
-  iconBgColor = "bg-primary/10",
+  iconColor = "text-accent",
+  iconBgColor = "bg-accent/10",
   delta,
   deltaInverted = false,
   className,
@@ -28,14 +28,14 @@ export function MetricCard({
     : isPositive ? "text-success" : "text-destructive";
 
   return (
-    <div className={cn("rounded-lg border bg-card shadow-sm p-5 animate-fade-in", className)}>
+    <div className={cn("rounded-xl border border-white/[0.06] bg-card shadow-sm p-5 animate-fade-in", className)}>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {title}
           </p>
           <div className="flex items-center gap-2">
-            <p className="text-2xl font-bold tabular-nums">{value}</p>
+            <p className="text-3xl font-semibold tabular-nums">{value}</p>
             {delta != null && delta !== 0 && (
               <span className={cn("flex items-center gap-0.5 text-[10px] font-medium", deltaColor)}>
                 {isPositive ? "↑" : "↓"} {Math.abs(delta)}%

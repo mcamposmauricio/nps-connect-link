@@ -9,11 +9,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import LandingBackgroundMockups from "@/components/LandingBackgroundMockups";
 import LandingFeatures from "@/components/landing/LandingFeatures";
 import {
-  Zap,
   ArrowRight,
   CheckCircle2,
-  Loader2 } from
-"lucide-react";
+  Loader2,
+} from "lucide-react";
 import { z } from "zod";
 
 const leadSchema = z.object({
@@ -96,10 +95,7 @@ const LandingPage = () => {
       <nav className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white">
-              <Zap className="h-4 w-4" />
-            </div>
-            <span className="text-xl font-bold text-white">Journey CS</span>
+            <img src="/logo-dark.png" alt="Journey" className="h-8 w-auto" />
           </div>
           <div className="flex items-stretch gap-2">
             <button

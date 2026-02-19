@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Loader2, Zap, Mail, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 const emailSchema = z.string().trim().email().max(255);
@@ -45,16 +45,13 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-dark-hero p-4">
       <Card className="w-full max-w-md p-8 shadow-xl border-white/10 bg-card/80 backdrop-blur-sm">
-        <div className="flex items-center justify-center mb-8">
-          <Zap className="h-10 w-10 text-primary mr-3" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Journey CS
-          </h1>
+        <div className="flex justify-center mb-8">
+          <img src="/logo-dark.png" alt="Journey" className="h-10 w-auto" />
         </div>
 
         {sent ? (
           <div className="text-center">
-            <Mail className="h-12 w-12 text-primary mx-auto mb-4" />
+            <Mail className="h-12 w-12 text-accent mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">{t("auth.resetLinkSent")}</h2>
             <p className="text-sm text-muted-foreground mb-6">{t("auth.resetLinkSentDesc")}</p>
             <Button variant="outline" onClick={() => navigate("/auth")}>

@@ -41,7 +41,6 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = 
   const healthScore = company.health_score ?? 50;
   const csm = csms.find((c) => c.id === company.csm_id);
 
-  // Check for active NPS trails
   const { data: activeNPSTrail } = useQuery({
     queryKey: ["active-nps-trail", company.id],
     queryFn: async () => {
@@ -53,23 +52,34 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = 
         .eq("status", "active")
         .limit(1)
         .maybeSingle();
-      
       if (error) return null;
       return data;
     },
   });
 
   const getHealthColor = (score: number) => {
-    if (score >= 70) return "text-green-600 bg-green-100 dark:bg-green-900/30";
-    if (score >= 40) return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30";
-    return "text-destructive bg-destructive/10";
+    if (score >= 70) return "text-success";
+    if (score >= 40) return "text-warning";
+    return "text-destructive";
+  };
+
+  const getHealthBg = (score: number) => {
+    if (score >= 70) return "bg-success/10";
+    if (score >= 40) return "bg-warning/10";
+    return "bg-destructive/10";
+  };
+
+  const getStatusStripColor = (score: number) => {
+    if (score >= 70) return "bg-success";
+    if (score >= 40) return "bg-warning";
+    return "bg-destructive";
   };
 
   const getNPSBadge = (score: number | null) => {
     if (score === null) return null;
-    if (score >= 9) return <Badge className="bg-primary text-primary-foreground text-xs">Promotor</Badge>;
-    if (score >= 7) return <Badge className="bg-warning text-warning-foreground text-xs">Neutro</Badge>;
-    return <Badge variant="destructive" className="text-xs">Detrator</Badge>;
+    if (score >= 9) return <Badge variant="promoter" className="text-xs">Promotor</Badge>;
+    if (score >= 7) return <Badge variant="passive" className="text-xs">Neutro</Badge>;
+    return <Badge variant="detractor" className="text-xs">Detrator</Badge>;
   };
 
   const formatCurrency = (value: number | null) => {
@@ -81,22 +91,15 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = 
     }).format(value);
   };
 
-  const getBorderColor = (score: number) => {
-    if (score >= 70) return "hsl(var(--success))";
-    if (score >= 40) return "hsl(var(--warning))";
-    return "hsl(var(--destructive))";
-  };
-
   return (
     <Card
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onClick={onClick}
-      className={`cursor-pointer hover:bg-muted/50 transition-colors border-l-4 ${!draggable ? 'cursor-default' : ''}`}
-      style={{
-        borderLeftColor: getBorderColor(healthScore),
-      }}
+      className={`cursor-pointer hover:bg-secondary/50 transition-colors overflow-hidden ${!draggable ? 'cursor-default' : ''}`}
     >
+      {/* Status strip on top */}
+      <div className={`h-1 w-full ${getStatusStripColor(healthScore)}`} />
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -109,11 +112,10 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = 
               </p>
             )}
           </div>
-          {/* Active NPS Trail Indicator */}
           {activeNPSTrail && (
-            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10" title={t("cs.npsTrail.pendingNPS")}>
-              <MessageSquare className="h-3 w-3 text-primary" />
-              <span className="text-xs text-primary font-medium">
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/10" title={t("cs.npsTrail.pendingNPS")}>
+              <MessageSquare className="h-3 w-3 text-accent" />
+              <span className="text-xs text-accent font-medium">
                 {activeNPSTrail.progress_percentage || 0}%
               </span>
             </div>
@@ -121,18 +123,18 @@ export function CSKanbanCard({ company, csms, onDragStart, onClick, draggable = 
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getHealthColor(healthScore)}`}>
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getHealthBg(healthScore)} ${getHealthColor(healthScore)}`}>
             <Heart className="h-3 w-3" />
             {healthScore}%
           </div>
-          
+
           {company.mrr && company.mrr > 0 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <DollarSign className="h-3 w-3" />
               {formatCurrency(company.mrr)}
             </div>
           )}
-          
+
           {getNPSBadge(company.last_nps_score)}
         </div>
 
