@@ -182,14 +182,17 @@ export function AppSidebar() {
     "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
   const groupLabelCls = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-2 py-1.5";
 
+  const logoSrc = theme === "dark" ? "/logo-dark.svg" : "/logo-light.svg";
+  const iconSrc = theme === "dark" ? "/logo-icon-dark.svg" : "/logo-icon-light.svg";
+
   return (
-    <Sidebar className="border-r border-white/[0.06]" collapsible="icon">
-      <SidebarHeader className="border-b border-white/[0.06] px-4 py-5">
+    <Sidebar className="border-r border-sidebar-border" collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border px-2 py-6">
         <Link to="/" className="flex items-center justify-center gap-3 min-w-0 w-full">
           {collapsed ? (
-            <img src="/logo-icon-dark.svg" alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
+            <img src={iconSrc} alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
           ) : (
-            <img src="/logo-dark.svg" alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
+            <img src={logoSrc} alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
           )}
         </Link>
       </SidebarHeader>
