@@ -1,100 +1,60 @@
 
-# Correção do Colapso da Sidebar + Submenu Workspace
+# Correção do Estado do Submenu Workspace ao Navegar
 
-## Problema 1 — Sidebar não colapsa ao clicar no SidebarTrigger
+## Diagnóstico Real
 
-### Causa Raiz Real
+O componente `AppSidebar` **não desmonta** ao navegar (está fora do `{children}` no `SidebarLayout`). O problema, portanto, é outro: o `Collapsible` do Workspace (linha 333) tem `onOpenChange={handleWorkspaceOpen}`, e o Radix `Collapsible` chama `onOpenChange` sempre que seu estado interno muda — incluindo quando o `open` prop muda de `undefined` para um valor booleano, ou quando eventos de bubble chegam ao trigger.
 
-Em `src/components/SidebarLayout.tsx`, o `SidebarProvider` recebe `onOpenChange` mas **não recebe a prop `open`**:
+O fluxo problemático identificado:
 
-```tsx
-<SidebarProvider
-  defaultOpen={sidebarDefaultOpen}
-  onOpenChange={(open) => localStorage.setItem("sidebar-open", String(open))}
->
-```
+1. O usuário abre o workspace (workspaceOpen = true, localStorage = "true")
+2. Clica em "Chat Settings", "History", "Banners" etc.
+3. O evento de clique no `SidebarMenuButton` sobe pela árvore DOM
+4. Chega ao `CollapsibleTrigger asChild` do Chat (`SidebarGroupLabel`, linha 301-312) — esse trigger envolve todo o label do Chat
+5. Isso dispara o `chatOpen` toggle → `chatOpen` vira `false` → o `CollapsibleContent` do Chat (linha 313) desmonta
+6. O `Collapsible` do Workspace, que está **dentro** do `CollapsibleContent` do Chat, é desmontado e remontado
+7. Na remontagem, `workspaceOpen` reinicia do localStorage (correto), mas o Radix `Collapsible` passa por um ciclo de mount que causa o flash visual
 
-Isso cria um bug de estado semi-controlado. No `sidebar.tsx` (linhas 56–71), a lógica do `setOpen` é:
+**Confirmação:** Os botões de "Dashboard", "History", "Banners", "Chat Settings" estão todos **dentro** do `CollapsibleContent` do Chat (linhas 313-454), mas seus `onClick` chamam apenas `navigate()` sem `e.stopPropagation()`. O evento sobe até o `CollapsibleTrigger asChild` do Chat (o `SidebarGroupLabel`).
 
-```tsx
-const [_open, _setOpen] = useState(defaultOpen);
-const open = openProp ?? _open;  // openProp é undefined → usa _open
+## Causa Raiz Definitiva
 
-const setOpen = useCallback((value) => {
-  const openState = ...
-  if (setOpenProp) {
-    setOpenProp(openState); // ← só chama o localStorage.setItem
-    // _setOpen NUNCA é chamado porque setOpenProp existe
-  } else {
-    _setOpen(openState);
-  }
-}, [setOpenProp, open]);
-```
+O `SidebarGroupLabel` na linha 302-312 é um `CollapsibleTrigger asChild` — qualquer clique que bubblar até ele vai disparar o toggle do `chatOpen`. Todos os `SidebarMenuButton` dentro do `CollapsibleContent` do Chat (Dashboard, History, Banners, Settings) **não têm** `e.stopPropagation()`, então seus eventos sobem livremente.
 
-Quando `onOpenChange` é fornecido (mesmo que seja apenas para salvar no localStorage), o Shadcn interpreta o `SidebarProvider` como **modo controlado externamente**. Isso faz com que o `setOpen` interno chame apenas `setOpenProp` (o handler do localStorage) e **nunca chame `_setOpen`**. Resultado: o estado `_open` fica travado no valor inicial (`defaultOpen`) e a sidebar nunca recolhe visualmente.
+Quando `chatOpen` é toggleado por engano:
+- O `CollapsibleContent` do Chat desmonta
+- O `Collapsible` do Workspace dentro dele também desmonta
+- Na remontagem, `workspaceOpen` é lido do localStorage novamente → gera o flash de "fecha e reabre"
 
-### Solução
+## Solução
 
-Tornar o `SidebarProvider` **completamente não-controlado** — remover o `onOpenChange` e persistir o estado no localStorage via o cookie que o próprio Shadcn já gerencia (linha 68 do `sidebar.tsx`):
+Adicionar `onClick={(e) => e.stopPropagation()}` no `<CollapsibleContent>` do **Chat** (linha 313), não apenas no do Workspace. Isso bloqueia todos os cliques nos itens filhos do Chat de chegarem ao `SidebarGroupLabel` (CollapsibleTrigger do Chat).
 
 ```tsx
-// O Shadcn já grava o cookie "sidebar:state" automaticamente em setOpen
-document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
-```
-
-Entretanto, o projeto usa `localStorage` (não cookie) para persistência. A solução correta é **manter o `onOpenChange` mas também passar `open` como prop controlada**, tornando o provider corretamente controlado:
-
-```tsx
-// SidebarLayout.tsx — SOLUÇÃO CORRETA
-const [sidebarOpen, setSidebarOpen] = useState(
-  () => localStorage.getItem("sidebar-open") !== "false"
-);
-
-<SidebarProvider
-  open={sidebarOpen}
-  onOpenChange={(open) => {
-    setSidebarOpen(open);
-    localStorage.setItem("sidebar-open", String(open));
-  }}
->
-```
-
-Assim o ciclo fica correto: `SidebarTrigger` → `toggleSidebar()` → `setOpen(false)` → chama `setOpenProp(false)` → atualiza o state React + localStorage → re-render → sidebar colapsa.
-
----
-
-## Problema 2 — Submenu "Atendentes" abre/fecha ao clicar em outros itens
-
-### Causa Raiz
-
-O `CollapsibleContent` do workspace (linha 368 de `AppSidebar.tsx`) contém os `SidebarMenuButton` dos atendentes, mas os cliques nesses botões podem subir via bubbling até o `CollapsibleTrigger` do bloco de Chat (linha 301-312), que usa `SidebarGroupLabel` como trigger. Quando o evento chega ao label do Chat, o `chatOpen` é toggleado, fazendo o bloco inteiro recolher e reabrir.
-
-O `div onClick={e.stopPropagation()}` na linha 334 só bloqueia o bubble do `SidebarMenuButton` do workspace em si — mas **não** bloqueia os cliques nos itens filhos dentro do `CollapsibleContent` (linha 368).
-
-### Solução
-
-Adicionar `onClick={(e) => e.stopPropagation()}` diretamente no `<CollapsibleContent>` do workspace (linha 368), bloqueando qualquer evento originado dentro da lista de atendentes de chegar ao trigger do Chat:
-
-```tsx
-// ANTES (linha 368)
+// ANTES — linha 313
 <CollapsibleContent>
 
 // DEPOIS
 <CollapsibleContent onClick={(e) => e.stopPropagation()}>
 ```
 
----
+Isso resolve de forma abrangente: qualquer clique dentro do bloco Chat (Dashboard, Workspace, atendentes, History, Banners, Settings) fica isolado dentro do `CollapsibleContent` e não consegue mais atingir o `CollapsibleTrigger` do label pai.
+
+O mesmo padrão deve ser aplicado ao `CollapsibleContent` do NPS (linha 274) e do Relatórios (linha 475), pois sofrem do mesmo problema potencial.
 
 ## Arquivos a Modificar
 
 | Arquivo | Linha | Mudança |
 |---|---|---|
-| `src/components/SidebarLayout.tsx` | 33–51 | Transformar em componente com state `sidebarOpen` + passar `open` e `onOpenChange` ao `SidebarProvider` |
-| `src/components/AppSidebar.tsx` | 368 | Adicionar `onClick={(e) => e.stopPropagation()}` no `<CollapsibleContent>` do workspace |
+| `src/components/AppSidebar.tsx` | 274 | `<CollapsibleContent>` do NPS → adicionar `onClick={(e) => e.stopPropagation()}` |
+| `src/components/AppSidebar.tsx` | 313 | `<CollapsibleContent>` do Chat → adicionar `onClick={(e) => e.stopPropagation()}` |
+| `src/components/AppSidebar.tsx` | 475 | `<CollapsibleContent>` do Relatórios → adicionar `onClick={(e) => e.stopPropagation()}` |
+
+A linha 368 (`CollapsibleContent` do Workspace) já tem o `stopPropagation` do fix anterior — mantida.
 
 ## O que NÃO é alterado
 
-- Lógica de autenticação e redirecionamento do `SidebarLayout`
-- Estado dos submenus (npsOpen, chatOpen, reportsOpen, workspaceOpen) e persistência
-- Qualquer outro componente, página ou arquivo
-- Backend, rotas, design system
+- Lógica de navegação e `navigate()` dos itens
+- Estado dos submenus e persistência no localStorage
+- SidebarTrigger e colapso da sidebar (já corrigido)
+- Qualquer outro arquivo, componente ou página
