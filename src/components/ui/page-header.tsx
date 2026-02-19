@@ -12,7 +12,7 @@ export function PageHeader({ title, subtitle, children, className }: PageHeaderP
   return (
     <div className={cn("flex items-center justify-between gap-4", className)}>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <h1 className="text-[28px] font-medium tracking-normal leading-tight">{title}</h1>
         {subtitle && (
           <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
         )}

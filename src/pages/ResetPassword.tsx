@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Loader2, Zap, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -25,12 +25,10 @@ const ResetPassword = () => {
       }
     });
 
-    // Also check if there's already a session (user came back to page)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSessionReady(true);
       } else {
-        // Give a moment for the hash to be processed
         setTimeout(() => {
           supabase.auth.getSession().then(({ data: { session: s } }) => {
             if (s) setSessionReady(true);
@@ -70,13 +68,10 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-accent to-primary/80 p-4">
-      <Card className="w-full max-w-md p-8 shadow-xl">
-        <div className="flex items-center justify-center mb-8">
-          <Zap className="h-10 w-10 text-primary mr-3" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Journey CS
-          </h1>
+    <div className="min-h-screen flex items-center justify-center bg-dark-hero p-4">
+      <Card className="w-full max-w-md p-8 shadow-xl border-white/10 bg-card/80 backdrop-blur-sm">
+        <div className="flex justify-center mb-8">
+          <img src="/logo-dark.png" alt="Journey" className="h-10 w-auto" />
         </div>
 
         {sessionError ? (
@@ -90,7 +85,7 @@ const ResetPassword = () => {
           </div>
         ) : !sessionReady ? (
           <div className="text-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-accent" />
             <p className="text-muted-foreground text-sm">Verificando link...</p>
           </div>
         ) : (
