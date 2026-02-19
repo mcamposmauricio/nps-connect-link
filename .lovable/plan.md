@@ -1,91 +1,100 @@
 
-# Ajustes Visuais — Landing Page
+# Correção do Colapso da Sidebar + Submenu Workspace
 
-## Alterações Solicitadas
+## Problema 1 — Sidebar não colapsa ao clicar no SidebarTrigger
 
-### 1. Logos maiores (mais visibilidade)
+### Causa Raiz Real
 
-**Navbar** (`LandingPage.tsx`, linha 134):
-- `className="h-7 w-auto"` → `className="h-9 w-auto"`
+Em `src/components/SidebarLayout.tsx`, o `SidebarProvider` recebe `onOpenChange` mas **não recebe a prop `open`**:
 
-**Footer** (`LandingPage.tsx`, linha 383):
-- `className="h-6 w-auto"` → `className="h-8 w-auto"`
-
----
-
-### 2. Diminuir tons de coral nas letras
-
-O coral `#FF7A59` aparece em **textos** (não botões) em dois lugares críticos:
-
-- **Hero** — `<span style={{ color: "#FF7A59" }}>Predictable Revenue.</span>` → mudar para `rgba(255,122,89,0.72)` (tom mais suave, menos saturado)
-- **Final CTA** — `<span style={{ color: "#FF7A59" }}>Revenue is the Outcome."</span>` → mesma redução
-- **Labels de seção** em coral (ex: `color: "#FF7A59"` no label "CRM + Timeline") → `rgba(255,122,89,0.72)`
-
-Botões **não são alterados** — continuam com `#FF7A59` sólido, pois precisam de contraste máximo para conversão.
-
----
-
-### 3. Diminuir espaçamento entre as seções
-
-Cada seção usa `py-24` (96px top + bottom). Reduzir para `py-14` (56px):
-
-| Arquivo | Seção | Mudança |
-|---|---|---|
-| `LandingPage.tsx` | Hero | `py-32` → `py-20` e `minHeight: "88vh"` → `"72vh"` |
-| `LandingPage.tsx` | Early Access Form | `py-24` → `py-14` |
-| `LandingPage.tsx` | Final CTA | `py-24` → `py-14` |
-| `LandingFeatures.tsx` | Core Modules | `py-24` → `py-14` |
-| `LandingTimeline.tsx` | CRM Timeline | `py-24` → `py-14` |
-
----
-
-### 4. Retirar a seção do Kanban
-
-O usuário enviou um print da seção Kanban (Customer Journey Pipeline) — essa é a seção a ser removida.
-
-**`LandingPage.tsx`**: remover a linha que importa e renderiza `<LandingKanban />`:
 ```tsx
-// Remover import:
-import LandingKanban from "@/components/landing/LandingKanban";
-
-// Remover do JSX:
-{/* ── SECTION 4: KANBAN ─────────────────────────────── */}
-<LandingKanban />
+<SidebarProvider
+  defaultOpen={sidebarDefaultOpen}
+  onOpenChange={(open) => localStorage.setItem("sidebar-open", String(open))}
+>
 ```
 
-O arquivo `LandingKanban.tsx` pode ser mantido no projeto (não deletado), já que pode ser reutilizado futuramente.
+Isso cria um bug de estado semi-controlado. No `sidebar.tsx` (linhas 56–71), a lógica do `setOpen` é:
+
+```tsx
+const [_open, _setOpen] = useState(defaultOpen);
+const open = openProp ?? _open;  // openProp é undefined → usa _open
+
+const setOpen = useCallback((value) => {
+  const openState = ...
+  if (setOpenProp) {
+    setOpenProp(openState); // ← só chama o localStorage.setItem
+    // _setOpen NUNCA é chamado porque setOpenProp existe
+  } else {
+    _setOpen(openState);
+  }
+}, [setOpenProp, open]);
+```
+
+Quando `onOpenChange` é fornecido (mesmo que seja apenas para salvar no localStorage), o Shadcn interpreta o `SidebarProvider` como **modo controlado externamente**. Isso faz com que o `setOpen` interno chame apenas `setOpenProp` (o handler do localStorage) e **nunca chame `_setOpen`**. Resultado: o estado `_open` fica travado no valor inicial (`defaultOpen`) e a sidebar nunca recolhe visualmente.
+
+### Solução
+
+Tornar o `SidebarProvider` **completamente não-controlado** — remover o `onOpenChange` e persistir o estado no localStorage via o cookie que o próprio Shadcn já gerencia (linha 68 do `sidebar.tsx`):
+
+```tsx
+// O Shadcn já grava o cookie "sidebar:state" automaticamente em setOpen
+document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+```
+
+Entretanto, o projeto usa `localStorage` (não cookie) para persistência. A solução correta é **manter o `onOpenChange` mas também passar `open` como prop controlada**, tornando o provider corretamente controlado:
+
+```tsx
+// SidebarLayout.tsx — SOLUÇÃO CORRETA
+const [sidebarOpen, setSidebarOpen] = useState(
+  () => localStorage.getItem("sidebar-open") !== "false"
+);
+
+<SidebarProvider
+  open={sidebarOpen}
+  onOpenChange={(open) => {
+    setSidebarOpen(open);
+    localStorage.setItem("sidebar-open", String(open));
+  }}
+>
+```
+
+Assim o ciclo fica correto: `SidebarTrigger` → `toggleSidebar()` → `setOpen(false)` → chama `setOpenProp(false)` → atualiza o state React + localStorage → re-render → sidebar colapsa.
 
 ---
 
-### 5. Textos mais próximos da landing anterior
+## Problema 2 — Submenu "Atendentes" abre/fecha ao clicar em outros itens
 
-Comparando o arquivo original fornecido no contexto inicial com a versão atual, os textos do hero eram idênticos. O usuário quer que a subheadline do hero seja mais direta, sem quebras de linha artificiais:
+### Causa Raiz
 
-**Hero subheadline** — de:
+O `CollapsibleContent` do workspace (linha 368 de `AppSidebar.tsx`) contém os `SidebarMenuButton` dos atendentes, mas os cliques nesses botões podem subir via bubbling até o `CollapsibleTrigger` do bloco de Chat (linha 301-312), que usa `SidebarGroupLabel` como trigger. Quando o evento chega ao label do Chat, o `chatOpen` é toggleado, fazendo o bloco inteiro recolher e reabrir.
+
+O `div onClick={e.stopPropagation()}` na linha 334 só bloqueia o bubble do `SidebarMenuButton` do workspace em si — mas **não** bloqueia os cliques nos itens filhos dentro do `CollapsibleContent` (linha 368).
+
+### Solução
+
+Adicionar `onClick={(e) => e.stopPropagation()}` diretamente no `<CollapsibleContent>` do workspace (linha 368), bloqueando qualquer evento originado dentro da lista de atendentes de chegar ao trigger do Chat:
+
+```tsx
+// ANTES (linha 368)
+<CollapsibleContent>
+
+// DEPOIS
+<CollapsibleContent onClick={(e) => e.stopPropagation()}>
 ```
-Monitor churn in real time. Automate NPS. Track customer health.
-Engage customers in-product. Manage journeys and revenue signals
-in one unified platform.
-```
-Para um parágrafo fluido sem `<br />` forçados (mais próximo da versão anterior).
-
-**Seção Core Modules** — o subtítulo voltará para versão mais concisa:
-- "Everything your CS team needs. In one unified platform." (idêntico à versão anterior)
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Mudanças |
-|---|---|
-| `src/pages/LandingPage.tsx` | Logo maior (navbar + footer), coral mais suave em textos, espaçamentos reduzidos, remoção do import e render de `LandingKanban`, subheadline do hero sem quebras forçadas |
-| `src/components/landing/LandingFeatures.tsx` | `py-24` → `py-14` |
-| `src/components/landing/LandingTimeline.tsx` | `py-24` → `py-14` |
+| Arquivo | Linha | Mudança |
+|---|---|---|
+| `src/components/SidebarLayout.tsx` | 33–51 | Transformar em componente com state `sidebarOpen` + passar `open` e `onOpenChange` ao `SidebarProvider` |
+| `src/components/AppSidebar.tsx` | 368 | Adicionar `onClick={(e) => e.stopPropagation()}` no `<CollapsibleContent>` do workspace |
 
 ## O que NÃO é alterado
 
-- Cores dos botões (coral sólido mantido)
-- Lógica do formulário e submissão de leads
-- Mockups visuais (Chat, NPS, Dashboard, Timeline)
-- Backend, rotas, autenticação
-- Design system global
+- Lógica de autenticação e redirecionamento do `SidebarLayout`
+- Estado dos submenus (npsOpen, chatOpen, reportsOpen, workspaceOpen) e persistência
+- Qualquer outro componente, página ou arquivo
+- Backend, rotas, design system
