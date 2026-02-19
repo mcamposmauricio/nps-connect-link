@@ -271,7 +271,7 @@ export function AppSidebar() {
                         (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
+                  <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {npsItems.map((item) => (
@@ -310,7 +310,7 @@ export function AppSidebar() {
                         (chatOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
+                  <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                     <SidebarGroupContent>
                       <SidebarMenu>
                         <SidebarMenuItem>
@@ -472,7 +472,7 @@ export function AppSidebar() {
                         (reportsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
+                  <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {hasPermission("cs", "view") && (
