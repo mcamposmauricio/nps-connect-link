@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import LandingFeatures from "@/components/landing/LandingFeatures";
 import LandingTimeline from "@/components/landing/LandingTimeline";
 import LandingKanban from "@/components/landing/LandingKanban";
 import { ArrowRight, CheckCircle2, Loader2, MessageSquare, Target, MessageCircle, BarChart3 } from "lucide-react";
@@ -308,7 +307,7 @@ const LandingPage = () => {
 
       {/* ── SECTION 2: HERO ───────────────────────────────── */}
       <section
-        className="relative py-16 px-4 overflow-hidden"
+        className="relative py-12 px-4 overflow-hidden"
         style={{ minHeight: "72vh", display: "flex", alignItems: "center" }}
       >
         {/* Glow */}
@@ -423,9 +422,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── SECTION 3: CORE MODULES ───────────────────────── */}
-      <LandingFeatures t={t} />
-
       {/* ── SECTION 4: TIMELINE ───────────────────────────── */}
       <LandingTimeline t={t} />
 
@@ -433,7 +429,7 @@ const LandingPage = () => {
       <LandingKanban t={t} />
 
       {/* ── SECTION 5: EARLY ACCESS FORM ─────────────────── */}
-      <section id="early-access" className="py-14 px-4 relative overflow-hidden" style={{ background: "#0F1115" }}>
+      <section id="early-access" className="py-10 px-4 relative overflow-hidden" style={{ background: "#0F1115" }}>
         <div
           className="absolute pointer-events-none"
           style={{
@@ -550,33 +546,8 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── SECTION 6: FINAL CTA ─────────────────────────── */}
-      <section
-        className="py-14 px-4 text-center"
-        style={{
-          background: "linear-gradient(135deg, #131722 0%, #0F1115 50%, #131722 100%)",
-          borderTop: "1px solid rgba(255,255,255,0.04)",
-        }}
-      >
-        <div className="max-w-2xl mx-auto">
-          <p className="font-medium text-white mb-6" style={{ fontSize: "clamp(18px, 2.8vw, 28px)", lineHeight: 1.45, letterSpacing: "-0.02em" }}>
-            {t.quote}
-            <br />
-            <span style={{ color: "rgba(255,122,89,0.7)" }}>{t.quoteSpan}</span>
-          </p>
-          <button
-            onClick={scrollToForm}
-            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-medium text-sm transition-all duration-150 hover:opacity-90"
-            style={{ background: "#FF7A59", color: "#fff" }}
-          >
-            {t.heroCta}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </section>
-
       {/* ── FOOTER ───────────────────────────────────────── */}
-      <footer className="py-10 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "#0F1115" }}>
+      <footer className="py-7 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "#0F1115" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
