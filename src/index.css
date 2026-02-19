@@ -29,7 +29,7 @@
 
     /* Muted */
     --muted: 222 20% 14%;
-    --muted-foreground: 220 10% 65%;
+    --muted-foreground: 220 10% 68%;
 
     /* Accent — Metric Blue #3DA5F4 */
     --accent: 207 88% 60%;
@@ -49,8 +49,8 @@
     --detractor: 0 100% 68%;
 
     /* Borders & inputs */
-    --border: 220 14% 16%;
-    --input: 220 14% 16%;
+    --border: 220 14% 18%;
+    --input: 220 14% 18%;
     --ring: 207 88% 60%;
 
     --radius: 0.5rem;                  /* 8px */
@@ -62,7 +62,7 @@
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 225 19% 16%;     /* #1E2433 */
     --sidebar-accent-foreground: 220 18% 96%;
-    --sidebar-border: 220 14% 14%;
+    --sidebar-border: 220 14% 17%;
     --sidebar-ring: 207 88% 60%;
 
     /* Gradients & special backgrounds */
@@ -88,7 +88,7 @@
     --secondary: 225 19% 16%;
     --secondary-foreground: 220 18% 96%;
     --muted: 222 20% 14%;
-    --muted-foreground: 220 10% 65%;
+    --muted-foreground: 220 10% 68%;
     --accent: 207 88% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 100% 68%;
@@ -99,8 +99,8 @@
     --promoter: 152 65% 54%;
     --passive: 40 90% 62%;
     --detractor: 0 100% 68%;
-    --border: 220 14% 16%;
-    --input: 220 14% 16%;
+    --border: 220 14% 18%;
+    --input: 220 14% 18%;
     --ring: 207 88% 60%;
     --sidebar-background: 222 22% 10%;
     --sidebar-foreground: 220 18% 96%;
@@ -108,7 +108,7 @@
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 225 19% 16%;
     --sidebar-accent-foreground: 220 18% 96%;
-    --sidebar-border: 220 14% 14%;
+    --sidebar-border: 220 14% 17%;
     --sidebar-ring: 207 88% 60%;
   }
 }

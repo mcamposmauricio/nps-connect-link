@@ -122,16 +122,16 @@ export function AppSidebar() {
 
   // Active item style — subtle bg + Metric Blue left border
   const activeItemCls = "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
-  const groupLabelCls = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 px-2 py-1.5";
+  const groupLabelCls = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-2 py-1.5";
 
   return (
     <Sidebar className="border-r border-white/[0.06]" collapsible="icon">
-      <SidebarHeader className="border-b border-white/[0.06] px-4 py-4">
+      <SidebarHeader className="border-b border-white/[0.06] px-4 py-5">
         <Link to="/" className="flex items-center gap-3 min-w-0">
           {collapsed ? (
-          <img src="/logo-icon-dark.svg" alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
+          <img src="/logo-icon-dark.svg" alt="Journey" className="h-10 w-10 object-contain flex-shrink-0" />
           ) : (
-            <img src="/logo-dark.svg" alt="Journey" className="h-8 w-auto object-contain" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto object-contain max-w-[140px]" />
           )}
         </Link>
       </SidebarHeader>
