@@ -35,7 +35,7 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <main className="flex-1 flex flex-col">
-          <header className="h-14 border-b border-white/[0.08] flex items-center px-4 bg-sidebar">
+          <header className="h-14 border-b border-sidebar-border flex items-center px-4 bg-sidebar">
             <SidebarTrigger className="text-foreground/50 hover:text-foreground transition-colors" />
           </header>
           <div className="flex-1 p-6 overflow-auto bg-background">

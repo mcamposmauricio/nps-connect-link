@@ -48,7 +48,7 @@ const CampaignRedirect = () => {
 };
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="light">
+  <ThemeProvider attribute="class" defaultTheme="dark">
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
     <TooltipProvider>

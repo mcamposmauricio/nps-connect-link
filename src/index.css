@@ -9,70 +9,70 @@
 
 @layer base {
   :root {
-    /* Base surfaces */
-    --background: 220 12% 7%;          /* #0F1115 */
-    --foreground: 220 18% 96%;         /* #F2F4F8 */
+    /* Base surfaces — light theme */
+    --background: 220 20% 97%;         /* #F4F5F8 */
+    --foreground: 222 25% 12%;         /* #161C29 */
 
-    --card: 222 20% 12%;               /* #171C28 */
-    --card-foreground: 220 18% 96%;
+    --card: 0 0% 100%;                 /* #FFFFFF */
+    --card-foreground: 222 25% 12%;
 
-    --popover: 225 19% 16%;            /* #1E2433 */
-    --popover-foreground: 220 18% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 25% 12%;
 
-    /* Primary — Growth Coral #FF7A59 */
-    --primary: 14 100% 67%;
+    /* Primary — Growth Coral (levemente mais escuro para contraste AA no claro) */
+    --primary: 14 95% 55%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary surface */
-    --secondary: 225 19% 16%;          /* #1E2433 */
-    --secondary-foreground: 220 18% 96%;
+    --secondary: 220 15% 94%;          /* #ECEEF4 */
+    --secondary-foreground: 222 25% 12%;
 
     /* Muted */
-    --muted: 222 20% 14%;
-    --muted-foreground: 220 10% 68%;
+    --muted: 220 15% 92%;              /* #E6E8EF */
+    --muted-foreground: 220 10% 45%;   /* #696E7D */
 
-    /* Accent — Metric Blue #3DA5F4 */
-    --accent: 207 88% 60%;
+    /* Accent — Metric Blue (mais contraste em fundo claro) */
+    --accent: 207 80% 42%;
     --accent-foreground: 0 0% 100%;
 
     /* Semantic */
-    --destructive: 0 100% 68%;         /* #FF5C5C */
+    --destructive: 0 85% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 65% 54%;            /* #2ED47A */
-    --warning: 40 90% 62%;             /* #F5B546 */
-    --neutral: 220 10% 65%;
+    --success: 152 60% 40%;
+    --warning: 40 85% 48%;
+    --neutral: 220 10% 55%;
 
     /* NPS categories */
-    --promoter: 152 65% 54%;
-    --passive: 40 90% 62%;
-    --detractor: 0 100% 68%;
+    --promoter: 152 60% 40%;
+    --passive: 40 85% 48%;
+    --detractor: 0 85% 55%;
 
     /* Borders & inputs */
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
-    --ring: 207 88% 60%;
+    --border: 220 14% 85%;             /* #D3D6E0 */
+    --input: 220 14% 85%;
+    --ring: 207 80% 42%;
 
     --radius: 0.5rem;                  /* 8px */
 
-    /* Sidebar */
-    --sidebar-background: 222 22% 10%; /* #131722 */
-    --sidebar-foreground: 220 18% 96%;
-    --sidebar-primary: 207 88% 60%;    /* #3DA5F4 */
+    /* Sidebar — clara */
+    --sidebar-background: 220 20% 95%; /* #EEF0F5 */
+    --sidebar-foreground: 222 25% 15%;
+    --sidebar-primary: 207 80% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 19% 16%;     /* #1E2433 */
-    --sidebar-accent-foreground: 220 18% 96%;
-    --sidebar-border: 220 14% 17%;
-    --sidebar-ring: 207 88% 60%;
+    --sidebar-accent: 220 15% 88%;     /* #DADDE8 */
+    --sidebar-accent-foreground: 222 25% 12%;
+    --sidebar-border: 220 14% 82%;     /* #CDD0DB */
+    --sidebar-ring: 207 80% 42%;
 
     /* Gradients & special backgrounds */
     --gradient-hero: linear-gradient(135deg, hsl(224 47% 5%) 0%, hsl(222 22% 10%) 50%, hsl(224 47% 5%) 100%);
     --gradient-cosmic: radial-gradient(ellipse at 30% 50%, hsl(14 100% 67% / 0.08) 0%, transparent 60%);
 
-    /* Shadows (subtle) */
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4);
-    --shadow-lg: 0 10px 20px -3px hsl(0 0% 0% / 0.5);
+    /* Shadows — suaves no claro */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.08);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 20px -3px hsl(0 0% 0% / 0.12);
   }
 
   /* .dark mirrors :root — system is dark-first */
