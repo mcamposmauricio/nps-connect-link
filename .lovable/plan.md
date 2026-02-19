@@ -6,7 +6,7 @@
 
 No `AppSidebar.tsx`, as imagens do logo estão com:
 
-- **Logo expandido**: `h-8 w-auto` → 64px de altura (pequeno para ser marca âncora)
+- **Logo expandido**: `h-16 w-auto` → 64px de altura (pequeno para ser marca âncora)
 - **Ícone colapsado**: `h-8 w-8` → 32x32px (pequeno e sem área de respiro)
 
 O `SidebarHeader` tem apenas `py-4` (16px cima/baixo) e o logo fica "espremido" dentro de um container pequeno.
