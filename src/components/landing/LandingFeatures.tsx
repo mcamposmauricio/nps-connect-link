@@ -1,75 +1,104 @@
 import { MessageSquare, Target, BarChart3 } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
 
-const ChatMockupVisible = () => (
-  <div className="w-full rounded-lg border border-white/10 bg-white/5 overflow-hidden mt-4">
-    <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/5">
-      <div className="w-5 h-5 rounded-full bg-accent/40" />
-      <div className="h-2 w-14 rounded bg-white/30" />
+const ChatMockup = () => (
+  <div className="w-full rounded-xl overflow-hidden mt-5" style={{ background: "#1E2433", border: "1px solid rgba(255,255,255,0.06)" }}>
+    {/* Header */}
+    <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold" style={{ background: "rgba(255,122,89,0.2)", color: "#FF7A59" }}>J</div>
+      <div className="flex-1">
+        <div className="h-2 w-16 rounded" style={{ background: "rgba(255,255,255,0.2)" }} />
+        <div className="h-1.5 w-10 rounded mt-1" style={{ background: "rgba(255,255,255,0.1)" }} />
+      </div>
+      <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#2ED47A" }} />
     </div>
-    <div className="p-3 space-y-2">
+    {/* Messages */}
+    <div className="p-3 space-y-2.5">
       <div className="flex justify-start">
-        <div className="rounded-lg rounded-tl-none bg-white/10 px-3 py-1.5 max-w-[75%]">
-          <div className="h-1.5 w-24 rounded bg-white/30" />
-          <div className="h-1.5 w-16 rounded bg-white/20 mt-1" />
+        <div className="rounded-lg rounded-tl-none px-3 py-2 max-w-[78%]" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <div className="h-1.5 w-28 rounded" style={{ background: "rgba(255,255,255,0.22)" }} />
+          <div className="h-1.5 w-20 rounded mt-1.5" style={{ background: "rgba(255,255,255,0.14)" }} />
         </div>
       </div>
       <div className="flex justify-end">
-        <div className="rounded-lg rounded-tr-none bg-accent/25 px-3 py-1.5 max-w-[75%]">
-          <div className="h-1.5 w-20 rounded bg-white/30" />
+        <div className="rounded-lg rounded-tr-none px-3 py-2 max-w-[78%]" style={{ background: "rgba(255,122,89,0.18)" }}>
+          <div className="h-1.5 w-24 rounded" style={{ background: "rgba(255,255,255,0.22)" }} />
         </div>
       </div>
       <div className="flex justify-start">
-        <div className="rounded-lg rounded-tl-none bg-white/10 px-3 py-1.5 max-w-[75%]">
-          <div className="h-1.5 w-28 rounded bg-white/30" />
+        <div className="rounded-lg rounded-tl-none px-3 py-2 max-w-[78%]" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <div className="h-1.5 w-32 rounded" style={{ background: "rgba(255,255,255,0.22)" }} />
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <div className="rounded-lg rounded-tr-none px-3 py-2 max-w-[78%]" style={{ background: "rgba(255,122,89,0.18)" }}>
+          <div className="h-1.5 w-16 rounded" style={{ background: "rgba(255,255,255,0.22)" }} />
+          <div className="h-1.5 w-20 rounded mt-1.5" style={{ background: "rgba(255,255,255,0.14)" }} />
         </div>
       </div>
     </div>
-    <div className="px-3 py-2 border-t border-white/10">
-      <div className="h-6 rounded-full bg-white/5 border border-white/10" />
+    <div className="px-3 py-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="h-7 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }} />
     </div>
   </div>
 );
 
-const NPSMockupVisible = () => (
-  <div className="w-full rounded-lg border border-white/10 bg-white/5 p-4 mt-4 space-y-2">
-    <div className="text-3xl font-bold text-accent text-center">72</div>
-    <div className="text-[10px] text-white/40 text-center uppercase tracking-wider">NPS Score</div>
-    <div className="flex h-2.5 rounded-full overflow-hidden">
-      <div className="w-[15%] bg-destructive/40" />
-      <div className="w-[20%] bg-warning/40" />
-      <div className="w-[65%] bg-accent/40" />
+const NPSMockup = () => (
+  <div className="w-full rounded-xl mt-5 p-4 space-y-3" style={{ background: "#1E2433", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-[11px] uppercase tracking-wider font-medium mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>NPS Score</div>
+        <div className="text-4xl font-semibold" style={{ color: "#FF7A59" }}>72</div>
+      </div>
+      <div className="text-right">
+        <div className="text-[11px] mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Responses</div>
+        <div className="text-lg font-medium text-white">1,247</div>
+      </div>
     </div>
-    <div className="flex justify-between text-[9px] text-white/30">
-      <span>Detratores</span><span>Neutros</span><span>Promotores</span>
+    {/* Score bar */}
+    <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5">
+      <div className="rounded-l-full" style={{ width: "15%", background: "#FF5C5C88" }} />
+      <div style={{ width: "20%", background: "#F5B54688" }} />
+      <div className="rounded-r-full" style={{ width: "65%", background: "#2ED47A88" }} />
     </div>
-    <div className="grid grid-cols-3 gap-2 pt-1">
-      {[["12%", "text-destructive/60"], ["16%", "text-warning/60"], ["72%", "text-accent/60"]].map(([v, c], i) => (
-        <div key={i} className="text-center">
-          <div className={`text-sm font-semibold ${c}`}>{v}</div>
+    <div className="grid grid-cols-3 gap-2">
+      {[
+        ["Detractors", "15%", "#FF5C5C"],
+        ["Passives", "20%", "#F5B546"],
+        ["Promoters", "65%", "#2ED47A"],
+      ].map(([label, pct, color]) => (
+        <div key={label} className="text-center rounded-lg py-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+          <div className="text-sm font-semibold" style={{ color }}>{pct}</div>
+          <div className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</div>
         </div>
       ))}
     </div>
   </div>
 );
 
-const CSMockupVisible = () => (
-  <div className="w-full rounded-lg border border-white/10 bg-white/5 p-3 mt-4 space-y-2.5">
+const DashboardMockup = () => (
+  <div className="w-full rounded-xl mt-5 p-3 space-y-3" style={{ background: "#1E2433", border: "1px solid rgba(255,255,255,0.06)" }}>
     <div className="grid grid-cols-2 gap-2">
-      {[["MRR", "R$ 142k"], ["Churn", "2.1%"], ["Health", "78%"], ["CSAT", "4.6"]].map(([label, val]) => (
-        <div key={label} className="rounded-md border border-white/10 bg-white/5 p-2">
-          <div className="text-[8px] text-white/30 uppercase">{label}</div>
-          <div className="text-xs font-semibold text-white/60">{val}</div>
+      {[
+        ["MRR", "$142k", "#3DA5F4"],
+        ["Churn", "2.1%", "#FF5C5C"],
+        ["Health", "78%", "#2ED47A"],
+        ["CSAT", "4.6 / 5", "#F5B546"],
+      ].map(([label, val, color]) => (
+        <div key={label} className="rounded-lg p-2.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</div>
+          <div className="text-sm font-semibold" style={{ color }}>{val}</div>
         </div>
       ))}
     </div>
-    <svg viewBox="0 0 200 40" className="w-full h-8">
-      <path
-        d="M0,35 Q25,30 50,25 T100,15 T150,20 T200,10 V40 H0 Z"
-        fill="hsl(160 84% 39% / 0.15)"
-        stroke="hsl(160 84% 39% / 0.3)"
-        strokeWidth="1"
-      />
+    <svg viewBox="0 0 200 36" className="w-full h-8">
+      <defs>
+        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3DA5F4" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#3DA5F4" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d="M0,32 Q30,28 60,22 T120,14 T170,16 T200,8 V36 H0 Z" fill="url(#chartGrad)" />
+      <path d="M0,32 Q30,28 60,22 T120,14 T170,16 T200,8" fill="none" stroke="#3DA5F4" strokeWidth="1.5" />
     </svg>
   </div>
 );
@@ -78,61 +107,71 @@ const features = [
   {
     key: "chat",
     icon: MessageSquare,
-    titleKey: "landing.features.chat.title",
-    descKey: "landing.features.chat.desc",
-    Mockup: ChatMockupVisible,
+    iconColor: "#FF7A59",
+    title: "In-Product Conversations",
+    desc: "Engage customers directly inside your product. Resolve friction faster and create retention opportunities in real time.",
+    Mockup: ChatMockup,
   },
   {
     key: "nps",
     icon: Target,
-    titleKey: "landing.features.nps.title",
-    descKey: "landing.features.nps.desc",
-    Mockup: NPSMockupVisible,
+    iconColor: "#3DA5F4",
+    title: "NPS Connected to Revenue",
+    desc: "Automated NPS flows connected to health score and churn prediction. Turn feedback into action.",
+    Mockup: NPSMockup,
   },
   {
-    key: "cs",
+    key: "dashboard",
     icon: BarChart3,
-    titleKey: "landing.features.cs.title",
-    descKey: "landing.features.cs.desc",
-    Mockup: CSMockupVisible,
+    iconColor: "#2ED47A",
+    title: "Revenue & Health Signals",
+    desc: "Churn, MRR impact, CSAT and engagement in one executive view. No more scattered dashboards.",
+    Mockup: DashboardMockup,
   },
 ];
 
-const LandingFeatures = () => {
-  const { t } = useLanguage();
-
-  return (
-    <section className="relative z-10 py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 animate-fade-in-up">
-          <h2 className="text-2xl lg:text-3xl font-bold text-white mb-3">
-            {t("landing.features.title")}
-          </h2>
-          <p className="text-white/50 max-w-2xl mx-auto">
-            {t("landing.features.subtitle")}
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {features.map(({ key, icon: Icon, titleKey, descKey, Mockup }, i) => (
-            <div
-              key={key}
-              className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 animate-fade-in-up delay-${(i + 1) * 100}`}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-accent/20">
-                  <Icon className="h-5 w-5 text-accent" />
-                </div>
-                <h3 className="text-lg font-semibold text-white">{t(titleKey)}</h3>
-              </div>
-              <p className="text-sm text-white/50 leading-relaxed">{t(descKey)}</p>
-              <Mockup />
-            </div>
-          ))}
-        </div>
+const LandingFeatures = () => (
+  <section className="py-24" style={{ background: "#0F1115" }}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="text-center mb-14 animate-fade-in-up">
+        <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: "#2ED47A" }}>
+          Core Modules
+        </p>
+        <h2 className="text-[28px] font-medium text-white mb-3" style={{ lineHeight: 1.25 }}>
+          Everything your CS team needs.<br />In one unified platform.
+        </h2>
+        <p className="text-base" style={{ color: "rgba(255,255,255,0.5)", maxWidth: 520, margin: "0 auto" }}>
+          From real-time conversations to automated NPS and executive dashboards — Journey unifies your customer intelligence.
+        </p>
       </div>
-    </section>
-  );
-};
+
+      <div className="grid md:grid-cols-3 gap-5">
+        {features.map(({ key, icon: Icon, iconColor, title, desc, Mockup }, i) => (
+          <div
+            key={key}
+            className={`rounded-2xl p-6 flex flex-col animate-fade-in-up delay-${(i + 1) * 100}`}
+            style={{
+              background: "#171C28",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: `${iconColor}18` }}
+              >
+                <Icon style={{ color: iconColor }} className="w-4 h-4" />
+              </div>
+              <h3 className="text-[15px] font-medium text-white">{title}</h3>
+            </div>
+            <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>{desc}</p>
+            <Mockup />
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
 export default LandingFeatures;
