@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import LandingFeatures from "@/components/landing/LandingFeatures";
-import LandingKanban from "@/components/landing/LandingKanban";
 import LandingTimeline from "@/components/landing/LandingTimeline";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -33,7 +32,7 @@ const LandingInput = ({
     placeholder={placeholder}
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className="w-full px-4 py-3 rounded-lg text-sm text-white outline-none transition-colors duration-150"
+    className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors duration-150"
     style={{
       background: "#1E2433",
       border: "1px solid rgba(255,255,255,0.08)",
@@ -131,7 +130,7 @@ const LandingPage = () => {
             className="flex items-center cursor-pointer"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           >
-            <img src="/logo-dark.svg" alt="Journey" className="h-7 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-9 w-auto" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -160,8 +159,8 @@ const LandingPage = () => {
 
       {/* ── SECTION 2: HERO ───────────────────────────────── */}
       <section
-        className="relative flex flex-col items-center justify-center text-center py-32 px-4 overflow-hidden"
-        style={{ minHeight: "88vh" }}
+        className="relative flex flex-col items-center justify-center text-center py-20 px-4 overflow-hidden"
+        style={{ minHeight: "72vh" }}
       >
         {/* Glow */}
         <div
@@ -179,7 +178,7 @@ const LandingPage = () => {
             style={{
               background: "rgba(255,122,89,0.1)",
               border: "1px solid rgba(255,122,89,0.2)",
-              color: "#FF7A59",
+              color: "rgba(255,122,89,0.85)",
             }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
@@ -191,11 +190,11 @@ const LandingPage = () => {
             style={{ fontSize: "clamp(32px, 5vw, 52px)", lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
             Turn Customer Success into<br />
-            <span style={{ color: "#FF7A59" }}>Predictable Revenue.</span>
+            <span style={{ color: "rgba(255,122,89,0.8)" }}>Predictable Revenue.</span>
           </h1>
 
           <p
-            className="animate-fade-in-up delay-200 mb-10"
+            className="animate-fade-in-up delay-200"
             style={{
               fontSize: "clamp(15px, 2vw, 18px)",
               lineHeight: 1.7,
@@ -204,9 +203,7 @@ const LandingPage = () => {
               margin: "0 auto 40px",
             }}
           >
-            Monitor churn in real time. Automate NPS. Track customer health.<br />
-            Engage customers in-product. Manage journeys and revenue signals<br />
-            in one unified platform.
+            Monitor churn in real time. Automate NPS. Track customer health. Engage customers in-product. Manage journeys and revenue signals in one unified platform.
           </p>
 
           <div className="animate-fade-in-up delay-300 flex flex-col items-center gap-3">
@@ -232,19 +229,15 @@ const LandingPage = () => {
       {/* ── SECTION 3: CORE MODULES ───────────────────────── */}
       <LandingFeatures />
 
-      {/* ── SECTION 4: KANBAN ─────────────────────────────── */}
-      <LandingKanban />
-
-      {/* ── SECTION 5: TIMELINE ───────────────────────────── */}
+      {/* ── SECTION 4: TIMELINE ───────────────────────────── */}
       <LandingTimeline />
 
-      {/* ── SECTION 6: EARLY ACCESS FORM ─────────────────── */}
+      {/* ── SECTION 5: EARLY ACCESS FORM ─────────────────── */}
       <section
         id="early-access"
-        className="py-24 px-4 relative overflow-hidden"
+        className="py-14 px-4 relative overflow-hidden"
         style={{ background: "#0F1115" }}
       >
-        {/* Glow */}
         <div
           className="absolute pointer-events-none"
           style={{
@@ -346,9 +339,9 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── SECTION 7: FINAL CTA ─────────────────────────── */}
+      {/* ── SECTION 6: FINAL CTA ─────────────────────────── */}
       <section
-        className="py-24 px-4 text-center"
+        className="py-14 px-4 text-center"
         style={{
           background: "linear-gradient(135deg, #131722 0%, #0F1115 50%, #131722 100%)",
           borderTop: "1px solid rgba(255,255,255,0.05)",
@@ -360,7 +353,7 @@ const LandingPage = () => {
             style={{ fontSize: "clamp(20px, 3vw, 30px)", lineHeight: 1.4 }}
           >
             "Customer Experience is a Signal.<br />
-            <span style={{ color: "#FF7A59" }}>Revenue is the Outcome."</span>
+            <span style={{ color: "rgba(255,122,89,0.75)" }}>Revenue is the Outcome."</span>
           </p>
           <button
             onClick={scrollToForm}
@@ -380,7 +373,7 @@ const LandingPage = () => {
       >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo-dark.svg" alt="Journey" className="h-6 w-auto" />
+            <img src="/logo-dark.svg" alt="Journey" className="h-8 w-auto" />
             <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
               Infrastructure for Revenue-Driven CS Teams
             </span>
