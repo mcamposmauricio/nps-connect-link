@@ -127,6 +127,31 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: 0;
+  }
+
+  h1 {
+    font-size: clamp(32px, 2.5vw, 40px);
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
   }
 }
 

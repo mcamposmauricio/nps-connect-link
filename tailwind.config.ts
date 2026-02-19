@@ -16,6 +16,12 @@ export default {
       fontFamily: {
         sans: ["Manrope", "sans-serif"],
       },
+      fontSize: {
+        'h1': ['clamp(32px, 2.5vw, 40px)', { lineHeight: '1.2', fontWeight: '500', letterSpacing: '0' }],
+        'h2': ['20px', { lineHeight: '1.4', fontWeight: '400', letterSpacing: '0' }],
+        'h3': ['18px', { lineHeight: '1.4', fontWeight: '500', letterSpacing: '0' }],
+        'body-md': ['15px', { lineHeight: '1.6', fontWeight: '400', letterSpacing: '0' }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
