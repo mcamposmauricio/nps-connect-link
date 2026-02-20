@@ -1,138 +1,289 @@
 
-# Teste End-to-End: Diagnóstico e Plano de Correções
+# Corrigir Flickering + Unread Count de Mensagens do Atendente
 
-## Resultado do Diagnóstico
+## Diagnóstico Completo
 
-Após análise completa de todos os arquivos, banco de dados e lógica de runtime, foram identificados **3 bugs críticos** e **4 melhorias** importantes.
+### Bug 1 — Flickering (confirmado)
 
----
+Em `useChatRealtime.ts`, toda vez que uma mensagem chega via Realtime:
 
-## Bug 1 — CRÍTICO: Widget não consegue ler as configurações de exibição
-
-**Problema:** A tabela `chat_settings` tem RLS habilitada com apenas uma política: `"Tenant members manage chat settings"` que exige `auth.uid()`. Visitantes do widget são **anônimos** (sem autenticação), então toda leitura de `chat_settings` retorna vazio. O estado `widgetConfig` nunca é preenchido — todos os toggles e textos personalizados configurados pelo admin são **ignorados em produção**.
-
-**Evidência:**
-- `pg_policies` confirma: única política é `cmd=ALL`, sem SELECT público
-- Widget faz `.from("chat_settings").eq("user_id", ownerUserId)` como usuário anônimo → retorna 0 linhas
-
-**Correção:** Adicionar uma política SELECT pública que permite leitura por `user_id` (não expõe dados sensíveis — apenas configurações visuais):
-```sql
-CREATE POLICY "Public can read widget config by user_id"
-ON public.chat_settings FOR SELECT
-USING (true);
-```
-Como alternativa mais restrita (por segurança, esconder o `welcome_message` e configs internas):
-```sql
-CREATE POLICY "Public can read widget display config"
-ON public.chat_settings FOR SELECT
-USING (true);
-```
-
----
-
-## Bug 2 — CRÍTICO: Trigger `assign_chat_room()` referencia coluna inexistente
-
-**Problema:** A função SQL `assign_chat_room()` busca horários de atendimento assim:
-```sql
-WHERE owner_user_id = NEW.owner_user_id
-```
-Porém a tabela `chat_business_hours` **não possui a coluna `owner_user_id`** — as colunas são: `id, user_id, day_of_week, start_time, end_time, is_active, created_at, tenant_id`.
-
-**Por que não quebrou ainda:** A tabela `chat_business_hours` está vazia (nenhum horário salvo). Quando a consulta `SELECT EXISTS(...)` roda com uma coluna inexistente, o PostgreSQL lança um erro de compilação — mas **só executa ao encontrar a primeira row**. Com tabela vazia o EXISTS retorna false sem checar as colunas. Assim que o admin salvar qualquer horário de atendimento, o trigger vai quebrar com `ERROR: column "owner_user_id" does not exist`.
-
-**Correção:** Atualizar a função para usar `tenant_id`:
-```sql
-WHERE tenant_id = (SELECT tenant_id FROM public.user_profiles WHERE user_id = NEW.owner_user_id LIMIT 1)
-```
-(A segunda condição já usa `tenant_id` corretamente; só a primeira `OR owner_user_id = ...` está errada)
-
----
-
-## Bug 3 — MODERADO: Campo `widget_company_name` não persiste
-
-**Problema:** O estado do `AdminSettings.tsx` inclui `widget_company_name`, e o UI permite editar o nome da empresa. Mas essa coluna **não existe na tabela `chat_settings`**. O campo é enviado no payload de `handleSaveGeneral` mas descartado pelo banco. Ao recarregar a página, o nome volta vazio.
-
-**Evidência:** `SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_settings' AND column_name LIKE '%company%'` → retorna 0 linhas.
-
-**Correção:** Adicionar a coluna:
-```sql
-ALTER TABLE public.chat_settings
-  ADD COLUMN IF NOT EXISTS widget_company_name text DEFAULT '';
-```
-E incluir no fetchAll:
 ```typescript
-widget_company_name: s.widget_company_name ?? "",
+// linha 252-254
+fetchRooms();  // ← chama setLoading(true) → lista some → spinner → lista volta
 ```
 
----
+E no `ChatRoomList.tsx`, o `loading` substitui a lista inteira por um spinner:
 
-## Bug 4 — MENOR: Realtime não atualiza status do atendente no sidebar
-
-**Problema:** O sidebar ouve `chat_rooms` via Realtime para atualizar contadores, mas **não ouve `attendant_profiles`**. Quando um atendente muda o status (Online/Offline) em "Meu Perfil", o indicador colorido no sidebar de outros usuários só atualiza no próximo reload ou quando uma sala muda de status.
-
-**Correção:** Adicionar canal Realtime para `attendant_profiles` no `fetchCounts` do sidebar:
 ```typescript
-supabase.channel("sidebar-attendants")
-  .on("postgres_changes", { event: "UPDATE", schema: "public", table: "attendant_profiles" }, () => fetchCounts())
-  .subscribe();
+if (loading) {
+  return (
+    <div className="glass-card h-full flex items-center justify-center">
+      <div className="animate-spin ..."/>
+    </div>  // ← lista SOME completamente
+  );
+}
 ```
 
----
+**Toda mensagem nova = lista pisca.**
 
-## Melhorias Sugeridas
+### Bug 2 — Unread Count errado (confirmado + adicionado ao plano)
 
-### Melhoria 1 — Auto-assign: configuração ausente precisa de aviso no UI
+O handler Realtime chama `fetchRooms()` para qualquer INSERT em `chat_messages`. Quando o atendente logado envia uma mensagem:
+- `sender_type = "attendant"`, `sender_id = user.id`
+- O `fetchRooms()` dispara novamente e recalcula unread counts com query no banco
 
-**Problema:** O fluxo de atribuição automática requer que a categoria do contato tenha um time vinculado com config habilitada (`chat_assignment_configs.enabled = true`). O diagnóstico mostrou que a única categoria_team existente tem `enabled = NULL` — nunca foi configurada. O admin não tem nenhum aviso sobre isso.
+O count no banco usa `.eq("sender_type", "visitor")` corretamente, **mas** isso só protege o fetch inicial. Quando a lógica cirúrgica for implementada — onde o estado local é atualizado diretamente sem ir ao banco — mensagens do próprio atendente também incrementarão o badge de não lidas se não houver filtro explícito.
 
-**Melhoria:** Na aba Categorias (`CategoriesTab.tsx`) ou Regras de Atendimento (`AssignmentConfigPanel`), exibir um badge "⚠ Sem config de atribuição" nas categorias que têm times mas nenhum `assignment_config` habilitado.
-
-### Melhoria 2 — Indicador visual "Fora do horário" nas configurações
-
-**Problema:** Na aba "Horários", o admin não tem feedback do horário atual vs. configurado. Não sabe se "agora" está dentro do horário ativo.
-
-**Melhoria:** Mostrar no topo da aba um badge dinâmico: "● Agora: dentro do horário de atendimento" ou "● Agora: FORA do horário" calculado no browser, sem fetch adicional.
-
-### Melhoria 3 — Preview do widget mostra apenas formulário; deveria mostrar também o banner de "fora do horário"
-
-**Problema:** O `WidgetPreview.tsx` mostra apenas o estado do formulário inicial. Não há como o admin visualizar como ficará o banner de "fora do horário" ou "atendentes ocupados" com os textos personalizados.
-
-**Melhoria:** Adicionar tabs no preview: "Formulário" / "Fora do horário" / "Atendentes ocupados", cada um mostrando o respectivo estado com as mensagens configuradas ao vivo.
-
-### Melhoria 4 — Contagem de conversas ativas desincronizada
-
-**Problema:** O campo `attendant_profiles.active_conversations` é gerenciado pelos triggers (incrementa no INSERT, decrementa no CLOSE). Mas se uma sala for deletada diretamente (sem passar por `status = 'closed'`), o contador não é decrementado.
-
-**Melhoria:** Adicionar trigger `AFTER DELETE` em `chat_rooms` para decrementar o contador se a sala tinha um `attendant_id`.
+**Adicionalmente**, na lógica atual, mesmo que a query do banco filtre por `sender_type = "visitor"`, o `fetchRooms()` completo é chamado mesmo quando o atendente envia — causando flickering desnecessário para mensagens que definitivamente não geram unread.
 
 ---
 
-## Arquivos a Criar/Modificar
+## Solução Completa
 
-| Arquivo | Ação | O que muda |
+Tudo em um único arquivo: `src/hooks/useChatRealtime.ts`
+
+### 1. Hook `useChatRooms` recebe `currentUserId` como parâmetro adicional
+
+O hook já recebe `ownerUserId` (o dono do workspace = admin). Para o workspace de atendente, `ownerUserId === user.id`. Então `currentUserId` serve para identificar mensagens enviadas pelo próprio usuário logado.
+
+```typescript
+export function useChatRooms(
+  ownerUserId: string | null,
+  options?: { excludeClosed?: boolean; currentUserId?: string }
+)
+```
+
+No `AdminWorkspace.tsx`, a chamada já passa `user?.id` como `ownerUserId`, então `currentUserId` pode ser derivado do mesmo valor sem alterar a assinatura externa:
+
+```typescript
+// No hook internamente, currentUserId = ownerUserId (são o mesmo no contexto de workspace)
+const currentUserIdRef = useRef<string | null>(ownerUserId);
+```
+
+Ou alternativamente, manter `ownerUserId` como identificador duplo — já que no workspace de atendentes `ownerUserId === user.id`.
+
+### 2. Separar loading inicial de atualizações silenciosas
+
+```typescript
+const isFirstLoad = useRef(true);
+
+const fetchRooms = useCallback(async (showLoading = false) => {
+  if (!ownerUserId) return;
+  if (showLoading) setLoading(true);
+  // ...fetch...
+  if (showLoading) setLoading(false);
+}, [...]);
+
+useEffect(() => {
+  fetchRooms(true);  // ← apenas na montagem inicial mostra loading
+  // ...subscriptions usam fetchRooms() sem loading
+}, [...]);
+```
+
+### 3. Handler de `chat_messages INSERT`: patch cirúrgico
+
+```typescript
+.on("postgres_changes", { event: "INSERT", table: "chat_messages" }, (payload) => {
+  const msg = payload.new as ChatMessage;
+  
+  // === BUG DO ATENDENTE: ignorar completamente mensagens enviadas pelo próprio usuário ===
+  // sender_type "attendant" ou "system" nunca geram unread
+  // sender_id === ownerUserId significa que foi o próprio atendente logado que enviou
+  const isOwnMessage = msg.sender_type !== "visitor";
+  
+  // Som apenas para mensagens do visitante em rooms não selecionados
+  if (msg.sender_type === "visitor" && msg.room_id !== selectedRoomIdRef.current) {
+    // play sound...
+  }
+
+  // === SEM FLICKERING: atualizar estado diretamente, sem fetchRooms ===
+  setRooms((prev) => {
+    const idx = prev.findIndex(r => r.id === msg.room_id);
+    if (idx === -1) return prev;  // room não visível, ignorar
+    
+    const patched = [...prev];
+    const room = { ...patched[idx] };
+    
+    // Atualizar last_message (para qualquer mensagem não-interna)
+    if (!msg.is_internal) {
+      room.last_message = msg.content;
+      room.last_message_at = msg.created_at;
+      room.last_message_sender_type = msg.sender_type;
+    }
+    
+    // Incrementar unread APENAS para mensagens do visitante,
+    // E APENAS se o room não está selecionado no momento
+    if (
+      msg.sender_type === "visitor" &&           // ← apenas visitante
+      !msg.is_internal &&                        // ← não interno
+      msg.room_id !== selectedRoomIdRef.current  // ← room não está aberto
+    ) {
+      room.unread_count = (room.unread_count ?? 0) + 1;
+    }
+    // Se isOwnMessage === true → unread_count NÃO é tocado
+    
+    patched[idx] = room;
+    
+    // Re-ordenar: unread primeiro, depois por last_message_at
+    return patched.sort((a, b) => {
+      const aU = a.unread_count ?? 0;
+      const bU = b.unread_count ?? 0;
+      if (aU > 0 && bU === 0) return -1;
+      if (aU === 0 && bU > 0) return 1;
+      const aTime = a.last_message_at || a.created_at;
+      const bTime = b.last_message_at || b.created_at;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+  });
+})
+```
+
+**Resultado**: mensagem do atendente → `last_message` atualiza, `unread_count` não muda, zero flickering.
+
+### 4. Handler de `chat_rooms *`: patch por evento
+
+Separar os eventos `INSERT`, `UPDATE`, `DELETE` em vez de sempre chamar `fetchRooms()`:
+
+```typescript
+// UPDATE: patch cirúrgico
+.on("postgres_changes", { event: "UPDATE", table: "chat_rooms" }, (payload) => {
+  const updated = payload.new as ChatRoom;
+  
+  setRooms((prev) => {
+    const idx = prev.findIndex(r => r.id === updated.id);
+    
+    // Room passou para closed e excludeClosed=true → remover da lista
+    if (options?.excludeClosed && updated.status === "closed") {
+      return prev.filter(r => r.id !== updated.id);
+    }
+    
+    if (idx === -1) {
+      // Room não está na lista mas agora é active/waiting → adicionar via mini-fetch
+      fetchSingleRoom(updated.id);
+      return prev;
+    }
+    
+    // Patch preservando campos enriquecidos (visitor_name, last_message, unread_count)
+    const patched = [...prev];
+    patched[idx] = {
+      ...patched[idx],
+      status: updated.status,
+      attendant_id: updated.attendant_id,
+      priority: updated.priority,
+      assigned_at: updated.assigned_at,
+      closed_at: updated.closed_at,
+      updated_at: updated.updated_at,
+      // Preservar campos que não vêm do banco no payload:
+      visitor_name: patched[idx].visitor_name,
+      visitor_email: patched[idx].visitor_email,
+      last_message: patched[idx].last_message,
+      last_message_at: patched[idx].last_message_at,
+      last_message_sender_type: patched[idx].last_message_sender_type,
+      unread_count: patched[idx].unread_count,
+    };
+    return patched;
+  });
+})
+
+// INSERT: buscar apenas o novo room (mini-fetch de 1 registro)
+.on("postgres_changes", { event: "INSERT", table: "chat_rooms" }, (payload) => {
+  if (options?.excludeClosed && payload.new.status === "closed") return;
+  fetchSingleRoom(payload.new.id as string);
+})
+
+// DELETE: remover do state
+.on("postgres_changes", { event: "DELETE", table: "chat_rooms" }, (payload) => {
+  setRooms((prev) => prev.filter(r => r.id !== (payload.old.id as string)));
+})
+```
+
+### 5. Função auxiliar `fetchSingleRoom` (mini-fetch sem loading)
+
+```typescript
+const fetchSingleRoom = useCallback(async (roomId: string) => {
+  const { data } = await supabase
+    .from("chat_rooms")
+    .select("*, chat_visitors!visitor_id(name, email)")
+    .eq("id", roomId)
+    .maybeSingle();
+  
+  if (!data) return;
+  
+  const visitor = (data as any).chat_visitors as { name?: string; email?: string } | null;
+  const enriched: ChatRoom = {
+    ...data,
+    visitor_name: visitor?.name ?? undefined,
+    visitor_email: visitor?.email ?? undefined,
+    unread_count: 0,
+  } as ChatRoom;
+  
+  setRooms((prev) => {
+    const filtered = prev.filter(r => r.id !== roomId);  // deduplicar
+    const updated = [enriched, ...filtered];
+    return updated.sort((a, b) => {
+      const aTime = a.last_message_at || a.created_at;
+      const bTime = b.last_message_at || b.created_at;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+  });
+}, []);
+```
+
+### 6. Otimização: unread count com query única no fetch inicial
+
+Substituir o loop de N queries `COUNT` por uma query única que traz os `room_id` + `created_at` de todas as mensagens não lidas:
+
+```typescript
+// Atual: N queries — uma por room
+for (const roomId of roomIds) {
+  const { count } = await supabase.from("chat_messages")
+    .select("*", { count: "exact", head: true })
+    .eq("room_id", roomId)
+    .eq("sender_type", "visitor")...
+
+// Novo: 1 query com todos os rooms
+const oldestReadAt = Object.values(readMap).length > 0
+  ? Object.values(readMap).reduce((a, b) => a < b ? a : b)
+  : "1970-01-01T00:00:00Z";
+
+const { data: unreadMsgs } = await supabase
+  .from("chat_messages")
+  .select("room_id, created_at")
+  .in("room_id", roomIds)
+  .eq("sender_type", "visitor")
+  .eq("is_internal", false)
+  .gt("created_at", oldestReadAt);  // filtra pela mais antiga lida
+
+// Contar por room no JS
+for (const msg of (unreadMsgs ?? []) as { room_id: string; created_at: string }[]) {
+  const lastRead = readMap[msg.room_id] || "1970-01-01T00:00:00Z";
+  if (msg.created_at > lastRead) {
+    unreadCounts[msg.room_id] = (unreadCounts[msg.room_id] ?? 0) + 1;
+  }
+}
+```
+
+Reduz de N queries para 1 — carregamento inicial muito mais rápido.
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | O que muda |
+|---|---|
+| `src/hooks/useChatRealtime.ts` | Único arquivo a modificar: (1) `fetchRooms` só usa `setLoading(true)` no primeiro load; (2) handler `chat_messages INSERT` → patch cirúrgico + filtro `sender_type !== "visitor"` para não incrementar unread; (3) handler `chat_rooms *` → separar INSERT/UPDATE/DELETE com patches individuais; (4) `fetchSingleRoom` auxiliar; (5) unread count com query única |
+
+**Nenhum outro arquivo precisa ser alterado** — `ChatRoomList`, `AdminWorkspace`, e `ChatInput` continuam exatamente iguais.
+
+---
+
+## Comportamento Esperado
+
+| Evento | Antes | Depois |
 |---|---|---|
-| `supabase/migrations/[timestamp].sql` | CRIAR | 1) Policy SELECT pública em `chat_settings`; 2) Corrigir `assign_chat_room()` — remover `owner_user_id`, usar apenas `tenant_id`; 3) Adicionar coluna `widget_company_name` em `chat_settings`; 4) Trigger `AFTER DELETE` para decrementar `active_conversations` |
-| `src/pages/AdminSettings.tsx` | MODIFICAR | Incluir `widget_company_name` no fetch (`fetchAll`) para carregar do banco corretamente |
-| `src/components/AppSidebar.tsx` | MODIFICAR | Adicionar canal Realtime para `attendant_profiles` ao lado do canal de `chat_rooms` |
-| `src/pages/AdminSettings.tsx` | MODIFICAR | Adicionar indicador de horário atual na aba "Horários" |
-| `src/components/chat/WidgetPreview.tsx` | MODIFICAR | Adicionar tabs de preview: Formulário / Fora do horário / Ocupado |
-
----
-
-## Prioridade de Execução
-
-1. **Bug 1 + Bug 2 + Bug 3** em uma única migração SQL — são os que impactam o funcionamento real em produção
-2. **Melhoria de Realtime no sidebar** — low-risk, alto benefício UX
-3. **Preview com múltiplos estados** — melhoria de DX para o admin
-4. **Indicador de horário atual** — melhoria de UX menor
-
----
-
-## Resumo dos Bugs por Impacto
-
-| ID | Tipo | Impacto | Status atual |
-|---|---|---|---|
-| Bug 1 | RLS faltando | Widget nunca aplica configs personalizadas | Silencioso — admin não percebe |
-| Bug 2 | SQL inválido | Trigger quebra quando admin salvar horários | Latente — escondido por tabela vazia |
-| Bug 3 | Coluna faltando | Nome da empresa não persiste | Visível — campo sempre volta vazio |
-| Bug 4 | Realtime ausente | Status desatualizado no sidebar | UX menor |
+| Visitante envia mensagem | Lista pisca (loading) + badge incrementa | Badge incrementa suavemente, lista reordena, sem flash |
+| **Atendente envia mensagem** | **Lista pisca (loading) + badge incrementa incorretamente** | **last_message atualiza, badge NÃO muda, zero flickering** |
+| Atendente seleciona room | Marca como lido, badge some | Igual, mas sem causar refetch adicional |
+| Novo room entra (visitor abre chat) | Lista pisca, refetch completo | Novo card aparece no topo suavemente via mini-fetch |
+| Room fecha | Lista pisca, refetch completo | Card desaparece suavemente via filter local |
+| Atendente atribuído muda | Lista pisca, refetch completo | Card atualiza status inline sem flash |
