@@ -92,11 +92,18 @@ const AttendantsTab = () => {
     const attId = getAttendantId(csmId);
     if (!attId) return;
     setSavingAttendant(csmId);
-    const { error } = await supabase.from("attendant_profiles").update(updates).eq("id", attId);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    const { data: updated, error } = await supabase
+      .from("attendant_profiles")
+      .update(updates)
+      .eq("id", attId)
+      .select("id");
+    if (error || !updated || updated.length === 0) {
+      toast({
+        title: "Erro",
+        description: error?.message ?? "Sem permissão para atualizar este perfil",
+        variant: "destructive",
+      });
     } else {
-      // Update local state optimistically
       setAttendantProfiles(prev => prev.map(p => p.id === attId ? { ...p, ...updates } : p));
     }
     setSavingAttendant(null);
