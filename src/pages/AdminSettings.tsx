@@ -14,7 +14,7 @@ import SidebarLayout from "@/components/SidebarLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Plus, Edit, Trash2, Key, Headphones, Users, Tag } from "lucide-react";
+import { Save, Plus, Edit, Trash2, Key, Headphones, Users, Tag, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import ChatApiKeysTab from "@/components/ChatApiKeysTab";
 import WidgetPreview from "@/components/chat/WidgetPreview";
@@ -117,7 +117,7 @@ const AdminSettings = () => {
         require_approval: settingsData.require_approval ?? false,
         widget_position: s.widget_position ?? "right",
         widget_primary_color: s.widget_primary_color ?? "#7C3AED",
-        widget_company_name: "",
+        widget_company_name: s.widget_company_name ?? "",
         show_outside_hours_banner: s.show_outside_hours_banner ?? true,
         outside_hours_title: s.outside_hours_title ?? "Estamos fora do horário de atendimento.",
         outside_hours_message: s.outside_hours_message ?? "Sua mensagem ficará registrada e responderemos assim que voltarmos.",
@@ -189,6 +189,7 @@ const AdminSettings = () => {
       require_approval: settings.require_approval,
       widget_position: settings.widget_position,
       widget_primary_color: settings.widget_primary_color,
+      widget_company_name: settings.widget_company_name,
       show_outside_hours_banner: settings.show_outside_hours_banner,
       outside_hours_title: settings.outside_hours_title,
       outside_hours_message: settings.outside_hours_message,
@@ -483,6 +484,13 @@ const AdminSettings = () => {
                     showEmailField={settings.show_email_field}
                     showPhoneField={settings.show_phone_field}
                     formIntroText={settings.form_intro_text}
+                    showOutsideHoursBanner={settings.show_outside_hours_banner}
+                    outsideHoursTitle={settings.outside_hours_title}
+                    outsideHoursMessage={settings.outside_hours_message}
+                    showAllBusyBanner={settings.show_all_busy_banner}
+                    allBusyTitle={settings.all_busy_title}
+                    allBusyMessage={settings.all_busy_message}
+                    waitingMessage={settings.waiting_message}
                   />
                 </CardContent>
               </Card>
@@ -716,6 +724,34 @@ const AdminSettings = () => {
 
           {/* Hours Tab */}
           <TabsContent value="hours" className="space-y-4 mt-4">
+            {/* Current time indicator */}
+            {(() => {
+              const now = new Date();
+              const dow = now.getDay();
+              const hh = String(now.getHours()).padStart(2, "0");
+              const mm = String(now.getMinutes()).padStart(2, "0");
+              const timeStr = `${hh}:${mm}`;
+              const todayHour = hours.find((h) => h.day_of_week === dow);
+              const isWithinHours = todayHour?.is_active &&
+                todayHour.start_time <= timeStr &&
+                todayHour.end_time >= timeStr;
+              return (
+                <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium ${isWithinHours ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
+                  {isWithinHours
+                    ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    : <XCircle className="h-4 w-4 shrink-0" />}
+                  <Clock className="h-4 w-4 shrink-0" />
+                  <span>
+                    Agora são {timeStr} ({dayNames[dow]}){" "}
+                    {isWithinHours
+                      ? `— dentro do horário de atendimento (${todayHour.start_time}–${todayHour.end_time})`
+                      : todayHour?.is_active
+                        ? `— FORA do horário configurado (${todayHour.start_time}–${todayHour.end_time})`
+                        : "— FORA do horário (dia desativado)"}
+                  </span>
+                </div>
+              );
+            })()}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("chat.settings.hours.title")}</CardTitle>

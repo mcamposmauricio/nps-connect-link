@@ -178,12 +178,17 @@ export function AppSidebar() {
   useEffect(() => {
     if (!chatOpen) return;
     fetchCounts();
-    const channel = supabase
+    const roomsChannel = supabase
       .channel("sidebar-chat-rooms")
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_rooms" }, () => fetchCounts())
       .subscribe();
+    const attendantsChannel = supabase
+      .channel("sidebar-attendants")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "attendant_profiles" }, () => fetchCounts())
+      .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(roomsChannel);
+      supabase.removeChannel(attendantsChannel);
     };
   }, [chatOpen, fetchCounts]);
 
