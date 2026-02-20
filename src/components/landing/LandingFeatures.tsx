@@ -133,7 +133,7 @@ export const LandingFeatureRows = ({ t }: { t: FeatureRowsTexts }) => {
       title: t.feature1Title,
       desc: t.feature1Desc,
       Mockup: ChatMockup,
-      cardRight: true,
+      cardRight: false,
     },
     {
       icon: Target,
@@ -141,7 +141,7 @@ export const LandingFeatureRows = ({ t }: { t: FeatureRowsTexts }) => {
       title: t.feature2Title,
       desc: t.feature2Desc,
       Mockup: NPSMockup,
-      cardRight: false,
+      cardRight: true,
     },
     {
       icon: BarChart3,
@@ -149,7 +149,7 @@ export const LandingFeatureRows = ({ t }: { t: FeatureRowsTexts }) => {
       title: t.feature3Title,
       desc: t.feature3Desc,
       Mockup: DashboardMockup,
-      cardRight: true,
+      cardRight: false,
     },
   ];
 
