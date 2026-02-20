@@ -334,35 +334,30 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
         .update({ phone: csPhone || null, department: csDepartment || null, specialty: csSpecialty } as any)
         .eq("id", profile.id);
 
-      // Sync with csms table
-      if (csSpecialty.length > 0) {
-        const { data: existingCsm } = await supabase
-          .from("csms")
-          .select("id")
-          .eq("user_id", profile.user_id)
-          .maybeSingle();
+      // Sync with csms table — always create/update CSM so user can be enabled as attendant
+      const { data: existingCsm } = await supabase
+        .from("csms")
+        .select("id")
+        .eq("user_id", profile.user_id)
+        .maybeSingle();
 
-        if (existingCsm) {
-          await supabase.from("csms").update({
-            phone: csPhone || null,
-            department: csDepartment || null,
-            specialty: csSpecialty,
-            name: profile.display_name || profile.email.split("@")[0],
-            email: profile.email,
-          }).eq("id", existingCsm.id);
-        } else {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await supabase.from("csms").insert({
-              user_id: user.id,
-              name: profile.display_name || profile.email.split("@")[0],
-              email: profile.email,
-              phone: csPhone || null,
-              department: csDepartment || null,
-              specialty: csSpecialty,
-            });
-          }
-        }
+      if (existingCsm) {
+        await supabase.from("csms").update({
+          phone: csPhone || null,
+          department: csDepartment || null,
+          specialty: csSpecialty,
+          name: profile.display_name || profile.email.split("@")[0],
+          email: profile.email,
+        }).eq("id", existingCsm.id);
+      } else {
+        await supabase.from("csms").insert({
+          user_id: profile.user_id,
+          name: profile.display_name || profile.email.split("@")[0],
+          email: profile.email,
+          phone: csPhone || null,
+          department: csDepartment || null,
+          specialty: csSpecialty,
+        });
       }
 
       toast({ title: t("team.saveSuccess") });
