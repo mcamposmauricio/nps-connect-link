@@ -341,7 +341,7 @@ export function AppSidebar() {
                         {/* Workspace */}
                         {hasPermission("chat.workspace", "view") && (
                           <SidebarMenuItem>
-                            <Collapsible open={workspaceOpen}>
+                            <Collapsible open={workspaceOpen} onOpenChange={handleWorkspaceOpen}>
                               <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
                                 <SidebarMenuButton
                                   onClick={(e) => { e.stopPropagation(); navigate("/admin/workspace"); }}
