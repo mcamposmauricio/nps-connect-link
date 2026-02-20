@@ -58,8 +58,8 @@ const Campaigns = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { hasPermission } = useAuth();
-  const canEditNps = hasPermission('nps', 'edit');
-  const canDeleteNps = hasPermission('nps', 'delete');
+  const canEditNps = hasPermission('nps.campaigns', 'edit');
+  const canDeleteNps = hasPermission('nps.campaigns', 'delete');
 
   useEffect(() => {
     fetchCampaigns();

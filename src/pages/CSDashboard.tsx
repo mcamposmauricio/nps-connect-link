@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 export default function CSDashboard() {
   const { t } = useLanguage();
   const { user, hasPermission } = useAuth();
-  const canEdit = hasPermission('cs', 'edit');
+  const canEdit = hasPermission('cs.kanban', 'edit');
 
   const { data: companies = [], isLoading, refetch } = useQuery({
     queryKey: ["cs-companies", user?.id],

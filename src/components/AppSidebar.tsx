@@ -102,7 +102,13 @@ export function AppSidebar() {
     localStorage.setItem("sidebar-workspace-open", String(open));
   };
 
-  const showReports = hasPermission("cs", "view") || hasPermission("chat", "view");
+  const showCS = hasPermission("cs", "view") || hasPermission("cs.kanban", "view") || hasPermission("cs.trails", "view");
+  const showCSReports = hasPermission("cs.reports.health", "view") || hasPermission("cs.reports.churn", "view") || hasPermission("cs.reports.financial", "view");
+  const showChatReports = hasPermission("chat.reports", "view");
+  const showReports = showCSReports || showChatReports;
+  const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view");
+  const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
+  const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
 
   const isActive = (path: string) => location.pathname === path;
@@ -221,11 +227,11 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-2 py-6">
         <button
-          onClick={() => {
+        onClick={() => {
             if (isAdmin) navigate("/admin/dashboard");
-            else if (hasPermission("cs", "view")) navigate("/cs-dashboard");
-            else if (hasPermission("nps", "view")) navigate("/nps/dashboard");
-            else if (hasPermission("chat", "view")) navigate("/admin/dashboard");
+            else if (showCS) navigate("/cs-dashboard");
+            else if (showNPS) navigate("/nps/dashboard");
+            else if (showChat) navigate("/admin/dashboard");
             else navigate("/nps/dashboard");
           }}
           className="flex items-center justify-center gap-3 min-w-0 w-full"
@@ -248,61 +254,64 @@ export function AppSidebar() {
         ) : (
           <>
             {/* Customer Success */}
-            {hasPermission("cs", "view") && (
+            {showCS && (
               <SidebarGroup>
                 <SidebarGroupLabel className={groupLabelCls}>{t("cs.title")}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {csItems.map((item) => (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          onClick={() => navigate(item.path)}
-                          isActive={isActive(item.path)}
-                          tooltip={item.label}
-                          className={cn(isActive(item.path) ? activeItemCls : "hover:bg-sidebar-accent")}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
+                    {hasPermission("cs.kanban", "view") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/cs-dashboard")} isActive={isActive("/cs-dashboard")} tooltip={t("nav.overview")} className={cn(isActive("/cs-dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <LayoutDashboard className="h-4 w-4" /><span>{t("nav.overview")}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                    ))}
+                    )}
+                    {hasPermission("cs.trails", "view") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/cs-trails")} isActive={isActive("/cs-trails")} tooltip={t("nav.journeys")} className={cn(isActive("/cs-trails") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <Route className="h-4 w-4" /><span>{t("nav.journeys")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
             )}
 
             {/* NPS */}
-            {hasPermission("nps", "view") && (
+            {showNPS && (
               <SidebarGroup>
                 <Collapsible open={npsOpen} onOpenChange={handleNpsOpen}>
                   <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel
-                      className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        <span>NPS</span>
-                      </span>
-                      {!collapsed &&
-                        (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5" /><span>NPS</span></span>
+                      {!collapsed && (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                   <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                     <SidebarGroupContent>
                       <SidebarMenu>
-                        {npsItems.map((item) => (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              onClick={() => navigate(item.path)}
-                              isActive={isActive(item.path)}
-                              tooltip={item.label}
-                              className={cn("pl-6", isActive(item.path) ? activeItemCls : "hover:bg-sidebar-accent")}
-                            >
-                              <item.icon className="h-4 w-4" />
-                              <span>{item.label}</span>
+                        {hasPermission("nps.dashboard", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/dashboard")} isActive={isActive("/nps/dashboard")} tooltip={t("nav.metrics")} className={cn("pl-6", isActive("/nps/dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <BarChart3 className="h-4 w-4" /><span>{t("nav.metrics")}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
-                        ))}
+                        )}
+                        {hasPermission("nps.campaigns", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/campaigns")} isActive={isActive("/nps/campaigns")} tooltip={t("nav.surveys")} className={cn("pl-6", isActive("/nps/campaigns") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Send className="h-4 w-4" /><span>{t("nav.surveys")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("nps.settings", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/nps-settings")} isActive={isActive("/nps/nps-settings")} tooltip={t("npsSettings.navLabel")} className={cn("pl-6", isActive("/nps/nps-settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Settings className="h-4 w-4" /><span>{t("npsSettings.navLabel")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
                       </SidebarMenu>
                     </SidebarGroupContent>
                   </CollapsibleContent>
@@ -311,160 +320,85 @@ export function AppSidebar() {
             )}
 
             {/* Chat */}
-            {hasPermission("chat", "view") && (
+            {showChat && (
               <SidebarGroup>
                 <Collapsible open={chatOpen} onOpenChange={handleChatOpen}>
                   <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel
-                      className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        <span>{t("chat.module")}</span>
-                      </span>
-                      {!collapsed &&
-                        (chatOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5" /><span>{t("chat.module")}</span></span>
+                      {!collapsed && (chatOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
                     </SidebarGroupLabel>
                   </CollapsibleTrigger>
                   <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                     <SidebarGroupContent>
                       <SidebarMenu>
                         <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate("/admin/dashboard")}
-                            isActive={isActive("/admin/dashboard")}
-                            tooltip={t("chat.dashboard.title")}
-                            className={cn(
-                              "pl-6",
-                              isActive("/admin/dashboard") ? activeItemCls : "hover:bg-sidebar-accent",
-                            )}
-                          >
-                            <LayoutDashboard className="h-4 w-4" />
-                            <span>Dashboard</span>
+                          <SidebarMenuButton onClick={() => navigate("/admin/dashboard")} isActive={isActive("/admin/dashboard")} tooltip={t("chat.dashboard.title")} className={cn("pl-6", isActive("/admin/dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                            <LayoutDashboard className="h-4 w-4" /><span>Dashboard</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
 
                         {/* Workspace */}
-                        <SidebarMenuItem>
-                          <Collapsible open={workspaceOpen}>
-                            <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
-                              <SidebarMenuButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate("/admin/workspace");
-                                }}
-                                isActive={location.pathname === "/admin/workspace"}
-                                tooltip={t("chat.workspace.station")}
-                                className={cn(
-                                  "flex-1",
-                                  location.pathname === "/admin/workspace" ? activeItemCls : "hover:bg-sidebar-accent",
-                                )}
-                              >
-                                <Inbox className="h-4 w-4" />
-                                <span>{t("chat.workspace.station")}</span>
-                                <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">
-                                  {totalActiveChats}
-                                </Badge>
-                              </SidebarMenuButton>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleWorkspaceOpen(!workspaceOpen);
-                                }}
-                              >
-                                {workspaceOpen ? (
-                                  <ChevronDown className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </div>
-                            <CollapsibleContent onClick={(e) => e.stopPropagation()}>
-                              {teamAttendants.map((att) => (
-                                <SidebarMenuItem key={att.id}>
-                                  <SidebarMenuButton
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      att.user_id === user?.id
-                                        ? navigate("/admin/workspace")
-                                        : navigate(`/admin/workspace?attendant=${att.id}`);
-                                    }}
-                                    isActive={
-                                      att.user_id === user?.id
-                                        ? location.pathname === "/admin/workspace" &&
-                                          !location.search.includes("attendant=")
-                                        : location.search.includes(`attendant=${att.id}`)
-                                    }
-                                    tooltip={att.display_name}
-                                    className="pl-10 text-xs hover:bg-sidebar-accent"
-                                  >
-                                    <User className="h-3.5 w-3.5" />
-                                    <span className="truncate">
-                                      {att.user_id === user?.id
-                                        ? `${t("chat.workspace.you")} ${att.display_name}`
-                                        : att.display_name}
-                                    </span>
-                                    <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">
-                                      {att.active_count}
-                                    </Badge>
-                                  </SidebarMenuButton>
-                                </SidebarMenuItem>
-                              ))}
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </SidebarMenuItem>
+                        {hasPermission("chat.workspace", "view") && (
+                          <SidebarMenuItem>
+                            <Collapsible open={workspaceOpen}>
+                              <div className="flex items-center pl-6" onClick={(e) => e.stopPropagation()}>
+                                <SidebarMenuButton
+                                  onClick={(e) => { e.stopPropagation(); navigate("/admin/workspace"); }}
+                                  isActive={location.pathname === "/admin/workspace"}
+                                  tooltip={t("chat.workspace.station")}
+                                  className={cn("flex-1", location.pathname === "/admin/workspace" ? activeItemCls : "hover:bg-sidebar-accent")}
+                                >
+                                  <Inbox className="h-4 w-4" />
+                                  <span>{t("chat.workspace.station")}</span>
+                                  <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{totalActiveChats}</Badge>
+                                </SidebarMenuButton>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={(e) => { e.stopPropagation(); handleWorkspaceOpen(!workspaceOpen); }}>
+                                  {workspaceOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                </Button>
+                              </div>
+                              <CollapsibleContent onClick={(e) => e.stopPropagation()}>
+                                {teamAttendants.map((att) => (
+                                  <SidebarMenuItem key={att.id}>
+                                    <SidebarMenuButton
+                                      onClick={(e) => { e.stopPropagation(); att.user_id === user?.id ? navigate("/admin/workspace") : navigate(`/admin/workspace?attendant=${att.id}`); }}
+                                      isActive={att.user_id === user?.id ? location.pathname === "/admin/workspace" && !location.search.includes("attendant=") : location.search.includes(`attendant=${att.id}`)}
+                                      tooltip={att.display_name}
+                                      className="pl-10 text-xs hover:bg-sidebar-accent"
+                                    >
+                                      <User className="h-3.5 w-3.5" />
+                                      <span className="truncate">{att.user_id === user?.id ? `${t("chat.workspace.you")} ${att.display_name}` : att.display_name}</span>
+                                      <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{att.active_count}</Badge>
+                                    </SidebarMenuButton>
+                                  </SidebarMenuItem>
+                                ))}
+                              </CollapsibleContent>
+                            </Collapsible>
+                          </SidebarMenuItem>
+                        )}
 
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate("/admin/history")}
-                            isActive={isActive("/admin/history")}
-                            tooltip={t("chat.history.title")}
-                            className={cn(
-                              "pl-6",
-                              isActive("/admin/history") ? activeItemCls : "hover:bg-sidebar-accent",
-                            )}
-                          >
-                            <History className="h-4 w-4" />
-                            <span>{t("chat.history.title")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
+                        {hasPermission("chat.history", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/history")} isActive={isActive("/admin/history")} tooltip={t("chat.history.title")} className={cn("pl-6", isActive("/admin/history") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <History className="h-4 w-4" /><span>{t("chat.history.title")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
 
-                        {hasPermission("chat", "manage") && (
-                          <>
-                            <SidebarMenuItem>
-                              <SidebarMenuButton
-                                onClick={() => navigate("/admin/banners")}
-                                isActive={isActive("/admin/banners")}
-                                tooltip={t("banners.title")}
-                                className={cn(
-                                  "pl-6",
-                                  isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent",
-                                )}
-                              >
-                                <Flag className="h-4 w-4" />
-                                <span>{t("banners.title")}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                              <SidebarMenuButton
-                                onClick={() => navigate("/admin/settings")}
-                                isActive={
-                                  isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")
-                                }
-                                tooltip={t("chat.settings.title")}
-                                className={cn(
-                                  "pl-6",
-                                  isActive("/admin/settings") ? activeItemCls : "hover:bg-sidebar-accent",
-                                )}
-                              >
-                                <Settings className="h-4 w-4" />
-                                <span>{t("chat.settings.title")}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          </>
+                        {hasPermission("chat.banners", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/banners")} isActive={isActive("/admin/banners")} tooltip={t("banners.title")} className={cn("pl-6", isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Flag className="h-4 w-4" /><span>{t("banners.title")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+
+                        {(hasPermission("chat.settings.general", "view") || hasPermission("chat.settings.widget", "view") || hasPermission("chat.settings.macros", "view") || hasPermission("chat.settings.attendants", "view") || hasPermission("chat.settings.teams", "view") || hasPermission("chat.settings.categories", "view") || hasPermission("chat.settings.apikeys", "view") || hasPermission("chat", "manage")) && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/settings")} isActive={isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")} tooltip={t("chat.settings.title")} className={cn("pl-6", isActive("/admin/settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Settings className="h-4 w-4" /><span>{t("chat.settings.title")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
                         )}
                       </SidebarMenu>
                     </SidebarGroupContent>
@@ -492,65 +426,31 @@ export function AppSidebar() {
                   <CollapsibleContent onClick={(e) => e.stopPropagation()}>
                     <SidebarGroupContent>
                       <SidebarMenu>
-                        {hasPermission("cs", "view") && (
-                          <>
-                            <SidebarMenuItem>
-                              <SidebarMenuButton
-                                onClick={() => navigate("/cs-health")}
-                                isActive={isActive("/cs-health")}
-                                tooltip={t("nav.health")}
-                                className={cn(
-                                  "pl-6",
-                                  isActive("/cs-health") ? activeItemCls : "hover:bg-sidebar-accent",
-                                )}
-                              >
-                                <Heart className="h-4 w-4" />
-                                <span>{t("nav.health")}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                              <SidebarMenuButton
-                                onClick={() => navigate("/cs-churn")}
-                                isActive={isActive("/cs-churn")}
-                                tooltip={t("nav.risk")}
-                                className={cn(
-                                  "pl-6",
-                                  isActive("/cs-churn") ? activeItemCls : "hover:bg-sidebar-accent",
-                                )}
-                              >
-                                <TrendingDown className="h-4 w-4" />
-                                <span>{t("nav.risk")}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                              <SidebarMenuButton
-                                onClick={() => navigate("/cs-financial")}
-                                isActive={isActive("/cs-financial")}
-                                tooltip={t("nav.revenue")}
-                                className={cn(
-                                  "pl-6",
-                                  isActive("/cs-financial") ? activeItemCls : "hover:bg-sidebar-accent",
-                                )}
-                              >
-                                <DollarSign className="h-4 w-4" />
-                                <span>{t("nav.revenue")}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          </>
-                        )}
-                        {hasPermission("chat", "view") && (
+                        {hasPermission("cs.reports.health", "view") && (
                           <SidebarMenuItem>
-                            <SidebarMenuButton
-                              onClick={() => navigate("/admin/gerencial")}
-                              isActive={isActive("/admin/gerencial")}
-                              tooltip={t("chat.gerencial.title")}
-                              className={cn(
-                                "pl-6",
-                                isActive("/admin/gerencial") ? activeItemCls : "hover:bg-sidebar-accent",
-                              )}
-                            >
-                              <TrendingUp className="h-4 w-4" />
-                              <span>{t("chat.gerencial.title")}</span>
+                            <SidebarMenuButton onClick={() => navigate("/cs-health")} isActive={isActive("/cs-health")} tooltip={t("nav.health")} className={cn("pl-6", isActive("/cs-health") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Heart className="h-4 w-4" /><span>{t("nav.health")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("cs.reports.churn", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/cs-churn")} isActive={isActive("/cs-churn")} tooltip={t("nav.risk")} className={cn("pl-6", isActive("/cs-churn") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <TrendingDown className="h-4 w-4" /><span>{t("nav.risk")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("cs.reports.financial", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/cs-financial")} isActive={isActive("/cs-financial")} tooltip={t("nav.revenue")} className={cn("pl-6", isActive("/cs-financial") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <DollarSign className="h-4 w-4" /><span>{t("nav.revenue")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("chat.reports", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/gerencial")} isActive={isActive("/admin/gerencial")} tooltip={t("chat.gerencial.title")} className={cn("pl-6", isActive("/admin/gerencial") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )}
@@ -562,33 +462,25 @@ export function AppSidebar() {
             )}
 
             {/* Cadastros */}
-            {hasPermission("contacts", "view") && (
+            {showContacts && (
               <SidebarGroup>
                 <SidebarGroupLabel className={groupLabelCls}>{t("nav.registry")}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate("/nps/contacts")}
-                        isActive={isActive("/nps/contacts")}
-                        tooltip={t("nav.companies")}
-                        className={cn(isActive("/nps/contacts") ? activeItemCls : "hover:bg-sidebar-accent")}
-                      >
-                        <Building2 className="h-4 w-4" />
-                        <span>{t("nav.companies")}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate("/nps/people")}
-                        isActive={isActive("/nps/people")}
-                        tooltip={t("nav.people")}
-                        className={cn(isActive("/nps/people") ? activeItemCls : "hover:bg-sidebar-accent")}
-                      >
-                        <Users className="h-4 w-4" />
-                        <span>{t("nav.people")}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    {hasPermission("contacts.companies", "view") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/nps/contacts")} isActive={isActive("/nps/contacts")} tooltip={t("nav.companies")} className={cn(isActive("/nps/contacts") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <Building2 className="h-4 w-4" /><span>{t("nav.companies")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                    {hasPermission("contacts.people", "view") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/nps/people")} isActive={isActive("/nps/people")} tooltip={t("nav.people")} className={cn(isActive("/nps/people") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
