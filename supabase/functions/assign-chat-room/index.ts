@@ -25,10 +25,16 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch the room to check current assignment status
+    // Check business hours
+    const nowSaoPaulo = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+    const now = new Date(nowSaoPaulo);
+    const dow = now.getDay(); // 0=Sun
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    // Fetch the room first to get tenant info
     const { data: room, error: roomError } = await supabase
       .from("chat_rooms")
-      .select("id, status, attendant_id, contact_id, assigned_at")
+      .select("id, status, attendant_id, contact_id, assigned_at, owner_user_id, tenant_id")
       .eq("id", room_id)
       .maybeSingle();
 
@@ -38,6 +44,26 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
       );
     }
+
+    // Check business hours for this tenant
+    let outsideHours = false;
+    const { data: bhRows } = await supabase
+      .from("chat_business_hours")
+      .select("is_active, start_time, end_time, day_of_week")
+      .eq("tenant_id", room.tenant_id);
+
+    if (bhRows && bhRows.length > 0) {
+      // Hours are configured — check if current time is within active window
+      const activeWindow = bhRows.find(
+        (bh: any) =>
+          bh.day_of_week === dow &&
+          bh.is_active === true &&
+          bh.start_time <= timeStr &&
+          bh.end_time >= timeStr
+      );
+      outsideHours = !activeWindow;
+    }
+    // If no rows at all, outsideHours = false (don't block)
 
     // If the trigger already assigned it, just return the result
     if (room.status === "active" && room.attendant_id) {
@@ -52,13 +78,26 @@ Deno.serve(async (req) => {
           assigned: true,
           attendant_name: attendant?.display_name ?? null,
           room_status: room.status,
+          outside_hours: outsideHours,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If outside hours, return immediately
+    if (outsideHours) {
+      return new Response(
+        JSON.stringify({
+          assigned: false,
+          all_busy: false,
+          outside_hours: true,
+          room_status: room.status,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Room is still waiting — check if there are ANY eligible attendants
-    // (so widget can decide whether to show "all busy" or "waiting for attendant")
     let hasEligibleAttendants = false;
 
     if (room.contact_id) {
@@ -84,12 +123,6 @@ Deno.serve(async (req) => {
           for (const ct of catTeams) {
             const config = (ct as any).chat_assignment_configs?.[0];
             if (!config?.enabled) continue;
-
-            // Check if any attendant in this team is eligible
-            let query = supabase
-              .from("attendant_profiles")
-              .select("id")
-              .eq("chat_team_members.team_id", ct.team_id);
 
             const { data: teamMembers } = await supabase
               .from("chat_team_members")
@@ -132,6 +165,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         assigned: false,
         all_busy: !hasEligibleAttendants,
+        outside_hours: outsideHours,
         room_status: room.status,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
