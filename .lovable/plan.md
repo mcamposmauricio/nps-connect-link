@@ -1,146 +1,58 @@
 
 
-# Plano: Layout Persistente para Eliminar Recarregamentos
+# Corrigir: Contadores de chat so contam para cima
 
-## Problema Atual
+## Causa Raiz
 
-Cada uma das 21 paginas do sistema faz isto:
+A tabela `chat_rooms` usa **REPLICA IDENTITY DEFAULT** (apenas primary key). Quando o Supabase Realtime envia um evento UPDATE ou DELETE, o campo `old` contem **apenas o `id`** da row -- campos como `attendant_id` e `status` chegam como `undefined`.
 
-```
-return <SidebarLayout> ... conteudo ... </SidebarLayout>
-```
-
-Quando voce navega de uma pagina para outra, o React **desmonta** o SidebarLayout inteiro e **remonta** um novo. Isso causa:
-
-1. O logo pulsante (loading) aparece brevemente a cada navegacao
-2. O SidebarDataProvider e destruido e recriado -- fazendo novas queries ao banco e recriando canais Realtime
-3. O estado da sidebar (aberta/fechada, submenus expandidos) precisa ser relido do localStorage
-4. Hooks de dados das paginas (useChatRooms, useDashboardStats) refazem todas as queries do zero
-
-## Solucao: Layout Route com Outlet
-
-Usar o padrao de Layout Route do React Router v6. O `SidebarLayout` vira um componente de rota pai que renderiza `<Outlet />` no lugar de `{children}`. As paginas ficam como rotas filhas.
+O codigo em `SidebarDataContext.tsx` depende desses campos para decrementar:
 
 ```text
-ANTES (cada pagina monta/desmonta o layout):
-
-  /admin/workspace  -->  [SidebarLayout [SidebarDataProvider [AppSidebar + Workspace]]]
-  /admin/dashboard  -->  [SidebarLayout [SidebarDataProvider [AppSidebar + Dashboard]]]
-  (navegar = destruir tudo e recriar)
-
-DEPOIS (layout persiste, so o conteudo muda):
-
-  SidebarLayout (permanente)
-    |-- SidebarDataProvider (permanente)
-    |-- AppSidebar (permanente)
-    |-- <Outlet />  <-- so este troca
-          |-- /admin/workspace  -->  [Workspace]
-          |-- /admin/dashboard  -->  [Dashboard]
+// Linha 130-131 — nunca executa porque oldRoom.status === undefined
+if (newRoom.status === "closed" && oldRoom.status !== "closed") {
+  if (oldRoom.attendant_id) {  // oldRoom.attendant_id === undefined
 ```
 
-## Etapas de Implementacao
+O mesmo problema afeta reassignments (linha 142) e deletes (linha 167).
 
-### 1. Converter SidebarLayout para usar Outlet
+**Resultado:** contadores so incrementam (INSERT/assign) mas nunca decrementam (close/reassign/delete).
 
-**Arquivo:** `src/components/SidebarLayout.tsx`
+## Solucao
 
-- Remover a prop `children`
-- Importar `Outlet` de `react-router-dom`
-- Substituir `{children}` por `<Outlet />`
-- Manter toda a logica de auth redirect e loading
+### 1. Alterar REPLICA IDENTITY para FULL na tabela `chat_rooms`
 
-### 2. Reestruturar rotas no App.tsx
+Uma unica migracao SQL resolve o problema na raiz:
 
-**Arquivo:** `src/App.tsx`
-
-Agrupar todas as rotas protegidas (que usam sidebar) como filhas de uma rota pai com `element={<SidebarLayout />}`:
-
-```text
-<Route element={<SidebarLayout />}>
-  {/* Chat */}
-  <Route path="/admin/dashboard" element={<AdminDashboard />} />
-  <Route path="/admin/workspace" element={<AdminWorkspace />} />
-  <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
-  <Route path="/admin/attendants" element={<AdminAttendants />} />
-  <Route path="/admin/settings" element={<AdminSettings />} />
-  <Route path="/admin/settings/:tab" element={<AdminSettings />} />
-  <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
-  <Route path="/admin/history" element={<AdminChatHistory />} />
-  <Route path="/admin/banners" element={<AdminBanners />} />
-
-  {/* NPS */}
-  <Route path="/nps/dashboard" element={<Dashboard />} />
-  <Route path="/nps/contacts" element={<Contacts />} />
-  <Route path="/nps/people" element={<People />} />
-  <Route path="/nps/campaigns" element={<Campaigns />} />
-  <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
-  <Route path="/nps/settings" element={<Settings />} />
-  <Route path="/nps/nps-settings" element={<NPSSettings />} />
-
-  {/* CS */}
-  <Route path="/cs-dashboard" element={<CSDashboard />} />
-  <Route path="/cs-trails" element={<CSTrailsPage />} />
-  <Route path="/cs-health" element={<CSHealthPage />} />
-  <Route path="/cs-churn" element={<CSChurnPage />} />
-  <Route path="/cs-financial" element={<CSFinancialPage />} />
-
-  {/* Profile */}
-  <Route path="/profile" element={<MyProfile />} />
-</Route>
+```sql
+ALTER TABLE public.chat_rooms REPLICA IDENTITY FULL;
 ```
 
-Rotas publicas (auth, widget, landing, embed, portal, nps response) permanecem fora.
+Com REPLICA IDENTITY FULL, o Supabase Realtime envia **todos os campos** no `old` record, permitindo que a logica de decremento funcione corretamente.
 
-### 3. Remover SidebarLayout de cada pagina (21 arquivos)
+### 2. Adicionar fallback defensivo no handleRoomChange
 
-**Arquivos afetados:**
+Como medida de seguranca (caso o Realtime falhe ou perca eventos), adicionar um fallback que usa `newRoom` quando `oldRoom` nao tem os campos esperados. Isso cobre cenarios de reconexao onde eventos podem ser perdidos.
 
-| Pagina | Mudanca |
+No `SidebarDataContext.tsx`, ajustar o `handleRoomChange`:
+
+- Para UPDATE de fechamento: se `oldRoom.status` for undefined, usar heuristica baseada apenas em `newRoom` (se `newRoom.status === "closed"` e `newRoom.attendant_id` existe, decrementar esse attendant)
+- Para reassignment: se `oldRoom.attendant_id` for undefined, nao tentar decrementar o antigo (o REPLICA IDENTITY FULL resolve isso, mas o fallback evita bugs silenciosos)
+
+### 3. Sincronizacao periodica como safety net
+
+Adicionar um re-sync leve a cada 60 segundos que reconta as rooms ativas do banco e corrige qualquer drift nos contadores. Isso garante que mesmo que um evento Realtime seja perdido, os contadores convergem para o valor correto rapidamente.
+
+## Arquivos a Modificar
+
+| Arquivo | Mudanca |
 |---|---|
-| `AdminDashboard.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `AdminWorkspace.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `AdminAttendants.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `AdminSettings.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `AdminDashboardGerencial.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `AdminChatHistory.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `AdminBanners.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `Dashboard.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `Contacts.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `People.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `Campaigns.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CampaignDetails.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `Settings.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `NPSSettings.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CSDashboard.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CSTrailsPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CSHealthPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CSChurnPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CSFinancialPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `MyProfile.tsx` | Remover import e wrapper `<SidebarLayout>` |
-| `CSMsPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| Migracao SQL | `ALTER TABLE public.chat_rooms REPLICA IDENTITY FULL` |
+| `src/contexts/SidebarDataContext.tsx` | Fallback defensivo no handleRoomChange + re-sync periodico |
 
-Em cada arquivo a mudanca e mecanica e identica:
-- Deletar `import SidebarLayout from "@/components/SidebarLayout";`
-- No return, substituir `<SidebarLayout>..conteudo..</SidebarLayout>` por apenas `..conteudo..` (envolto em um fragment se necessario)
+## Impacto
 
-### 4. Remover Results.tsx se nao esta em uso
-
-O arquivo `Results.tsx` importa SidebarLayout mas nao aparece nas rotas. Verificar se pode ser removido.
-
-## Ganhos Esperados
-
-| Aspecto | Antes | Depois |
-|---|---|---|
-| Loading spinner ao navegar | Aparece toda vez | Nunca mais (layout ja montado) |
-| Canais Realtime | Destruidos e recriados a cada clique | Criados uma vez, vivem a sessao inteira |
-| Queries de inicializacao (SidebarDataProvider) | Re-executadas a cada navegacao | Executadas uma unica vez |
-| Estado da sidebar | Relido do localStorage | Mantido em memoria |
-| Auth check (useAuth redirect) | Re-executado a cada pagina | Executado uma unica vez |
-
-## Riscos e Mitigacoes
-
-- **Risco:** Paginas que dependem de remontagem para resetar estado interno. **Mitigacao:** Hooks com `useEffect` que dependem de parametros de rota (como `roomId`) continuam funcionando normalmente pois os params mudam e disparam o effect.
-- **Risco:** AdminSettings usa SidebarLayout duas vezes (loading state e conteudo). **Mitigacao:** O loading state interno da pagina usa um spinner proprio, nao o SidebarLayout.
-
-Nenhuma migracao de banco necessaria. Nenhuma mudanca visual -- apenas eliminacao de recarregamentos desnecessarios.
+- **Performance:** REPLICA IDENTITY FULL aumenta marginalmente o tamanho do payload WAL para a tabela chat_rooms, mas o impacto e negligivel para o volume de dados deste sistema
+- **Visual:** Contadores passam a decrementar em tempo real ao fechar/reatribuir chats
+- **Compatibilidade:** Nenhuma mudanca de schema, apenas configuracao de replicacao
 
