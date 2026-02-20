@@ -67,6 +67,7 @@ const ChatWidget = () => {
   const [formData, setFormData] = useState({ name: paramVisitorName || "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
   const [allBusy, setAllBusy] = useState(false);
+  const [outsideHours, setOutsideHours] = useState(false);
   const [historyRooms, setHistoryRooms] = useState<HistoryRoom[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -269,8 +270,12 @@ const ChatWidget = () => {
         const data = await res.json();
         if (data.assigned) {
           setPhase("chat");
+        } else if (data.outside_hours) {
+          setOutsideHours(true);
+          setAllBusy(false);
         } else if (data.all_busy) {
           setAllBusy(true);
+          setOutsideHours(false);
         }
       }
     } catch {
@@ -669,10 +674,15 @@ const ChatWidget = () => {
 
         {phase === "waiting" && (
           <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
-            <div className={allBusy ? "" : "animate-pulse"}>
+            <div className={allBusy || outsideHours ? "" : "animate-pulse"}>
               <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
             </div>
-            {allBusy ? (
+            {outsideHours ? (
+              <div className="text-center space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 max-w-xs">
+                <p className="text-sm font-medium text-blue-800">Estamos fora do horário de atendimento.</p>
+                <p className="text-xs text-blue-700">Sua mensagem ficará registrada e responderemos assim que voltarmos.</p>
+              </div>
+            ) : allBusy ? (
               <div className="text-center space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 max-w-xs">
                 <p className="text-sm font-medium text-amber-800">Todos os atendentes estão ocupados no momento.</p>
                 <p className="text-xs text-amber-700">Você está na fila e será atendido em breve. Por favor, aguarde.</p>

@@ -59,6 +59,7 @@ interface TeamAttendant {
   display_name: string;
   active_count: number;
   user_id: string;
+  status: string | null;
 }
 
 export function AppSidebar() {
@@ -119,7 +120,7 @@ export function AppSidebar() {
 
     let attendants: any[] = [];
     if (isAdmin) {
-      const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id");
+      const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id, status");
       attendants = data ?? [];
     } else if (myProfile) {
       const { data: myTeams } = await supabase
@@ -136,14 +137,14 @@ export function AppSidebar() {
         if (uniqueIds.length > 0) {
           const { data } = await supabase
             .from("attendant_profiles")
-            .select("id, display_name, user_id")
+            .select("id, display_name, user_id, status")
             .in("id", uniqueIds);
           attendants = data ?? [];
         }
       } else {
         const { data } = await supabase
           .from("attendant_profiles")
-          .select("id, display_name, user_id")
+          .select("id, display_name, user_id, status")
           .eq("user_id", user.id);
         attendants = data ?? [];
       }
@@ -164,6 +165,7 @@ export function AppSidebar() {
         display_name: a.display_name,
         user_id: a.user_id,
         active_count: counts[a.id] || 0,
+        status: a.status ?? null,
       }))
       .sort((a, b) => {
         if (a.user_id === user.id) return -1;
@@ -600,6 +602,13 @@ export function AppSidebar() {
           >
             <User className="h-4 w-4" />
             {!collapsed && <span>{t("profile.title")}</span>}
+            {!collapsed && myAttendant && (
+              <span className={cn(
+                "ml-auto h-2 w-2 rounded-full shrink-0",
+                myAttendant.status === "online" ? "bg-green-500" :
+                myAttendant.status === "busy" ? "bg-amber-400" : "bg-muted-foreground/30"
+              )} />
+            )}
           </SidebarMenuButton>
           {hasPermission("settings", "view") && (
             <SidebarMenuButton
