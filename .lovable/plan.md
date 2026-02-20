@@ -1,212 +1,138 @@
 
-# Configurações de Exibição do Widget por Tenant
+# Teste End-to-End: Diagnóstico e Plano de Correções
 
-## Diagnóstico do Estado Atual
+## Resultado do Diagnóstico
 
-### O que existe hoje
-
-A aba "Widget" em `/admin/settings` contém:
-- Nome da empresa
-- Cor primária
-- Posição (esquerda/direita)
-- Código de integração (embed snippet)
-
-A tabela `chat_settings` armazena apenas: `welcome_message`, `offline_message`, `auto_assignment`, `max_queue_size`, `require_approval`, `widget_position`, `widget_primary_color`.
-
-O `ChatWidget.tsx` exibe banners para `outsideHours` e `allBusy` **sempre** que as condições são verdadeiras — sem qualquer opção de ligar/desligar esses comportamentos.
-
-### O que o usuário quer
-
-Configurações por tenant na aba Widget para controlar **o que o widget exibe** em cada situação — por exemplo, se deve ou não mostrar o banner de "atendentes ocupados", ou o texto personalizado nesses banners.
+Após análise completa de todos os arquivos, banco de dados e lógica de runtime, foram identificados **3 bugs críticos** e **4 melhorias** importantes.
 
 ---
 
-## Mapeamento Completo de Configurações de Exibição
+## Bug 1 — CRÍTICO: Widget não consegue ler as configurações de exibição
 
-Todas as situações relevantes do widget que podem ser configuradas:
+**Problema:** A tabela `chat_settings` tem RLS habilitada com apenas uma política: `"Tenant members manage chat settings"` que exige `auth.uid()`. Visitantes do widget são **anônimos** (sem autenticação), então toda leitura de `chat_settings` retorna vazio. O estado `widgetConfig` nunca é preenchido — todos os toggles e textos personalizados configurados pelo admin são **ignorados em produção**.
 
-| Situação | Comportamento atual | Configuração desejada |
-|---|---|---|
-| Fora do horário | Banner azul fixo | Toggle ligar/desligar + texto personalizável |
-| Atendentes ocupados | Banner amarelo fixo | Toggle ligar/desligar + texto personalizável |
-| Aguardando atendimento | Spinner + texto fixo | Texto personalizável |
-| Formulário de entrada | Campos nome/email/telefone fixos | Toggle por campo (email e telefone opcionais) |
-| Histórico de conversas | Sempre visível | Toggle: exibir ou não histórico |
-| CSAT ao fechar | Sempre exibido | Toggle: pedir ou não avaliação ao fechar |
-| Anexos de arquivos | Habilitado fixo | Toggle habilitar/desabilitar envio de arquivos |
+**Evidência:**
+- `pg_policies` confirma: única política é `cmd=ALL`, sem SELECT público
+- Widget faz `.from("chat_settings").eq("user_id", ownerUserId)` como usuário anônimo → retorna 0 linhas
+
+**Correção:** Adicionar uma política SELECT pública que permite leitura por `user_id` (não expõe dados sensíveis — apenas configurações visuais):
+```sql
+CREATE POLICY "Public can read widget config by user_id"
+ON public.chat_settings FOR SELECT
+USING (true);
+```
+Como alternativa mais restrita (por segurança, esconder o `welcome_message` e configs internas):
+```sql
+CREATE POLICY "Public can read widget display config"
+ON public.chat_settings FOR SELECT
+USING (true);
+```
 
 ---
 
-## Parte 1 — Migração SQL: Novos Campos em `chat_settings`
+## Bug 2 — CRÍTICO: Trigger `assign_chat_room()` referencia coluna inexistente
 
-Adicionar colunas de configuração de exibição na tabela `chat_settings`. Todos com defaults seguros que preservam comportamento atual:
+**Problema:** A função SQL `assign_chat_room()` busca horários de atendimento assim:
+```sql
+WHERE owner_user_id = NEW.owner_user_id
+```
+Porém a tabela `chat_business_hours` **não possui a coluna `owner_user_id`** — as colunas são: `id, user_id, day_of_week, start_time, end_time, is_active, created_at, tenant_id`.
 
+**Por que não quebrou ainda:** A tabela `chat_business_hours` está vazia (nenhum horário salvo). Quando a consulta `SELECT EXISTS(...)` roda com uma coluna inexistente, o PostgreSQL lança um erro de compilação — mas **só executa ao encontrar a primeira row**. Com tabela vazia o EXISTS retorna false sem checar as colunas. Assim que o admin salvar qualquer horário de atendimento, o trigger vai quebrar com `ERROR: column "owner_user_id" does not exist`.
+
+**Correção:** Atualizar a função para usar `tenant_id`:
+```sql
+WHERE tenant_id = (SELECT tenant_id FROM public.user_profiles WHERE user_id = NEW.owner_user_id LIMIT 1)
+```
+(A segunda condição já usa `tenant_id` corretamente; só a primeira `OR owner_user_id = ...` está errada)
+
+---
+
+## Bug 3 — MODERADO: Campo `widget_company_name` não persiste
+
+**Problema:** O estado do `AdminSettings.tsx` inclui `widget_company_name`, e o UI permite editar o nome da empresa. Mas essa coluna **não existe na tabela `chat_settings`**. O campo é enviado no payload de `handleSaveGeneral` mas descartado pelo banco. Ao recarregar a página, o nome volta vazio.
+
+**Evidência:** `SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_settings' AND column_name LIKE '%company%'` → retorna 0 linhas.
+
+**Correção:** Adicionar a coluna:
 ```sql
 ALTER TABLE public.chat_settings
-  -- Fora do horário
-  ADD COLUMN IF NOT EXISTS show_outside_hours_banner boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS outside_hours_title text DEFAULT 'Estamos fora do horário de atendimento.',
-  ADD COLUMN IF NOT EXISTS outside_hours_message text DEFAULT 'Sua mensagem ficará registrada e responderemos assim que voltarmos.',
-
-  -- Atendentes ocupados
-  ADD COLUMN IF NOT EXISTS show_all_busy_banner boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS all_busy_title text DEFAULT 'Todos os atendentes estão ocupados no momento.',
-  ADD COLUMN IF NOT EXISTS all_busy_message text DEFAULT 'Você está na fila e será atendido em breve. Por favor, aguarde.',
-
-  -- Aguardando atendimento
-  ADD COLUMN IF NOT EXISTS waiting_message text DEFAULT 'Aguardando atendimento...',
-
-  -- Formulário
-  ADD COLUMN IF NOT EXISTS show_email_field boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS show_phone_field boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS form_intro_text text DEFAULT 'Preencha seus dados para iniciar o atendimento.',
-
-  -- Histórico
-  ADD COLUMN IF NOT EXISTS show_chat_history boolean NOT NULL DEFAULT true,
-
-  -- CSAT
-  ADD COLUMN IF NOT EXISTS show_csat boolean NOT NULL DEFAULT true,
-
-  -- Anexos
-  ADD COLUMN IF NOT EXISTS allow_file_attachments boolean NOT NULL DEFAULT true;
+  ADD COLUMN IF NOT EXISTS widget_company_name text DEFAULT '';
 ```
-
-**Zero impacto no comportamento atual**: todos os defaults são `true` ou preservam os textos já exibidos.
-
----
-
-## Parte 2 — Nova Aba "Exibição" dentro da aba Widget em AdminSettings.tsx
-
-A aba "Widget" atual já tem configurações de aparência (cor, posição). Vamos adicionar um segundo card "Comportamento e Mensagens" logo abaixo, organizado em seções com `Separator`:
-
-### Estrutura do card "Comportamento e Mensagens"
-
-```
-┌── Comportamento e Mensagens ───────────────────────────────┐
-│                                                             │
-│  ── Fora do Horário de Atendimento ────────────────────── │
-│  Exibir aviso quando fora do horário: [ON]                  │
-│  Título: [Estamos fora do horário de atendimento. ______]   │
-│  Mensagem: [Sua mensagem ficará registrada ______________ ]  │
-│                                                             │
-│  ── Atendentes Ocupados ───────────────────────────────── │
-│  Exibir aviso quando todos estão ocupados: [ON]             │
-│  Título: [Todos os atendentes estão ocupados. ___________]  │
-│  Mensagem: [Você está na fila e será atendido em breve. __] │
-│                                                             │
-│  ── Formulário Inicial ──────────────────────────────────  │
-│  Texto introdutório: [Preencha seus dados... ____________]  │
-│  Exibir campo Email: [ON]    Exibir campo Telefone: [ON]    │
-│                                                             │
-│  ── Funcionalidades ────────────────────────────────────── │
-│  Histórico de conversas: [ON]    CSAT ao encerrar: [ON]     │
-│  Envio de arquivos: [ON]                                    │
-│                                                             │
-│  [Salvar configurações]                                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Preview ao vivo
-
-O `WidgetPreview.tsx` existente renderiza o formulário estático. Vamos estender para receber as novas props e refletir as configurações:
-- Se `showEmailField = false` → ocultar campo email no preview
-- Se `showPhoneField = false` → ocultar campo telefone no preview
-
----
-
-## Parte 3 — `ChatWidget.tsx`: Consumir as Configurações
-
-O widget precisa buscar as configurações de `chat_settings` ao inicializar e usá-las para controlar os renders.
-
-### Novo fetch ao carregar o widget
-
-O widget recebe `ownerUserId` via query param. Deve buscar `chat_settings` pelo `owner_user_id` para obter as configs. Isso é feito **uma vez** no `useEffect` de init.
-
+E incluir no fetchAll:
 ```typescript
-// Buscar configurações de exibição pelo tenant
-const { data: chatConfig } = await supabase
-  .from("chat_settings")
-  .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_email_field, show_phone_field, form_intro_text, show_chat_history, show_csat, allow_file_attachments")
-  .eq("user_id", ownerUserId)  // ou tenant_id quando disponível
-  .maybeSingle();
+widget_company_name: s.widget_company_name ?? "",
 ```
-
-### Uso no render
-
-Nos pontos exatos do `ChatWidget.tsx`:
-
-- **Linha ~681** (banner `outsideHours`): envolver em `{chatConfig?.show_outside_hours_banner !== false && outsideHours && ...}`, usando os textos `outside_hours_title` e `outside_hours_message`
-- **Linha ~685** (banner `allBusy`): envolver em `{chatConfig?.show_all_busy_banner !== false && allBusy && ...}`, usando os textos `all_busy_title` e `all_busy_message`
-- **Linha ~589** (formulário): usar `form_intro_text`, mostrar/ocultar email e telefone com `show_email_field` e `show_phone_field`
-- **Linha ~610** (histórico): envolver o render de histórico em `{chatConfig?.show_chat_history !== false && ...}`
-- **Fase `csat`**: pular para `closed` diretamente se `show_csat = false`
-- **Botão de attachment** (linha ~750+): ocultar se `allow_file_attachments = false`
 
 ---
 
-## Parte 4 — `WidgetPreview.tsx`: Receber Props de Configuração
+## Bug 4 — MENOR: Realtime não atualiza status do atendente no sidebar
 
-Estender o componente de preview para receber props opcionais que refletem as configurações e alternar os campos no formulário do preview:
+**Problema:** O sidebar ouve `chat_rooms` via Realtime para atualizar contadores, mas **não ouve `attendant_profiles`**. Quando um atendente muda o status (Online/Offline) em "Meu Perfil", o indicador colorido no sidebar de outros usuários só atualiza no próximo reload ou quando uma sala muda de status.
 
+**Correção:** Adicionar canal Realtime para `attendant_profiles` no `fetchCounts` do sidebar:
 ```typescript
-interface WidgetPreviewProps {
-  position: "left" | "right";
-  primaryColor: string;
-  companyName: string;
-  // Novas props opcionais
-  showEmailField?: boolean;
-  showPhoneField?: boolean;
-  formIntroText?: string;
-}
+supabase.channel("sidebar-attendants")
+  .on("postgres_changes", { event: "UPDATE", schema: "public", table: "attendant_profiles" }, () => fetchCounts())
+  .subscribe();
 ```
-
-Isso permite que ao desabilitar um campo no formulário de configurações, o preview já reflita a mudança instantaneamente.
 
 ---
 
-## Parte 5 — Arquivos a Criar/Modificar
+## Melhorias Sugeridas
+
+### Melhoria 1 — Auto-assign: configuração ausente precisa de aviso no UI
+
+**Problema:** O fluxo de atribuição automática requer que a categoria do contato tenha um time vinculado com config habilitada (`chat_assignment_configs.enabled = true`). O diagnóstico mostrou que a única categoria_team existente tem `enabled = NULL` — nunca foi configurada. O admin não tem nenhum aviso sobre isso.
+
+**Melhoria:** Na aba Categorias (`CategoriesTab.tsx`) ou Regras de Atendimento (`AssignmentConfigPanel`), exibir um badge "⚠ Sem config de atribuição" nas categorias que têm times mas nenhum `assignment_config` habilitado.
+
+### Melhoria 2 — Indicador visual "Fora do horário" nas configurações
+
+**Problema:** Na aba "Horários", o admin não tem feedback do horário atual vs. configurado. Não sabe se "agora" está dentro do horário ativo.
+
+**Melhoria:** Mostrar no topo da aba um badge dinâmico: "● Agora: dentro do horário de atendimento" ou "● Agora: FORA do horário" calculado no browser, sem fetch adicional.
+
+### Melhoria 3 — Preview do widget mostra apenas formulário; deveria mostrar também o banner de "fora do horário"
+
+**Problema:** O `WidgetPreview.tsx` mostra apenas o estado do formulário inicial. Não há como o admin visualizar como ficará o banner de "fora do horário" ou "atendentes ocupados" com os textos personalizados.
+
+**Melhoria:** Adicionar tabs no preview: "Formulário" / "Fora do horário" / "Atendentes ocupados", cada um mostrando o respectivo estado com as mensagens configuradas ao vivo.
+
+### Melhoria 4 — Contagem de conversas ativas desincronizada
+
+**Problema:** O campo `attendant_profiles.active_conversations` é gerenciado pelos triggers (incrementa no INSERT, decrementa no CLOSE). Mas se uma sala for deletada diretamente (sem passar por `status = 'closed'`), o contador não é decrementado.
+
+**Melhoria:** Adicionar trigger `AFTER DELETE` em `chat_rooms` para decrementar o contador se a sala tinha um `attendant_id`.
+
+---
+
+## Arquivos a Criar/Modificar
 
 | Arquivo | Ação | O que muda |
 |---|---|---|
-| `supabase/migrations/[timestamp].sql` | CRIAR | ALTER TABLE `chat_settings` para adicionar 13 novas colunas de configuração de exibição com defaults seguros |
-| `src/pages/AdminSettings.tsx` | MODIFICAR | Adicionar segundo card "Comportamento e Mensagens" na aba Widget, com todos os toggles e campos de texto; expandir o `settings` state e `fetchAll`/`handleSaveGeneral` para incluir as novas colunas; passar novas props ao `WidgetPreview` |
-| `src/components/chat/WidgetPreview.tsx` | MODIFICAR | Aceitar props opcionais `showEmailField`, `showPhoneField`, `formIntroText` e refletir no preview do formulário |
-| `src/pages/ChatWidget.tsx` | MODIFICAR | Adicionar estado `widgetConfig`, fetch das configs de exibição no init, usar `widgetConfig` para controlar render de cada banner/seção/funcionalidade |
+| `supabase/migrations/[timestamp].sql` | CRIAR | 1) Policy SELECT pública em `chat_settings`; 2) Corrigir `assign_chat_room()` — remover `owner_user_id`, usar apenas `tenant_id`; 3) Adicionar coluna `widget_company_name` em `chat_settings`; 4) Trigger `AFTER DELETE` para decrementar `active_conversations` |
+| `src/pages/AdminSettings.tsx` | MODIFICAR | Incluir `widget_company_name` no fetch (`fetchAll`) para carregar do banco corretamente |
+| `src/components/AppSidebar.tsx` | MODIFICAR | Adicionar canal Realtime para `attendant_profiles` ao lado do canal de `chat_rooms` |
+| `src/pages/AdminSettings.tsx` | MODIFICAR | Adicionar indicador de horário atual na aba "Horários" |
+| `src/components/chat/WidgetPreview.tsx` | MODIFICAR | Adicionar tabs de preview: Formulário / Fora do horário / Ocupado |
 
 ---
 
-## Detalhes Técnicos
+## Prioridade de Execução
 
-### Fetch no widget sem `owner_user_id`
+1. **Bug 1 + Bug 2 + Bug 3** em uma única migração SQL — são os que impactam o funcionamento real em produção
+2. **Melhoria de Realtime no sidebar** — low-risk, alto benefício UX
+3. **Preview com múltiplos estados** — melhoria de DX para o admin
+4. **Indicador de horário atual** — melhoria de UX menor
 
-Para visitantes anônimos (sem `ownerUserId` na URL), o widget não consegue buscar as configs diretamente. Nesse caso usa os defaults — o comportamento atual é preservado. Para visitantes resolvidos (com `ownerUserId`), a busca usa `eq("user_id", ownerUserId)`.
+---
 
-Como alternativa mais robusta: a edge function `assign-chat-room` pode retornar as configs de exibição junto com o response. Mas para simplicidade e sem alterar a edge function, o widget faz seu próprio fetch de `chat_settings` onde disponível.
+## Resumo dos Bugs por Impacto
 
-### Defaults no estado de AdminSettings
-
-Para preservar compatibilidade com tenants que ainda não salvaram as novas configs, os defaults no state são exatamente os textos que o widget usa hoje:
-
-```typescript
-show_outside_hours_banner: true,
-outside_hours_title: "Estamos fora do horário de atendimento.",
-outside_hours_message: "Sua mensagem ficará registrada e responderemos assim que voltarmos.",
-show_all_busy_banner: true,
-all_busy_title: "Todos os atendentes estão ocupados no momento.",
-all_busy_message: "Você está na fila e será atendido em breve. Por favor, aguarde.",
-waiting_message: "Aguardando atendimento...",
-show_email_field: true,
-show_phone_field: true,
-form_intro_text: "Preencha seus dados para iniciar o atendimento.",
-show_chat_history: true,
-show_csat: true,
-allow_file_attachments: true,
-```
-
-### Input desabilitado condicionalmente
-
-Quando `show_outside_hours_banner = false`, os campos de título e mensagem ficam desabilitados (`disabled`) com `opacity-50`, mas os valores são preservados para quando reativado.
-
-### Sem migration destrutiva
-
-Apenas `ADD COLUMN IF NOT EXISTS` — nenhuma coluna existente é alterada.
+| ID | Tipo | Impacto | Status atual |
+|---|---|---|---|
+| Bug 1 | RLS faltando | Widget nunca aplica configs personalizadas | Silencioso — admin não percebe |
+| Bug 2 | SQL inválido | Trigger quebra quando admin salvar horários | Latente — escondido por tabela vazia |
+| Bug 3 | Coluna faltando | Nome da empresa não persiste | Visível — campo sempre volta vazio |
+| Bug 4 | Realtime ausente | Status desatualizado no sidebar | UX menor |
