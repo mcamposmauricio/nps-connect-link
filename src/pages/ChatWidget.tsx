@@ -75,6 +75,21 @@ const ChatWidget = () => {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [widgetConfig, setWidgetConfig] = useState<{
+    show_outside_hours_banner: boolean;
+    outside_hours_title: string;
+    outside_hours_message: string;
+    show_all_busy_banner: boolean;
+    all_busy_title: string;
+    all_busy_message: string;
+    waiting_message: string;
+    show_email_field: boolean;
+    show_phone_field: boolean;
+    form_intro_text: string;
+    show_chat_history: boolean;
+    show_csat: boolean;
+    allow_file_attachments: boolean;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +128,17 @@ const ChatWidget = () => {
 
   useEffect(() => {
     const init = async () => {
+      // Fetch widget display config if ownerUserId is available
+      const ownerForConfig = paramOwnerUserId;
+      if (ownerForConfig && ownerForConfig !== "00000000-0000-0000-0000-000000000000") {
+        const { data: cfg } = await supabase
+          .from("chat_settings")
+          .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_email_field, show_phone_field, form_intro_text, show_chat_history, show_csat, allow_file_attachments")
+          .eq("user_id", ownerForConfig)
+          .maybeSingle();
+        if (cfg) setWidgetConfig(cfg as any);
+      }
+
       if (paramVisitorToken) {
         setVisitorToken(paramVisitorToken);
         localStorage.setItem("chat_visitor_token", paramVisitorToken);
@@ -586,19 +612,25 @@ const ChatWidget = () => {
         {phase === "form" && (
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Preencha seus dados para iniciar o atendimento.</p>
+              <p className="text-sm text-muted-foreground">
+                {widgetConfig?.form_intro_text ?? "Preencha seus dados para iniciar o atendimento."}
+              </p>
               <div className="space-y-2">
                 <Label>Nome *</Label>
                 <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Seu nome" />
               </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" type="email" />
-              </div>
-              <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
-              </div>
+              {(widgetConfig?.show_email_field ?? true) && (
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" type="email" />
+                </div>
+              )}
+              {(widgetConfig?.show_phone_field ?? true) && (
+                <div className="space-y-2">
+                  <Label>Telefone</Label>
+                  <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
+                </div>
+              )}
               <Button className="w-full" onClick={handleStartChat} disabled={loading || !formData.name.trim()} style={{ backgroundColor: primaryColor }}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Iniciar Conversa
@@ -607,7 +639,7 @@ const ChatWidget = () => {
           </div>
         )}
 
-        {phase === "history" && (
+        {phase === "history" && (widgetConfig?.show_chat_history ?? true) && (
           <div className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-3">
               <Button
@@ -672,24 +704,48 @@ const ChatWidget = () => {
           </div>
         )}
 
+        {phase === "history" && !(widgetConfig?.show_chat_history ?? true) && (
+          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
+            <Button
+              className="w-full gap-2"
+              onClick={handleNewChat}
+              disabled={loading}
+              style={{ backgroundColor: primaryColor }}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Novo Chat
+            </Button>
+          </div>
+        )}
+
         {phase === "waiting" && (
           <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
             <div className={allBusy || outsideHours ? "" : "animate-pulse"}>
               <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
             </div>
-            {outsideHours ? (
+            {outsideHours && (widgetConfig?.show_outside_hours_banner ?? true) ? (
               <div className="text-center space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 max-w-xs">
-                <p className="text-sm font-medium text-blue-800">Estamos fora do horário de atendimento.</p>
-                <p className="text-xs text-blue-700">Sua mensagem ficará registrada e responderemos assim que voltarmos.</p>
+                <p className="text-sm font-medium text-blue-800">
+                  {widgetConfig?.outside_hours_title ?? "Estamos fora do horário de atendimento."}
+                </p>
+                <p className="text-xs text-blue-700">
+                  {widgetConfig?.outside_hours_message ?? "Sua mensagem ficará registrada e responderemos assim que voltarmos."}
+                </p>
               </div>
-            ) : allBusy ? (
+            ) : allBusy && (widgetConfig?.show_all_busy_banner ?? true) ? (
               <div className="text-center space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 max-w-xs">
-                <p className="text-sm font-medium text-amber-800">Todos os atendentes estão ocupados no momento.</p>
-                <p className="text-xs text-amber-700">Você está na fila e será atendido em breve. Por favor, aguarde.</p>
+                <p className="text-sm font-medium text-amber-800">
+                  {widgetConfig?.all_busy_title ?? "Todos os atendentes estão ocupados no momento."}
+                </p>
+                <p className="text-xs text-amber-700">
+                  {widgetConfig?.all_busy_message ?? "Você está na fila e será atendido em breve. Por favor, aguarde."}
+                </p>
               </div>
             ) : (
               <>
-                <p className="text-sm text-muted-foreground text-center">Aguardando atendimento...</p>
+                <p className="text-sm text-muted-foreground text-center">
+                  {widgetConfig?.waiting_message ?? "Aguardando atendimento..."}
+                </p>
                 <p className="text-xs text-muted-foreground">Você será conectado em breve.</p>
               </>
             )}
@@ -739,7 +795,7 @@ const ChatWidget = () => {
         )}
       </div>
 
-      {phase === "csat" && (
+      {phase === "csat" && (widgetConfig?.show_csat ?? true) && (
         <div className="p-4 space-y-4 border-t">
           <p className="text-sm font-medium text-center">Avalie o atendimento</p>
           <div className="flex justify-center gap-2">
@@ -756,6 +812,15 @@ const ChatWidget = () => {
           />
           <Button className="w-full" onClick={handleSubmitCsat} disabled={csatScore === 0} style={{ backgroundColor: primaryColor }}>
             Enviar Avaliação
+          </Button>
+        </div>
+      )}
+
+      {phase === "csat" && !(widgetConfig?.show_csat ?? true) && (
+        <div className="p-4 text-center text-sm text-muted-foreground border-t">
+          <p>Obrigado! Esta conversa foi encerrada.</p>
+          <Button className="mt-2 w-full" onClick={() => { if (isResolvedVisitor) { handleBackToHistory(); } else { setPhase("closed"); } }} style={{ backgroundColor: primaryColor }}>
+            Concluir
           </Button>
         </div>
       )}
@@ -789,9 +854,11 @@ const ChatWidget = () => {
               if (file) handleFileSelect(file);
             }}
           />
+          {(widgetConfig?.allow_file_attachments ?? true) && (
           <Button size="icon" variant="ghost" className="shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             <Paperclip className="h-4 w-4" />
           </Button>
+          )}
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
