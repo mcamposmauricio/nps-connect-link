@@ -66,6 +66,7 @@ const ChatWidget = () => {
   const [csatComment, setCsatComment] = useState("");
   const [formData, setFormData] = useState({ name: paramVisitorName || "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
+  const [allBusy, setAllBusy] = useState(false);
   const [historyRooms, setHistoryRooms] = useState<HistoryRoom[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -239,6 +240,7 @@ const ChatWidget = () => {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_rooms", filter: `id=eq.${roomId}` }, (payload) => {
         const room = payload.new as any;
         if (room.status === "active" && phase === "waiting") {
+          setAllBusy(false);
           setPhase("chat");
           postMsg("chat-connected");
         } else if (room.status === "closed") {
@@ -254,6 +256,28 @@ const ChatWidget = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
+  const checkRoomAssignment = async (rId: string) => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/assign-chat-room`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": supabaseAnonKey },
+        body: JSON.stringify({ room_id: rId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.assigned) {
+          setPhase("chat");
+        } else if (data.all_busy) {
+          setAllBusy(true);
+        }
+      }
+    } catch {
+      // fail silently — realtime subscription will handle the status update
+    }
+  };
+
   const createLinkedRoom = async (vId: string) => {
     const insertData: any = {
       visitor_id: vId,
@@ -266,7 +290,7 @@ const ChatWidget = () => {
     const { data: newRoom } = await supabase
       .from("chat_rooms")
       .insert(insertData)
-      .select("id")
+      .select("id, status, attendant_id")
       .single();
 
     return newRoom;
@@ -275,6 +299,7 @@ const ChatWidget = () => {
   const handleNewChat = async () => {
     if (!visitorId) return;
     setLoading(true);
+    setAllBusy(false);
 
     const newRoom = await createLinkedRoom(visitorId);
     if (newRoom) {
@@ -282,7 +307,14 @@ const ChatWidget = () => {
       setMessages([]);
       setCsatScore(0);
       setCsatComment("");
-      setPhase("waiting");
+      // Trigger already assigned the room (BEFORE INSERT) — check status
+      if (newRoom.status === "active" && newRoom.attendant_id) {
+        setPhase("chat");
+      } else {
+        setPhase("waiting");
+        // Call edge function to get real-time feedback on queue status
+        await checkRoomAssignment(newRoom.id);
+      }
       postMsg("chat-ready");
     }
     setLoading(false);
@@ -305,6 +337,7 @@ const ChatWidget = () => {
   const handleStartChat = async () => {
     if (!formData.name.trim()) return;
     setLoading(true);
+    setAllBusy(false);
 
     const { data: visitor, error: vError } = await supabase
       .from("chat_visitors")
@@ -333,12 +366,18 @@ const ChatWidget = () => {
         owner_user_id: "00000000-0000-0000-0000-000000000000",
         status: "waiting",
       })
-      .select("id")
+      .select("id, status, attendant_id")
       .single();
 
     if (room) {
       setRoomId(room.id);
-      setPhase("waiting");
+      // Trigger may have already assigned it
+      if (room.status === "active" && room.attendant_id) {
+        setPhase("chat");
+      } else {
+        setPhase("waiting");
+        // Anonymous visitors won't have contact_id → all_busy will be false, just shows waiting
+      }
       postMsg("chat-ready");
     }
 
@@ -629,12 +668,21 @@ const ChatWidget = () => {
         )}
 
         {phase === "waiting" && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div className="animate-pulse">
+          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
+            <div className={allBusy ? "" : "animate-pulse"}>
               <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
             </div>
-            <p className="text-sm text-muted-foreground text-center mt-4">Aguardando atendimento...</p>
-            <p className="text-xs text-muted-foreground mt-1">Você será conectado em breve.</p>
+            {allBusy ? (
+              <div className="text-center space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 max-w-xs">
+                <p className="text-sm font-medium text-amber-800">Todos os atendentes estão ocupados no momento.</p>
+                <p className="text-xs text-amber-700">Você está na fila e será atendido em breve. Por favor, aguarde.</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground text-center">Aguardando atendimento...</p>
+                <p className="text-xs text-muted-foreground">Você será conectado em breve.</p>
+              </>
+            )}
           </div>
         )}
 
