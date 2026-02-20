@@ -272,7 +272,7 @@ const LandingPage = () => {
               onMouseEnter={(e) => (e.currentTarget.style.color = "#FF7A59")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
             >
-              In-App Chat →
+              In-App Chat
             </Link>
 
             {/* Lang toggle */}

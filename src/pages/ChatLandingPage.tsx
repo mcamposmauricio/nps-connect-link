@@ -19,7 +19,7 @@ const texts = {
     navFeatures: "Features",
     navIntegrations: "Integrations",
     navPricing: "Pricing",
-    navCrossLink: "Journey Platform →",
+    navCrossLink: "Journey Platform",
     navSignIn: "Sign In",
     navDashboard: "Dashboard",
     navCta: "Start Free",
@@ -50,7 +50,7 @@ const texts = {
     navFeatures: "Funcionalidades",
     navIntegrations: "Integrações",
     navPricing: "Preços",
-    navCrossLink: "Journey Platform →",
+    navCrossLink: "Journey Platform",
     navSignIn: "Entrar",
     navDashboard: "Dashboard",
     navCta: "Começar Grátis",
@@ -247,18 +247,6 @@ const ChatLandingPage = () => {
 
           {/* Nav links (desktop) */}
           <div className="hidden md:flex items-center gap-6">
-            {["features", "integrations"].map((id) => (
-              <button
-                key={id}
-                onClick={() => scrollTo(id)}
-                className="text-sm transition-colors duration-150"
-                style={{ color: "rgba(255,255,255,0.5)", background: "none", border: "none", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
-              >
-                {id === "features" ? t.navFeatures : t.navIntegrations}
-              </button>
-            ))}
             <Link
               to="/journey"
               className="text-sm transition-colors duration-150"
@@ -366,23 +354,8 @@ const ChatLandingPage = () => {
         </div>
       </section>
 
-      {/* ── SOCIAL PROOF ────────────────────────────────────── */}
-      <section className="py-8 px-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <div className="max-w-5xl mx-auto text-center">
-          <p className="text-xs font-medium uppercase tracking-widest mb-7" style={{ color: "rgba(255,255,255,0.25)" }}>
-            {t.socialTitle}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
-            {socialLogos.map((name) => (
-              <span key={name} className="font-mono text-sm font-medium" style={{ color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ── DIFFERENTIALS ───────────────────────────────────── */}
+
       <section id="features" className="py-16 px-4">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6">
           {differentials.map(({ icon: Icon, color, title, desc }) => (
@@ -411,36 +384,8 @@ const ChatLandingPage = () => {
         </div>
       </section>
 
-      {/* ── INTEGRATIONS ────────────────────────────────────── */}
-      <section id="integrations" className="py-16 px-4" style={{ background: "#0A0D12" }}>
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-medium text-white mb-3" style={{ fontSize: "clamp(22px, 3vw, 32px)", letterSpacing: "-0.02em" }}>
-            {t.intTitle}
-          </h2>
-          <p className="text-sm mb-12" style={{ color: "rgba(255,255,255,0.45)" }}>{t.intSub}</p>
 
-          <div className="flex flex-wrap justify-center gap-5">
-            {integrations.map(({ icon: Icon, name }) => (
-              <div
-                key={name}
-                className="rounded-2xl px-7 py-5 flex flex-col items-center gap-3 min-w-[140px]"
-                style={{ background: "#131722", border: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(255,255,255,0.05)" }}
-                >
-                  <Icon className="w-5 h-5" style={{ color: "rgba(255,255,255,0.7)" }} />
-                </div>
-                <div>
-                  <div className="font-semibold text-white text-sm mb-1">{name}</div>
-                  <div className="text-[11px] font-medium" style={{ color: "#2ECC71" }}>{t.intConnected}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* ── FINAL CTA ───────────────────────────────────────── */}
       <section className="py-20 px-4 relative overflow-hidden">
