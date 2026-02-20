@@ -1,71 +1,146 @@
 
 
-# Corrigir: Matheus nao aparece na lista de atendentes
+# Plano: Layout Persistente para Eliminar Recarregamentos
 
-## Root Cause
+## Problema Atual
 
-Dois problemas encontrados no `UserPermissionsDialog.tsx`:
+Cada uma das 21 paginas do sistema faz isto:
 
-### Bug 1: `user_id` errado ao criar CSM (linha 357)
-Quando o admin salva as permissoes de outro usuario e um CSM precisa ser criado, o codigo faz:
-```typescript
-const { data: { user } } = await supabase.auth.getUser();
-await supabase.from("csms").insert({ user_id: user.id, ... });
 ```
-`user.id` e o ID do **admin logado**, nao do usuario sendo editado. O correto seria `profile.user_id`.
-
-### Bug 2: CSM so e criado se `csSpecialty.length > 0` (linha 338)
-O bloco que cria/atualiza o CSM esta dentro de `if (csSpecialty.length > 0)`. Se o admin nao selecionou nenhuma especialidade CS, o CSM nunca e criado -- e sem CSM, o usuario nao aparece na aba de Atendentes para habilitar chat.
-
-Para que um usuario possa ser atendente de chat, ele precisa ter um registro na tabela `csms`. O fluxo deveria garantir que o CSM seja criado sempre que o usuario tem permissao de chat, independente de ter especialidade CS.
-
-## Solucao
-
-### 1. Corrigir `user_id` no insert (Bug 1)
-
-```typescript
-// Linha 357 — DE:
-user_id: user.id,
-// PARA:
-user_id: profile.user_id,
+return <SidebarLayout> ... conteudo ... </SidebarLayout>
 ```
 
-Remover tambem o `getUser()` desnecessario (linha 354), ja que `profile.user_id` esta disponivel.
+Quando voce navega de uma pagina para outra, o React **desmonta** o SidebarLayout inteiro e **remonta** um novo. Isso causa:
 
-### 2. Garantir criacao do CSM quando permissao de chat existe (Bug 2)
+1. O logo pulsante (loading) aparece brevemente a cada navegacao
+2. O SidebarDataProvider e destruido e recriado -- fazendo novas queries ao banco e recriando canais Realtime
+3. O estado da sidebar (aberta/fechada, submenus expandidos) precisa ser relido do localStorage
+4. Hooks de dados das paginas (useChatRooms, useDashboardStats) refazem todas as queries do zero
 
-Mover a logica de criacao/atualizacao do CSM para fora do `if (csSpecialty.length > 0)`. O CSM deve ser criado/atualizado sempre, usando especialidade vazia se nenhuma for selecionada.
+## Solucao: Layout Route com Outlet
 
-A condicao para criar o CSM passa a ser: **sempre** (todo membro do tenant pode ser um CSM; a aba de Atendentes controla quem tem chat habilitado via `is_chat_enabled`).
+Usar o padrao de Layout Route do React Router v6. O `SidebarLayout` vira um componente de rota pai que renderiza `<Outlet />` no lugar de `{children}`. As paginas ficam como rotas filhas.
 
-### 3. Corrigir dados do Matheus no banco
+```text
+ANTES (cada pagina monta/desmonta o layout):
 
-Inserir o CSM do Matheus manualmente via migracao para corrigir o estado atual:
+  /admin/workspace  -->  [SidebarLayout [SidebarDataProvider [AppSidebar + Workspace]]]
+  /admin/dashboard  -->  [SidebarLayout [SidebarDataProvider [AppSidebar + Dashboard]]]
+  (navegar = destruir tudo e recriar)
 
-```sql
-INSERT INTO public.csms (user_id, name, email, tenant_id)
-SELECT 
-  up.user_id, 
-  up.display_name, 
-  up.email, 
-  up.tenant_id
-FROM public.user_profiles up
-WHERE up.user_id = 'c4644e4d-d0bb-46b5-92ed-afb113945d9a'
-AND NOT EXISTS (
-  SELECT 1 FROM public.csms WHERE user_id = up.user_id
-);
+DEPOIS (layout persiste, so o conteudo muda):
+
+  SidebarLayout (permanente)
+    |-- SidebarDataProvider (permanente)
+    |-- AppSidebar (permanente)
+    |-- <Outlet />  <-- so este troca
+          |-- /admin/workspace  -->  [Workspace]
+          |-- /admin/dashboard  -->  [Dashboard]
 ```
 
-## Arquivos a Modificar
+## Etapas de Implementacao
 
-| Arquivo | Mudanca |
+### 1. Converter SidebarLayout para usar Outlet
+
+**Arquivo:** `src/components/SidebarLayout.tsx`
+
+- Remover a prop `children`
+- Importar `Outlet` de `react-router-dom`
+- Substituir `{children}` por `<Outlet />`
+- Manter toda a logica de auth redirect e loading
+
+### 2. Reestruturar rotas no App.tsx
+
+**Arquivo:** `src/App.tsx`
+
+Agrupar todas as rotas protegidas (que usam sidebar) como filhas de uma rota pai com `element={<SidebarLayout />}`:
+
+```text
+<Route element={<SidebarLayout />}>
+  {/* Chat */}
+  <Route path="/admin/dashboard" element={<AdminDashboard />} />
+  <Route path="/admin/workspace" element={<AdminWorkspace />} />
+  <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
+  <Route path="/admin/attendants" element={<AdminAttendants />} />
+  <Route path="/admin/settings" element={<AdminSettings />} />
+  <Route path="/admin/settings/:tab" element={<AdminSettings />} />
+  <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
+  <Route path="/admin/history" element={<AdminChatHistory />} />
+  <Route path="/admin/banners" element={<AdminBanners />} />
+
+  {/* NPS */}
+  <Route path="/nps/dashboard" element={<Dashboard />} />
+  <Route path="/nps/contacts" element={<Contacts />} />
+  <Route path="/nps/people" element={<People />} />
+  <Route path="/nps/campaigns" element={<Campaigns />} />
+  <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
+  <Route path="/nps/settings" element={<Settings />} />
+  <Route path="/nps/nps-settings" element={<NPSSettings />} />
+
+  {/* CS */}
+  <Route path="/cs-dashboard" element={<CSDashboard />} />
+  <Route path="/cs-trails" element={<CSTrailsPage />} />
+  <Route path="/cs-health" element={<CSHealthPage />} />
+  <Route path="/cs-churn" element={<CSChurnPage />} />
+  <Route path="/cs-financial" element={<CSFinancialPage />} />
+
+  {/* Profile */}
+  <Route path="/profile" element={<MyProfile />} />
+</Route>
+```
+
+Rotas publicas (auth, widget, landing, embed, portal, nps response) permanecem fora.
+
+### 3. Remover SidebarLayout de cada pagina (21 arquivos)
+
+**Arquivos afetados:**
+
+| Pagina | Mudanca |
 |---|---|
-| `src/components/UserPermissionsDialog.tsx` | Corrigir `user_id` no insert; mover bloco de CSM para fora do if de specialty |
-| Migration SQL | Inserir CSM do Matheus para corrigir estado atual |
+| `AdminDashboard.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `AdminWorkspace.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `AdminAttendants.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `AdminSettings.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `AdminDashboardGerencial.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `AdminChatHistory.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `AdminBanners.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `Dashboard.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `Contacts.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `People.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `Campaigns.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CampaignDetails.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `Settings.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `NPSSettings.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CSDashboard.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CSTrailsPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CSHealthPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CSChurnPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CSFinancialPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `MyProfile.tsx` | Remover import e wrapper `<SidebarLayout>` |
+| `CSMsPage.tsx` | Remover import e wrapper `<SidebarLayout>` |
 
-## Resultado Esperado
+Em cada arquivo a mudanca e mecanica e identica:
+- Deletar `import SidebarLayout from "@/components/SidebarLayout";`
+- No return, substituir `<SidebarLayout>..conteudo..</SidebarLayout>` por apenas `..conteudo..` (envolto em um fragment se necessario)
 
-- Matheus aparece na lista de CSMs na aba Atendentes
-- Admin pode habilitar chat para ele via toggle
-- Futuros usuarios cadastrados via permissoes terao CSM criado corretamente
+### 4. Remover Results.tsx se nao esta em uso
+
+O arquivo `Results.tsx` importa SidebarLayout mas nao aparece nas rotas. Verificar se pode ser removido.
+
+## Ganhos Esperados
+
+| Aspecto | Antes | Depois |
+|---|---|---|
+| Loading spinner ao navegar | Aparece toda vez | Nunca mais (layout ja montado) |
+| Canais Realtime | Destruidos e recriados a cada clique | Criados uma vez, vivem a sessao inteira |
+| Queries de inicializacao (SidebarDataProvider) | Re-executadas a cada navegacao | Executadas uma unica vez |
+| Estado da sidebar | Relido do localStorage | Mantido em memoria |
+| Auth check (useAuth redirect) | Re-executado a cada pagina | Executado uma unica vez |
+
+## Riscos e Mitigacoes
+
+- **Risco:** Paginas que dependem de remontagem para resetar estado interno. **Mitigacao:** Hooks com `useEffect` que dependem de parametros de rota (como `roomId`) continuam funcionando normalmente pois os params mudam e disparam o effect.
+- **Risco:** AdminSettings usa SidebarLayout duas vezes (loading state e conteudo). **Mitigacao:** O loading state interno da pagina usa um spinner proprio, nao o SidebarLayout.
+
+Nenhuma migracao de banco necessaria. Nenhuma mudanca visual -- apenas eliminacao de recarregamentos desnecessarios.
 
