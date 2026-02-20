@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useSidebarData } from "@/contexts/SidebarDataContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -16,7 +17,6 @@ import {
   Languages,
   Building2,
   MessageSquare,
-  Headphones,
   TrendingUp,
   History,
   Flag,
@@ -53,14 +53,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-
-interface TeamAttendant {
-  id: string;
-  display_name: string;
-  active_count: number;
-  user_id: string;
-  status: string | null;
-}
 
 export function AppSidebar() {
   const navigate = useNavigate();
@@ -109,94 +101,11 @@ export function AppSidebar() {
   const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view");
   const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
   const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
-  const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
+  const { teamAttendants, totalActiveChats } = useSidebarData();
 
   const isActive = (path: string) => location.pathname === path;
 
   const myAttendant = teamAttendants.find((a) => a.user_id === user?.id);
-  const totalActiveChats = teamAttendants.reduce((sum, a) => sum + a.active_count, 0);
-
-  const fetchCounts = useCallback(async () => {
-    if (!user?.id) return;
-    const { data: myProfile } = await supabase
-      .from("attendant_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let attendants: any[] = [];
-    if (isAdmin) {
-      const { data } = await supabase.from("attendant_profiles").select("id, display_name, user_id, status");
-      attendants = data ?? [];
-    } else if (myProfile) {
-      const { data: myTeams } = await supabase
-        .from("chat_team_members")
-        .select("team_id")
-        .eq("attendant_id", myProfile.id);
-      if (myTeams && myTeams.length > 0) {
-        const teamIds = myTeams.map((t: any) => t.team_id);
-        const { data: teamMembers } = await supabase
-          .from("chat_team_members")
-          .select("attendant_id")
-          .in("team_id", teamIds);
-        const uniqueIds = [...new Set((teamMembers ?? []).map((m: any) => m.attendant_id))];
-        if (uniqueIds.length > 0) {
-          const { data } = await supabase
-            .from("attendant_profiles")
-            .select("id, display_name, user_id, status")
-            .in("id", uniqueIds);
-          attendants = data ?? [];
-        }
-      } else {
-        const { data } = await supabase
-          .from("attendant_profiles")
-          .select("id, display_name, user_id, status")
-          .eq("user_id", user.id);
-        attendants = data ?? [];
-      }
-    }
-
-    const { data: activeRooms } = await supabase
-      .from("chat_rooms")
-      .select("attendant_id")
-      .in("status", ["active", "waiting"]);
-    const counts: Record<string, number> = {};
-    (activeRooms ?? []).forEach((r: any) => {
-      if (r.attendant_id) counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
-    });
-
-    const sorted = attendants
-      .map((a: any) => ({
-        id: a.id,
-        display_name: a.display_name,
-        user_id: a.user_id,
-        active_count: counts[a.id] || 0,
-        status: a.status ?? null,
-      }))
-      .sort((a, b) => {
-        if (a.user_id === user.id) return -1;
-        if (b.user_id === user.id) return 1;
-        return a.display_name.localeCompare(b.display_name);
-      });
-    setTeamAttendants(sorted);
-  }, [user?.id, isAdmin]);
-
-  useEffect(() => {
-    if (!chatOpen) return;
-    fetchCounts();
-    const roomsChannel = supabase
-      .channel("sidebar-chat-rooms")
-      .on("postgres_changes", { event: "*", schema: "public", table: "chat_rooms" }, () => fetchCounts())
-      .subscribe();
-    const attendantsChannel = supabase
-      .channel("sidebar-attendants")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "attendant_profiles" }, () => fetchCounts())
-      .subscribe();
-    return () => {
-      supabase.removeChannel(roomsChannel);
-      supabase.removeChannel(attendantsChannel);
-    };
-  }, [chatOpen, fetchCounts]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
