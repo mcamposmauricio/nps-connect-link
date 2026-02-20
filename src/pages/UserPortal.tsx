@@ -28,6 +28,18 @@ interface PortalRoom {
   resolution_status: string | null;
 }
 
+export interface WidgetConfig {
+  show_outside_hours_banner: boolean;
+  outside_hours_title: string | null;
+  outside_hours_message: string | null;
+  show_all_busy_banner: boolean;
+  all_busy_title: string | null;
+  all_busy_message: string | null;
+  waiting_message: string | null;
+  show_csat: boolean;
+  allow_file_attachments: boolean;
+}
+
 const UserPortal = () => {
   const { token } = useParams<{ token: string }>();
   const { t } = useLanguage();
@@ -36,11 +48,14 @@ const UserPortal = () => {
   const [rooms, setRooms] = useState<PortalRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig | null>(null);
 
   // Chat mode state
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [activeVisitorId, setActiveVisitorId] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
+  const [allBusy, setAllBusy] = useState(false);
+  const [outsideHours, setOutsideHours] = useState(false);
 
   const fetchRooms = useCallback(async (contactId: string) => {
     const { data: roomsData } = await supabase
@@ -74,13 +89,22 @@ const UserPortal = () => {
 
       setContact(contactData);
 
-      const { data: company } = await supabase
-        .from("contacts")
-        .select("name")
-        .eq("id", contactData.company_id)
-        .maybeSingle();
+      // Fetch company name + chat_settings in parallel
+      const [companyResult, cfgResult] = await Promise.all([
+        supabase
+          .from("contacts")
+          .select("name")
+          .eq("id", contactData.company_id)
+          .maybeSingle(),
+        supabase
+          .from("chat_settings")
+          .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_csat, allow_file_attachments")
+          .eq("user_id", contactData.user_id)
+          .maybeSingle(),
+      ]);
 
-      setCompanyName(company?.name ?? "");
+      setCompanyName(companyResult.data?.name ?? "");
+      if (cfgResult.data) setWidgetConfig(cfgResult.data as WidgetConfig);
 
       await fetchRooms(contactData.id);
       setLoading(false);
@@ -91,6 +115,33 @@ const UserPortal = () => {
 
   // Find active/waiting room
   const activeRoom = rooms.find((r) => r.status === "active" || r.status === "waiting") ?? null;
+
+  const checkRoomAssignment = async (roomId: string) => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/assign-chat-room`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": supabaseAnonKey },
+        body: JSON.stringify({ room_id: roomId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.outside_hours) {
+          setOutsideHours(true);
+          setAllBusy(false);
+        } else if (data.all_busy) {
+          setAllBusy(true);
+          setOutsideHours(false);
+        } else {
+          setAllBusy(false);
+          setOutsideHours(false);
+        }
+      }
+    } catch {
+      // fail silently — realtime handles status updates
+    }
+  };
 
   const getOrCreateVisitor = async (): Promise<string | null> => {
     if (!contact) return null;
@@ -146,6 +197,8 @@ const UserPortal = () => {
     }
 
     setCreatingChat(true);
+    setAllBusy(false);
+    setOutsideHours(false);
 
     const visitorId = await getOrCreateVisitor();
     if (!visitorId) {
@@ -163,7 +216,7 @@ const UserPortal = () => {
         contact_id: contact.company_id,
         status: "waiting",
       })
-      .select("id")
+      .select("id, status, attendant_id")
       .single();
 
     if (room) {
@@ -171,6 +224,10 @@ const UserPortal = () => {
       setActiveVisitorId(visitorId);
       // Refresh rooms list
       await fetchRooms(contact.id);
+      // Check queue status (outside hours / all busy) unless trigger already assigned
+      if (!(room.status === "active" && room.attendant_id)) {
+        await checkRoomAssignment(room.id);
+      }
     }
 
     setCreatingChat(false);
@@ -180,6 +237,8 @@ const UserPortal = () => {
     const room = rooms.find((r) => r.id === roomId);
     if (!room || !contact) return;
 
+    setAllBusy(false);
+    setOutsideHours(false);
     setActiveRoomId(roomId);
     setActiveVisitorId(contact.chat_visitor_id);
   };
@@ -187,6 +246,8 @@ const UserPortal = () => {
   const handleBackToList = async () => {
     setActiveRoomId(null);
     setActiveVisitorId(null);
+    setAllBusy(false);
+    setOutsideHours(false);
     if (contact) {
       await fetchRooms(contact.id);
     }
@@ -236,6 +297,9 @@ const UserPortal = () => {
             visitorId={activeVisitorId}
             contactName={contact?.name ?? "Visitante"}
             onBack={handleBackToList}
+            widgetConfig={widgetConfig}
+            allBusy={allBusy}
+            outsideHours={outsideHours}
           />
         </main>
       </div>
