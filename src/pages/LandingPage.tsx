@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import LandingTimeline from "@/components/landing/LandingTimeline";
+import { LandingFeatureRows } from "@/components/landing/LandingFeatures";
 import LandingKanban from "@/components/landing/LandingKanban";
 import { ArrowRight, CheckCircle2, Loader2, MessageSquare, Target, MessageCircle, BarChart3 } from "lucide-react";
 import { z } from "zod";
@@ -421,6 +422,10 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+
+      {/* ── SECTION 3: FEATURE ROWS ───────────────────────── */}
+      <LandingFeatureRows t={t} />
 
       {/* ── SECTION 4: TIMELINE ───────────────────────────── */}
       <LandingTimeline t={t} />
