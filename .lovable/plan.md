@@ -1,214 +1,212 @@
 
-
-# Lógica de Horário de Atendimento + Status Online/Offline do Atendente
+# Configurações de Exibição do Widget por Tenant
 
 ## Diagnóstico do Estado Atual
 
-### O que já existe
-- `chat_business_hours`: tabela com horários por dia da semana (start_time, end_time, is_active), já editável na aba "Horários" de AdminSettings — mas **não está integrada a nenhuma lógica de runtime**
-- `attendant_profiles.status`: coluna `text` com default `'offline'` — existe no banco, mas **nunca é atualizada pela UI**; todos os atendentes estão como `offline` no banco
-- `attendant_profiles.skill_level`: coluna já criada, igualmente sem UI para editar
-- `assign_chat_room()` trigger: já respeita `online_only` e filtra por `status = 'online'` — se ninguém estiver online, nenhum chat é atribuído automaticamente
-- `AttendantsTab.tsx`: mostra atendentes mas **não exibe nem permite mudar status/skill_level**
-- `MyProfile.tsx`: permite editar nome, telefone, departamento, especialidades — mas **não tem campo de status do chat**
-- `AppSidebar.tsx`: footer com link para /profile mas sem indicador de status de chat
+### O que existe hoje
 
-### O que falta (o que o usuário pediu)
-1. **Horário de atendimento integrado ao runtime**: o widget deve mostrar mensagem offline/fora do horário quando nenhum dia ativo está no horário atual
-2. **Status online/offline do atendente na UI**:
-   - O próprio atendente pode mudar seu status em "Meu Perfil" (`/profile`)
-   - O admin pode mudar o status de qualquer atendente na aba "Atendentes" das configurações de chat
-3. **Outras configurações pertinentes do atendente** (admin pode configurar via aba Atendentes): skill_level (Junior/Pleno/Sênior), capacidade máxima
-4. O **assign-chat-room** e o **trigger** já respeitam o status — o que falta é a UI para definir esse status
+A aba "Widget" em `/admin/settings` contém:
+- Nome da empresa
+- Cor primária
+- Posição (esquerda/direita)
+- Código de integração (embed snippet)
 
----
+A tabela `chat_settings` armazena apenas: `welcome_message`, `offline_message`, `auto_assignment`, `max_queue_size`, `require_approval`, `widget_position`, `widget_primary_color`.
 
-## Arquitetura da Solução
+O `ChatWidget.tsx` exibe banners para `outsideHours` e `allBusy` **sempre** que as condições são verdadeiras — sem qualquer opção de ligar/desligar esses comportamentos.
 
-```text
-RUNTIME (quando novo chat entra via trigger assign_chat_room):
-  1. Verificar business hours → fora do horário? → chat fica em waiting + sinaliza "offline"
-  2. Verificar attendant.status = 'online' → trigger já faz isso
-  3. assign-chat-room edge function → já retorna all_busy / assigned
+### O que o usuário quer
 
-UI CHANGES:
-  A. MyProfile (/profile)                → card "Status de Atendimento" se isChatEnabled
-  B. AttendantsTab (AdminSettings)       → mostrar + editar status, skill_level, max_conversations por atendente
-  C. assign-chat-room edge function      → adicionar check de business hours (retornar outside_hours)
-  D. ChatWidget.tsx                      → mostrar banner "fora do horário" quando outside_hours = true
-  E. assign_chat_room() SQL trigger      → adicionar check de business hours antes de tentar atribuir
-```
+Configurações por tenant na aba Widget para controlar **o que o widget exibe** em cada situação — por exemplo, se deve ou não mostrar o banner de "atendentes ocupados", ou o texto personalizado nesses banners.
 
 ---
 
-## Parte 1 — Migração SQL: Business Hours no Trigger
+## Mapeamento Completo de Configurações de Exibição
 
-O trigger `assign_chat_room()` atual não verifica business hours. É preciso adicionar essa checagem **antes** de tentar atribuir:
+Todas as situações relevantes do widget que podem ser configuradas:
+
+| Situação | Comportamento atual | Configuração desejada |
+|---|---|---|
+| Fora do horário | Banner azul fixo | Toggle ligar/desligar + texto personalizável |
+| Atendentes ocupados | Banner amarelo fixo | Toggle ligar/desligar + texto personalizável |
+| Aguardando atendimento | Spinner + texto fixo | Texto personalizável |
+| Formulário de entrada | Campos nome/email/telefone fixos | Toggle por campo (email e telefone opcionais) |
+| Histórico de conversas | Sempre visível | Toggle: exibir ou não histórico |
+| CSAT ao fechar | Sempre exibido | Toggle: pedir ou não avaliação ao fechar |
+| Anexos de arquivos | Habilitado fixo | Toggle habilitar/desabilitar envio de arquivos |
+
+---
+
+## Parte 1 — Migração SQL: Novos Campos em `chat_settings`
+
+Adicionar colunas de configuração de exibição na tabela `chat_settings`. Todos com defaults seguros que preservam comportamento atual:
 
 ```sql
--- Dentro de assign_chat_room(), após verificar contact_id:
--- Checar se está dentro do horário de atendimento do tenant
-DECLARE
-  v_now_dow integer;
-  v_now_time time;
-  v_bh_active boolean;
+ALTER TABLE public.chat_settings
+  -- Fora do horário
+  ADD COLUMN IF NOT EXISTS show_outside_hours_banner boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS outside_hours_title text DEFAULT 'Estamos fora do horário de atendimento.',
+  ADD COLUMN IF NOT EXISTS outside_hours_message text DEFAULT 'Sua mensagem ficará registrada e responderemos assim que voltarmos.',
 
-BEGIN
-  v_now_dow := extract(dow from now() AT TIME ZONE 'America/Sao_Paulo')::integer;
-  v_now_time := (now() AT TIME ZONE 'America/Sao_Paulo')::time;
+  -- Atendentes ocupados
+  ADD COLUMN IF NOT EXISTS show_all_busy_banner boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS all_busy_title text DEFAULT 'Todos os atendentes estão ocupados no momento.',
+  ADD COLUMN IF NOT EXISTS all_busy_message text DEFAULT 'Você está na fila e será atendido em breve. Por favor, aguarde.',
 
-  SELECT is_active INTO v_bh_active
-  FROM public.chat_business_hours
-  WHERE day_of_week = v_now_dow
-    AND is_active = true
-    AND start_time::time <= v_now_time
-    AND end_time::time >= v_now_time
-  LIMIT 1;
+  -- Aguardando atendimento
+  ADD COLUMN IF NOT EXISTS waiting_message text DEFAULT 'Aguardando atendimento...',
 
-  -- Se não há horário ativo agora, sair sem atribuir
-  -- (sala fica waiting com status offline implícito)
-  IF NOT FOUND OR NOT v_bh_active THEN RETURN NEW; END IF;
-  -- ... continua com lógica atual
+  -- Formulário
+  ADD COLUMN IF NOT EXISTS show_email_field boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS show_phone_field boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS form_intro_text text DEFAULT 'Preencha seus dados para iniciar o atendimento.',
+
+  -- Histórico
+  ADD COLUMN IF NOT EXISTS show_chat_history boolean NOT NULL DEFAULT true,
+
+  -- CSAT
+  ADD COLUMN IF NOT EXISTS show_csat boolean NOT NULL DEFAULT true,
+
+  -- Anexos
+  ADD COLUMN IF NOT EXISTS allow_file_attachments boolean NOT NULL DEFAULT true;
 ```
 
-**Importante**: a timezone precisa corresponder à configurada no tenant. Inicialmente usamos `America/Sao_Paulo` como default. Pode ser externalizado depois.
+**Zero impacto no comportamento atual**: todos os defaults são `true` ou preservam os textos já exibidos.
 
 ---
 
-## Parte 2 — Edge Function `assign-chat-room`: Adicionar `outside_hours`
+## Parte 2 — Nova Aba "Exibição" dentro da aba Widget em AdminSettings.tsx
 
-A edge function já retorna `{ assigned, all_busy, room_status }`. Adicionamos `outside_hours: boolean`:
+A aba "Widget" atual já tem configurações de aparência (cor, posição). Vamos adicionar um segundo card "Comportamento e Mensagens" logo abaixo, organizado em seções com `Separator`:
+
+### Estrutura do card "Comportamento e Mensagens"
+
+```
+┌── Comportamento e Mensagens ───────────────────────────────┐
+│                                                             │
+│  ── Fora do Horário de Atendimento ────────────────────── │
+│  Exibir aviso quando fora do horário: [ON]                  │
+│  Título: [Estamos fora do horário de atendimento. ______]   │
+│  Mensagem: [Sua mensagem ficará registrada ______________ ]  │
+│                                                             │
+│  ── Atendentes Ocupados ───────────────────────────────── │
+│  Exibir aviso quando todos estão ocupados: [ON]             │
+│  Título: [Todos os atendentes estão ocupados. ___________]  │
+│  Mensagem: [Você está na fila e será atendido em breve. __] │
+│                                                             │
+│  ── Formulário Inicial ──────────────────────────────────  │
+│  Texto introdutório: [Preencha seus dados... ____________]  │
+│  Exibir campo Email: [ON]    Exibir campo Telefone: [ON]    │
+│                                                             │
+│  ── Funcionalidades ────────────────────────────────────── │
+│  Histórico de conversas: [ON]    CSAT ao encerrar: [ON]     │
+│  Envio de arquivos: [ON]                                    │
+│                                                             │
+│  [Salvar configurações]                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Preview ao vivo
+
+O `WidgetPreview.tsx` existente renderiza o formulário estático. Vamos estender para receber as novas props e refletir as configurações:
+- Se `showEmailField = false` → ocultar campo email no preview
+- Se `showPhoneField = false` → ocultar campo telefone no preview
+
+---
+
+## Parte 3 — `ChatWidget.tsx`: Consumir as Configurações
+
+O widget precisa buscar as configurações de `chat_settings` ao inicializar e usá-las para controlar os renders.
+
+### Novo fetch ao carregar o widget
+
+O widget recebe `ownerUserId` via query param. Deve buscar `chat_settings` pelo `owner_user_id` para obter as configs. Isso é feito **uma vez** no `useEffect` de init.
 
 ```typescript
-// Verificar business hours (mesma lógica do trigger, em JS)
-const nowSaoPaulo = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-const now = new Date(nowSaoPaulo);
-const dow = now.getDay(); // 0=Sun
-const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-const { data: bh } = await supabase
-  .from("chat_business_hours")
-  .select("is_active, start_time, end_time")
-  .eq("day_of_week", dow)
-  .eq("is_active", true)
-  .single();
-
-const outside_hours = !bh || timeStr < bh.start_time || timeStr > bh.end_time;
+// Buscar configurações de exibição pelo tenant
+const { data: chatConfig } = await supabase
+  .from("chat_settings")
+  .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_email_field, show_phone_field, form_intro_text, show_chat_history, show_csat, allow_file_attachments")
+  .eq("user_id", ownerUserId)  // ou tenant_id quando disponível
+  .maybeSingle();
 ```
 
-Retorna `{ assigned, all_busy, outside_hours, room_status }`.
+### Uso no render
+
+Nos pontos exatos do `ChatWidget.tsx`:
+
+- **Linha ~681** (banner `outsideHours`): envolver em `{chatConfig?.show_outside_hours_banner !== false && outsideHours && ...}`, usando os textos `outside_hours_title` e `outside_hours_message`
+- **Linha ~685** (banner `allBusy`): envolver em `{chatConfig?.show_all_busy_banner !== false && allBusy && ...}`, usando os textos `all_busy_title` e `all_busy_message`
+- **Linha ~589** (formulário): usar `form_intro_text`, mostrar/ocultar email e telefone com `show_email_field` e `show_phone_field`
+- **Linha ~610** (histórico): envolver o render de histórico em `{chatConfig?.show_chat_history !== false && ...}`
+- **Fase `csat`**: pular para `closed` diretamente se `show_csat = false`
+- **Botão de attachment** (linha ~750+): ocultar se `allow_file_attachments = false`
 
 ---
 
-## Parte 3 — ChatWidget.tsx: Banner "Fora do Horário"
+## Parte 4 — `WidgetPreview.tsx`: Receber Props de Configuração
 
-No `checkRoomAssignment`, quando `outside_hours = true`:
-- Estado `outsideHours = true` → mostra banner diferente do `allBusy`
-- Banner: "Estamos fora do horário de atendimento. Sua mensagem ficará registrada e responderemos assim que voltarmos."
+Estender o componente de preview para receber props opcionais que refletem as configurações e alternar os campos no formulário do preview:
 
----
-
-## Parte 4 — AttendantsTab.tsx: Status + Skill Level + Capacidade (Admin)
-
-A aba Atendentes atualmente só mostra nome, email, toggle de chat habilitado e times. Adiciona-se por atendente:
-
-### Status Online/Offline
-- Indicador colorido (verde = online, cinza = offline, amarelo = ocupado/busy)
-- Switch ou Select para mudar status: Online / Ocupado / Offline
-- O admin pode mudar diretamente inline no card
-
-### Nível (Skill Level)
-- Select inline: Junior / Pleno / Sênior
-- Relevante para a regra "Preferir Sênior para empresas prioritárias"
-
-### Capacidade Máxima
-- Input numérico para `max_conversations`
-- Atualmente o valor está no `csms.chat_max_conversations` mas o trigger usa `attendant_profiles.capacity_limit` configurado em `chat_assignment_configs` — aqui o campo é o `attendant_profiles.max_conversations` que serve de referência
-- Editar `max_conversations` no `attendant_profiles`
-
-### Conversas Ativas (read-only)
-- Exibir `active_conversations` como contador informativo
-
-Layout por card de atendente quando `is_chat_enabled = true`:
-```
-[ Nome do Atendente ]          ● Online [toggle]
-email@empresa.com
-Status: [Online ▾]   Nível: [Pleno ▾]   Cap.: [5]   Ativas: 2
-Times: [Time A ×] [Time B ×] [+ Adicionar]
+```typescript
+interface WidgetPreviewProps {
+  position: "left" | "right";
+  primaryColor: string;
+  companyName: string;
+  // Novas props opcionais
+  showEmailField?: boolean;
+  showPhoneField?: boolean;
+  formIntroText?: string;
+}
 ```
 
----
-
-## Parte 5 — MyProfile.tsx: Card de Status de Atendimento
-
-Mostrar um novo card **somente quando o usuário tem `isChatEnabled = true`** (vindo do AuthContext).
-
-Card "Status de Atendimento":
-- Busca `attendant_profiles` pelo `user_id`
-- Selector de status com indicador colorido: **Online** / **Ocupado** / **Offline**
-  - Online → ativo para receber chats automaticamente
-  - Ocupado → visível mas não recebe automático
-  - Offline → não aparece para atribuição
-- Tooltip explicativo: "Seu status define se você receberá novos chats automaticamente. Atendentes Online são priorizados na fila de atribuição automática."
-- Salvar com UPDATE em `attendant_profiles.status`
-
-Indicador visual no header do card:
-- Bolinha colorida ao lado do nome/avatar indicando status atual
+Isso permite que ao desabilitar um campo no formulário de configurações, o preview já reflita a mudança instantaneamente.
 
 ---
 
-## Parte 6 — Sidebar: Indicador de Status (bonus UX)
-
-No `AppSidebar`, o footer do `myAttendant` pode exibir um indicador de status:
-
-No link "Meu Perfil" do footer, adicionar bolinha colorida baseada no status do `myAttendant` (já carregado em `teamAttendants`):
-
-```tsx
-// No footer, ao lado de "Meu Perfil"
-<User className="h-4 w-4" />
-<span>{t("profile.title")}</span>
-{myAttendant && (
-  <span className={cn("ml-auto h-2 w-2 rounded-full", 
-    myAttendant.status === 'online' ? 'bg-green-500' : 'bg-muted-foreground/40')} />
-)}
-```
-
-**Nota**: `teamAttendants` já está carregado no sidebar mas não inclui `status`. Será necessário incluir `status` no fetch do sidebar.
-
----
-
-## Arquivos a Modificar/Criar
+## Parte 5 — Arquivos a Criar/Modificar
 
 | Arquivo | Ação | O que muda |
 |---|---|---|
-| `supabase/migrations/[timestamp].sql` | CRIAR | Adicionar verificação de business hours no trigger `assign_chat_room()` via `CREATE OR REPLACE FUNCTION` |
-| `supabase/functions/assign-chat-room/index.ts` | MODIFICAR | Adicionar check de `chat_business_hours` e retornar `outside_hours` no JSON |
-| `src/pages/ChatWidget.tsx` | MODIFICAR | Adicionar estado `outsideHours`, exibir banner específico de "fora do horário" na fase `waiting` |
-| `src/components/chat/AttendantsTab.tsx` | MODIFICAR | Adicionar fetch de `attendant_profiles` completo (status, skill_level, max_conversations, active_conversations) e UI inline para editar status, skill_level e max_conversations por atendente |
-| `src/pages/MyProfile.tsx` | MODIFICAR | Adicionar card "Status de Atendimento" condicional (só se `isChatEnabled`), com fetch do próprio `attendant_profile` e select de status |
-| `src/components/AppSidebar.tsx` | MODIFICAR | Incluir `status` no fetch de `teamAttendants` e exibir indicador colorido de status no link "Meu Perfil" |
+| `supabase/migrations/[timestamp].sql` | CRIAR | ALTER TABLE `chat_settings` para adicionar 13 novas colunas de configuração de exibição com defaults seguros |
+| `src/pages/AdminSettings.tsx` | MODIFICAR | Adicionar segundo card "Comportamento e Mensagens" na aba Widget, com todos os toggles e campos de texto; expandir o `settings` state e `fetchAll`/`handleSaveGeneral` para incluir as novas colunas; passar novas props ao `WidgetPreview` |
+| `src/components/chat/WidgetPreview.tsx` | MODIFICAR | Aceitar props opcionais `showEmailField`, `showPhoneField`, `formIntroText` e refletir no preview do formulário |
+| `src/pages/ChatWidget.tsx` | MODIFICAR | Adicionar estado `widgetConfig`, fetch das configs de exibição no init, usar `widgetConfig` para controlar render de cada banner/seção/funcionalidade |
 
 ---
 
-## Detalhes UX Importantes
+## Detalhes Técnicos
 
-### Tratamento de Business Hours sem registros
-- Se `chat_business_hours` estiver vazio (nunca configurado), o sistema não deve bloquear os chats — considerar `outside_hours = false` como default seguro
-- O banner de "fora do horário" só aparece se houver regras configuradas E o horário atual não bater
+### Fetch no widget sem `owner_user_id`
 
-### Status "Ocupado" (busy)
-- Não existe no banco como valor — adicionamos além de `online/offline` o valor `busy`
-- O trigger atual só filtra por `status = 'online'`; `busy` seria tratado como "não elegível para auto-atribuição" mas o atendente ainda pode pegar manualmente
+Para visitantes anônimos (sem `ownerUserId` na URL), o widget não consegue buscar as configs diretamente. Nesse caso usa os defaults — o comportamento atual é preservado. Para visitantes resolvidos (com `ownerUserId`), a busca usa `eq("user_id", ownerUserId)`.
 
-### Permissões
-- Admin e quem tem `chat.manage` pode mudar status de outros atendentes (via AttendantsTab)
-- Qualquer usuário com `is_chat_enabled` pode mudar o próprio status (via MyProfile)
+Como alternativa mais robusta: a edge function `assign-chat-room` pode retornar as configs de exibição junto com o response. Mas para simplicidade e sem alterar a edge function, o widget faz seu próprio fetch de `chat_settings` onde disponível.
 
----
+### Defaults no estado de AdminSettings
 
-## Resumo de Impacto
+Para preservar compatibilidade com tenants que ainda não salvaram as novas configs, os defaults no state são exatamente os textos que o widget usa hoje:
 
-- Comportamento atual: **zero impacto** — business hours sem registros = não bloqueia; status continua offline por padrão até ser mudado manualmente
-- A atribuição automática do trigger já funcionará com horário assim que tiver registros e atendentes online
-- Nenhuma migration destrutiva — apenas `CREATE OR REPLACE FUNCTION` no trigger existente
+```typescript
+show_outside_hours_banner: true,
+outside_hours_title: "Estamos fora do horário de atendimento.",
+outside_hours_message: "Sua mensagem ficará registrada e responderemos assim que voltarmos.",
+show_all_busy_banner: true,
+all_busy_title: "Todos os atendentes estão ocupados no momento.",
+all_busy_message: "Você está na fila e será atendido em breve. Por favor, aguarde.",
+waiting_message: "Aguardando atendimento...",
+show_email_field: true,
+show_phone_field: true,
+form_intro_text: "Preencha seus dados para iniciar o atendimento.",
+show_chat_history: true,
+show_csat: true,
+allow_file_attachments: true,
+```
 
+### Input desabilitado condicionalmente
+
+Quando `show_outside_hours_banner = false`, os campos de título e mensagem ficam desabilitados (`disabled`) com `opacity-50`, mas os valores são preservados para quando reativado.
+
+### Sem migration destrutiva
+
+Apenas `ADD COLUMN IF NOT EXISTS` — nenhuma coluna existente é alterada.
