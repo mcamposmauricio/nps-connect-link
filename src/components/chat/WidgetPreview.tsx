@@ -1,13 +1,23 @@
 import { useState } from "react";
-import { MessageSquare, X, ThumbsUp, ThumbsDown, ExternalLink, Send } from "lucide-react";
+import { MessageSquare, X } from "lucide-react";
 
 interface WidgetPreviewProps {
   position: "left" | "right";
   primaryColor: string;
   companyName: string;
+  showEmailField?: boolean;
+  showPhoneField?: boolean;
+  formIntroText?: string;
 }
 
-const WidgetPreview = ({ position, primaryColor, companyName }: WidgetPreviewProps) => {
+const WidgetPreview = ({
+  position,
+  primaryColor,
+  companyName,
+  showEmailField = true,
+  showPhoneField = true,
+  formIntroText = "Preencha seus dados para iniciar o atendimento.",
+}: WidgetPreviewProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -81,16 +91,20 @@ const WidgetPreview = ({ position, primaryColor, companyName }: WidgetPreviewPro
 
           {/* Mock form */}
           <div className="flex-1 p-3 space-y-2 overflow-hidden">
-            <p className="text-[10px] text-muted-foreground">Preencha seus dados</p>
+            <p className="text-[10px] text-muted-foreground">{formIntroText}</p>
             <div className="h-6 w-full bg-muted rounded border text-[9px] px-2 flex items-center text-muted-foreground">
-              Nome
+              Nome *
             </div>
-            <div className="h-6 w-full bg-muted rounded border text-[9px] px-2 flex items-center text-muted-foreground">
-              Email
-            </div>
-            <div className="h-6 w-full bg-muted rounded border text-[9px] px-2 flex items-center text-muted-foreground">
-              Telefone
-            </div>
+            {showEmailField && (
+              <div className="h-6 w-full bg-muted rounded border text-[9px] px-2 flex items-center text-muted-foreground">
+                Email
+              </div>
+            )}
+            {showPhoneField && (
+              <div className="h-6 w-full bg-muted rounded border text-[9px] px-2 flex items-center text-muted-foreground">
+                Telefone
+              </div>
+            )}
             <div
               className="h-7 w-full rounded flex items-center justify-center text-[10px] text-white font-medium mt-1"
               style={{ backgroundColor: primaryColor }}
@@ -105,3 +119,4 @@ const WidgetPreview = ({ position, primaryColor, companyName }: WidgetPreviewPro
 };
 
 export default WidgetPreview;
+

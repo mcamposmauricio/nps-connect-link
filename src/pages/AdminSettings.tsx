@@ -15,6 +15,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, Plus, Edit, Trash2, Key, Headphones, Users, Tag } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import ChatApiKeysTab from "@/components/ChatApiKeysTab";
 import WidgetPreview from "@/components/chat/WidgetPreview";
 import AttendantsTab from "@/components/chat/AttendantsTab";
@@ -66,6 +67,20 @@ const AdminSettings = () => {
     widget_position: "right",
     widget_primary_color: "#7C3AED",
     widget_company_name: "",
+    // Widget display configs
+    show_outside_hours_banner: true,
+    outside_hours_title: "Estamos fora do horário de atendimento.",
+    outside_hours_message: "Sua mensagem ficará registrada e responderemos assim que voltarmos.",
+    show_all_busy_banner: true,
+    all_busy_title: "Todos os atendentes estão ocupados no momento.",
+    all_busy_message: "Você está na fila e será atendido em breve. Por favor, aguarde.",
+    waiting_message: "Aguardando atendimento...",
+    show_email_field: true,
+    show_phone_field: true,
+    form_intro_text: "Preencha seus dados para iniciar o atendimento.",
+    show_chat_history: true,
+    show_csat: true,
+    allow_file_attachments: true,
   });
 
   // Macros
@@ -92,6 +107,7 @@ const AdminSettings = () => {
       .maybeSingle();
 
     if (settingsData) {
+      const s = settingsData as any;
       setSettings({
         id: settingsData.id,
         welcome_message: settingsData.welcome_message ?? "",
@@ -99,9 +115,22 @@ const AdminSettings = () => {
         auto_assignment: settingsData.auto_assignment ?? true,
         max_queue_size: settingsData.max_queue_size ?? 50,
         require_approval: settingsData.require_approval ?? false,
-        widget_position: (settingsData as any).widget_position ?? "right",
-        widget_primary_color: (settingsData as any).widget_primary_color ?? "#7C3AED",
+        widget_position: s.widget_position ?? "right",
+        widget_primary_color: s.widget_primary_color ?? "#7C3AED",
         widget_company_name: "",
+        show_outside_hours_banner: s.show_outside_hours_banner ?? true,
+        outside_hours_title: s.outside_hours_title ?? "Estamos fora do horário de atendimento.",
+        outside_hours_message: s.outside_hours_message ?? "Sua mensagem ficará registrada e responderemos assim que voltarmos.",
+        show_all_busy_banner: s.show_all_busy_banner ?? true,
+        all_busy_title: s.all_busy_title ?? "Todos os atendentes estão ocupados no momento.",
+        all_busy_message: s.all_busy_message ?? "Você está na fila e será atendido em breve. Por favor, aguarde.",
+        waiting_message: s.waiting_message ?? "Aguardando atendimento...",
+        show_email_field: s.show_email_field ?? true,
+        show_phone_field: s.show_phone_field ?? true,
+        form_intro_text: s.form_intro_text ?? "Preencha seus dados para iniciar o atendimento.",
+        show_chat_history: s.show_chat_history ?? true,
+        show_csat: s.show_csat ?? true,
+        allow_file_attachments: s.allow_file_attachments ?? true,
       });
     }
 
@@ -160,6 +189,19 @@ const AdminSettings = () => {
       require_approval: settings.require_approval,
       widget_position: settings.widget_position,
       widget_primary_color: settings.widget_primary_color,
+      show_outside_hours_banner: settings.show_outside_hours_banner,
+      outside_hours_title: settings.outside_hours_title,
+      outside_hours_message: settings.outside_hours_message,
+      show_all_busy_banner: settings.show_all_busy_banner,
+      all_busy_title: settings.all_busy_title,
+      all_busy_message: settings.all_busy_message,
+      waiting_message: settings.waiting_message,
+      show_email_field: settings.show_email_field,
+      show_phone_field: settings.show_phone_field,
+      form_intro_text: settings.form_intro_text,
+      show_chat_history: settings.show_chat_history,
+      show_csat: settings.show_csat,
+      allow_file_attachments: settings.allow_file_attachments,
     };
 
     if (settings.id) {
@@ -438,10 +480,159 @@ const AdminSettings = () => {
                     position={settings.widget_position as "left" | "right"}
                     primaryColor={settings.widget_primary_color}
                     companyName={settings.widget_company_name || "Suporte"}
+                    showEmailField={settings.show_email_field}
+                    showPhoneField={settings.show_phone_field}
+                    formIntroText={settings.form_intro_text}
                   />
                 </CardContent>
               </Card>
             </div>
+
+            {/* Behavior & Messages Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Comportamento e Mensagens</CardTitle>
+                <CardDescription>Configure o que o widget exibe em cada situação</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+
+                {/* Outside Hours */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Fora do Horário de Atendimento</p>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Exibir aviso quando fora do horário</Label>
+                    <Switch
+                      checked={settings.show_outside_hours_banner}
+                      onCheckedChange={(v) => setSettings({ ...settings, show_outside_hours_banner: v })}
+                    />
+                  </div>
+                  <div className={`space-y-3 transition-opacity ${settings.show_outside_hours_banner ? "" : "opacity-40 pointer-events-none"}`}>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Título</Label>
+                      <Input
+                        value={settings.outside_hours_title}
+                        onChange={(e) => setSettings({ ...settings, outside_hours_title: e.target.value })}
+                        disabled={!settings.show_outside_hours_banner}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Mensagem</Label>
+                      <Textarea
+                        value={settings.outside_hours_message}
+                        onChange={(e) => setSettings({ ...settings, outside_hours_message: e.target.value })}
+                        disabled={!settings.show_outside_hours_banner}
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* All Busy */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Atendentes Ocupados</p>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Exibir aviso quando todos estão ocupados</Label>
+                    <Switch
+                      checked={settings.show_all_busy_banner}
+                      onCheckedChange={(v) => setSettings({ ...settings, show_all_busy_banner: v })}
+                    />
+                  </div>
+                  <div className={`space-y-3 transition-opacity ${settings.show_all_busy_banner ? "" : "opacity-40 pointer-events-none"}`}>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Título</Label>
+                      <Input
+                        value={settings.all_busy_title}
+                        onChange={(e) => setSettings({ ...settings, all_busy_title: e.target.value })}
+                        disabled={!settings.show_all_busy_banner}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Mensagem</Label>
+                      <Textarea
+                        value={settings.all_busy_message}
+                        onChange={(e) => setSettings({ ...settings, all_busy_message: e.target.value })}
+                        disabled={!settings.show_all_busy_banner}
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Form */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Formulário Inicial</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Texto introdutório</Label>
+                    <Input
+                      value={settings.form_intro_text}
+                      onChange={(e) => setSettings({ ...settings, form_intro_text: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Texto na tela de aguardo</Label>
+                    <Input
+                      value={settings.waiting_message}
+                      onChange={(e) => setSettings({ ...settings, waiting_message: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label className="text-sm">Exibir campo Email</Label>
+                      <Switch
+                        checked={settings.show_email_field}
+                        onCheckedChange={(v) => setSettings({ ...settings, show_email_field: v })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <Label className="text-sm">Exibir campo Telefone</Label>
+                      <Switch
+                        checked={settings.show_phone_field}
+                        onCheckedChange={(v) => setSettings({ ...settings, show_phone_field: v })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Features */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Funcionalidades</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                      <Label className="text-sm">Histórico de conversas</Label>
+                      <Switch
+                        checked={settings.show_chat_history}
+                        onCheckedChange={(v) => setSettings({ ...settings, show_chat_history: v })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                      <Label className="text-sm">CSAT ao encerrar</Label>
+                      <Switch
+                        checked={settings.show_csat}
+                        onCheckedChange={(v) => setSettings({ ...settings, show_csat: v })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                      <Label className="text-sm">Envio de arquivos</Label>
+                      <Switch
+                        checked={settings.allow_file_attachments}
+                        onCheckedChange={(v) => setSettings({ ...settings, allow_file_attachments: v })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button onClick={handleSaveGeneral} disabled={saving}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? t("common.saving") : t("common.save")}
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Embed Code */}
             <Card>

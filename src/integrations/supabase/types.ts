@@ -1032,46 +1032,85 @@ export type Database = {
       }
       chat_settings: {
         Row: {
+          all_busy_message: string | null
+          all_busy_title: string | null
+          allow_file_attachments: boolean
           auto_assignment: boolean | null
           business_hours: Json | null
           created_at: string | null
+          form_intro_text: string | null
           id: string
           max_queue_size: number | null
           offline_message: string | null
+          outside_hours_message: string | null
+          outside_hours_title: string | null
           require_approval: boolean | null
+          show_all_busy_banner: boolean
+          show_chat_history: boolean
+          show_csat: boolean
+          show_email_field: boolean
+          show_outside_hours_banner: boolean
+          show_phone_field: boolean
           tenant_id: string | null
           updated_at: string | null
           user_id: string
+          waiting_message: string | null
           welcome_message: string | null
           widget_position: string | null
           widget_primary_color: string | null
         }
         Insert: {
+          all_busy_message?: string | null
+          all_busy_title?: string | null
+          allow_file_attachments?: boolean
           auto_assignment?: boolean | null
           business_hours?: Json | null
           created_at?: string | null
+          form_intro_text?: string | null
           id?: string
           max_queue_size?: number | null
           offline_message?: string | null
+          outside_hours_message?: string | null
+          outside_hours_title?: string | null
           require_approval?: boolean | null
+          show_all_busy_banner?: boolean
+          show_chat_history?: boolean
+          show_csat?: boolean
+          show_email_field?: boolean
+          show_outside_hours_banner?: boolean
+          show_phone_field?: boolean
           tenant_id?: string | null
           updated_at?: string | null
           user_id: string
+          waiting_message?: string | null
           welcome_message?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
         }
         Update: {
+          all_busy_message?: string | null
+          all_busy_title?: string | null
+          allow_file_attachments?: boolean
           auto_assignment?: boolean | null
           business_hours?: Json | null
           created_at?: string | null
+          form_intro_text?: string | null
           id?: string
           max_queue_size?: number | null
           offline_message?: string | null
+          outside_hours_message?: string | null
+          outside_hours_title?: string | null
           require_approval?: boolean | null
+          show_all_busy_banner?: boolean
+          show_chat_history?: boolean
+          show_csat?: boolean
+          show_email_field?: boolean
+          show_outside_hours_banner?: boolean
+          show_phone_field?: boolean
           tenant_id?: string | null
           updated_at?: string | null
           user_id?: string
+          waiting_message?: string | null
           welcome_message?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
