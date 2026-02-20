@@ -39,6 +39,7 @@ const AdminWorkspace = () => {
   const { roomId: paramRoomId } = useParams();
   const [searchParams] = useSearchParams();
   const viewingAttendantId = searchParams.get("attendant");
+  const viewingUnassigned = searchParams.get("queue") === "unassigned";
   const { t } = useLanguage();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -75,12 +76,13 @@ const AdminWorkspace = () => {
   }, [selectedRoomId, setSelectedRoomRef]);
 
   // Filter rooms based on viewing context
-  const filteredRooms = viewingAttendantId
+  const filteredRooms = viewingUnassigned
+    ? rooms.filter((r) => !r.attendant_id)
+    : viewingAttendantId
     ? rooms.filter((r) => r.attendant_id === viewingAttendantId)
     : rooms.filter((r) => {
-        // Show unassigned + own chats (not assigned to other attendants)
-        if (r.status === "waiting") return !r.attendant_id;
-        if (!r.attendant_id) return true;
+        // Show only own chats (not unassigned, not other attendants)
+        if (!r.attendant_id) return false;
         return r.attendant_id === userAttendantId;
       });
 

@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Send, Star, Loader2, X, Plus, ArrowLeft, Clock, CheckCircle2, Paperclip, FileText, Download } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 type WidgetPhase = "form" | "history" | "waiting" | "chat" | "csat" | "closed" | "viewTranscript";
@@ -72,7 +71,6 @@ const ChatWidget = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [widgetConfig, setWidgetConfig] = useState<{
@@ -513,7 +511,7 @@ const ChatWidget = () => {
 
     if (isImage(meta.file_type || "")) {
       return (
-        <div className="space-y-1 cursor-pointer" onClick={() => setLightboxUrl(meta.file_url!)}>
+        <div className="space-y-1 cursor-pointer" onClick={() => window.open(meta.file_url!, '_blank', 'noopener,noreferrer')}>
           <img src={meta.file_url} alt={meta.file_name} className="max-w-[200px] max-h-[160px] rounded-md object-cover" loading="lazy" />
           <p className="text-[10px] opacity-60 truncate max-w-[200px]">{meta.file_name}</p>
         </div>
@@ -765,7 +763,25 @@ const ChatWidget = () => {
               </button>
             )}
             <div className="space-y-3">
-              {messages.map((msg) => (
+              {messages.map((msg) => {
+                // Parse quoted replies
+                const hasQuote = msg.content.startsWith("> ");
+                let quoteText = "";
+                let mainContent = msg.content;
+                if (hasQuote) {
+                  const lines = msg.content.split("\n");
+                  const quoteLines: string[] = [];
+                  let i = 0;
+                  while (i < lines.length && lines[i].startsWith("> ")) {
+                    quoteLines.push(lines[i].slice(2));
+                    i++;
+                  }
+                  if (i < lines.length && lines[i].trim() === "") i++;
+                  quoteText = quoteLines.join("\n");
+                  mainContent = lines.slice(i).join("\n");
+                }
+
+                return (
                 <div
                   key={msg.id}
                   className={`flex ${msg.sender_type === "visitor" ? "justify-end" : "justify-start"}`}
@@ -779,13 +795,23 @@ const ChatWidget = () => {
                     {msg.sender_type !== "visitor" && (
                       <p className="text-xs font-medium mb-1 opacity-70">{msg.sender_name}</p>
                     )}
+                    {hasQuote && quoteText && (
+                      <div className={`text-[11px] rounded px-2 py-1 mb-1 border-l-2 ${
+                        msg.sender_type === "visitor"
+                          ? "bg-white/10 border-white/30 opacity-80"
+                          : "bg-background/50 border-muted-foreground/30 text-muted-foreground"
+                      }`}>
+                        {quoteText}
+                      </div>
+                    )}
                     {msg.message_type === "file" && msg.metadata?.file_url
                       ? renderFileMessage(msg)
-                      : <p>{msg.content}</p>
+                      : <p>{mainContent || msg.content}</p>
                     }
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {phase === "viewTranscript" && messages.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem nesta conversa.</p>
@@ -882,42 +908,27 @@ const ChatWidget = () => {
     </Card>
   );
 
-  // Lightbox dialog
-  const lightboxDialog = (
-    <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
-      <DialogContent className="max-w-3xl p-2">
-        {lightboxUrl && <img src={lightboxUrl} alt="Preview" className="w-full h-auto max-h-[80vh] object-contain rounded" />}
-      </DialogContent>
-    </Dialog>
-  );
-
   if (isEmbed) {
     return (
-      <>
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            background: "transparent",
-          }}
-        >
-          {widgetContent}
-        </div>
-        {lightboxDialog}
-      </>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          background: "transparent",
+        }}
+      >
+        {widgetContent}
+      </div>
     );
   }
 
   return (
-    <>
-      <div className="min-h-screen flex items-center justify-center bg-muted p-4">
-        {widgetContent}
-      </div>
-      {lightboxDialog}
-    </>
+    <div className="min-h-screen flex items-center justify-center bg-muted p-4">
+      {widgetContent}
+    </div>
   );
 };
 

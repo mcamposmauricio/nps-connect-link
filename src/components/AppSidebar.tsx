@@ -101,7 +101,7 @@ export function AppSidebar() {
   const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view");
   const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
   const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
-  const { teamAttendants, totalActiveChats } = useSidebarData();
+  const { teamAttendants, totalActiveChats, unassignedCount } = useSidebarData();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -267,11 +267,23 @@ export function AppSidebar() {
                                 </Button>
                               </div>
                               <CollapsibleContent onClick={(e) => e.stopPropagation()}>
+                                <SidebarMenuItem>
+                                  <SidebarMenuButton
+                                    onClick={(e) => { e.stopPropagation(); navigate("/admin/workspace?queue=unassigned"); }}
+                                    isActive={location.search.includes("queue=unassigned")}
+                                    tooltip="Não Atribuído"
+                                    className="pl-10 text-xs hover:bg-sidebar-accent"
+                                  >
+                                    <Inbox className="h-3.5 w-3.5" />
+                                    <span className="truncate">Não Atribuído</span>
+                                    {unassignedCount > 0 && <Badge variant="destructive" className="ml-auto text-[9px] h-4 px-1">{unassignedCount}</Badge>}
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
                                 {teamAttendants.map((att) => (
                                   <SidebarMenuItem key={att.id}>
                                     <SidebarMenuButton
                                       onClick={(e) => { e.stopPropagation(); att.user_id === user?.id ? navigate("/admin/workspace") : navigate(`/admin/workspace?attendant=${att.id}`); }}
-                                      isActive={att.user_id === user?.id ? location.pathname === "/admin/workspace" && !location.search.includes("attendant=") : location.search.includes(`attendant=${att.id}`)}
+                                      isActive={att.user_id === user?.id ? location.pathname === "/admin/workspace" && !location.search.includes("attendant=") && !location.search.includes("queue=") : location.search.includes(`attendant=${att.id}`)}
                                       tooltip={att.display_name}
                                       className="pl-10 text-xs hover:bg-sidebar-accent"
                                     >
