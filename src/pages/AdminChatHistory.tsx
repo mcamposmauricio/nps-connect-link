@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useAttendants } from "@/hooks/useAttendants";
@@ -156,7 +156,7 @@ const AdminChatHistory = () => {
   };
 
   return (
-    <SidebarLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -388,7 +388,7 @@ const AdminChatHistory = () => {
         open={!!readOnlyRoom}
         onOpenChange={(open) => !open && setReadOnlyRoom(null)}
       />
-    </SidebarLayout>
+    </>
   );
 };
 

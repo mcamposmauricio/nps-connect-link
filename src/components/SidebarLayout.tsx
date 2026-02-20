@@ -1,15 +1,11 @@
-import { ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarDataProvider } from "@/contexts/SidebarDataContext";
 
-interface SidebarLayoutProps {
-  children: ReactNode;
-}
-
-export default function SidebarLayout({ children }: SidebarLayoutProps) {
+export default function SidebarLayout() {
   const navigate = useNavigate();
   const { user, loading, userDataLoading, tenantId, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -50,7 +46,7 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
               <SidebarTrigger className="text-foreground/50 hover:text-foreground transition-colors" />
             </header>
             <div className="flex-1 p-6 overflow-auto bg-background">
-              {children}
+              <Outlet />
             </div>
           </main>
         </div>

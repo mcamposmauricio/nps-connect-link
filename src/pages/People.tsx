@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
@@ -116,8 +116,7 @@ const People = () => {
   };
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">
@@ -218,8 +217,7 @@ const People = () => {
           person={selectedPerson}
           onClose={() => setSelectedPerson(null)}
         />
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

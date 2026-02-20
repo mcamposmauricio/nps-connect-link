@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,8 +163,7 @@ export default function MyProfile() {
   const currentStatusConfig = CHAT_STATUS_OPTIONS.find(s => s.value === chatStatus) ?? CHAT_STATUS_OPTIONS[2];
 
   return (
-    <SidebarLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t("profile.title")}</h1>
           <p className="text-muted-foreground">{t("profile.subtitle")}</p>
@@ -286,8 +285,7 @@ export default function MyProfile() {
             </Card>
           </>
         )}
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }
 

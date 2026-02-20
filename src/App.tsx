@@ -21,7 +21,6 @@ import NPSEmbed from "./pages/NPSEmbed";
 import NotFound from "./pages/NotFound";
 import CSDashboard from "./pages/CSDashboard";
 import CSTrailsPage from "./pages/CSTrailsPage";
-// CSMsPage now redirects to settings via route below
 import CSHealthPage from "./pages/CSHealthPage";
 import CSChurnPage from "./pages/CSChurnPage";
 import CSFinancialPage from "./pages/CSFinancialPage";
@@ -39,6 +38,7 @@ import UserPortal from "./pages/UserPortal";
 import People from "./pages/People";
 import NPSSettings from "./pages/NPSSettings";
 import MyProfile from "./pages/MyProfile";
+import SidebarLayout from "./components/SidebarLayout";
 
 const queryClient = new QueryClient();
 
@@ -61,43 +61,11 @@ const App = () => (
           {/* Public Landing Pages */}
           <Route path="/" element={<ChatLandingPage />} />
           <Route path="/journey" element={<LandingPage />} />
-          <Route path="/cs-dashboard" element={<CSDashboard />} />
-          <Route path="/cs-trails" element={<CSTrailsPage />} />
-          <Route path="/cs-health" element={<CSHealthPage />} />
-          <Route path="/cs-churn" element={<CSChurnPage />} />
-          <Route path="/cs-financial" element={<CSFinancialPage />} />
-          <Route path="/csms" element={<Navigate to="/nps/settings" replace />} />
           
-          {/* Chat Module Routes */}
+          {/* Chat Widget (public) */}
           <Route path="/widget" element={<ChatWidget />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/workspace" element={<AdminWorkspace />} />
-          <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
-          <Route path="/admin/attendants" element={<AdminAttendants />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          <Route path="/admin/settings/:tab" element={<AdminSettings />} />
-          <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
-          <Route path="/admin/history" element={<AdminChatHistory />} />
-          <Route path="/admin/banners" element={<AdminBanners />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
           <Route path="/portal/:token" element={<UserPortal />} />
-          
-          {/* NPS Module Routes */}
-          <Route path="/nps/dashboard" element={<Dashboard />} />
-          <Route path="/nps/contacts" element={<Contacts />} />
-          <Route path="/nps/people" element={<People />} />
-          <Route path="/nps/campaigns" element={<Campaigns />} />
-          <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
-          <Route path="/nps/settings" element={<Settings />} />
-          <Route path="/nps/nps-settings" element={<NPSSettings />} />
-          <Route path="/profile" element={<MyProfile />} />
-          
-          {/* Legacy routes redirect to new structure */}
-          <Route path="/dashboard" element={<Navigate to="/nps/dashboard" replace />} />
-          <Route path="/contacts" element={<Navigate to="/nps/contacts" replace />} />
-          <Route path="/campaigns" element={<Navigate to="/nps/campaigns" replace />} />
-          <Route path="/campaigns/:id" element={<CampaignRedirect />} />
-          <Route path="/settings" element={<Navigate to="/nps/settings" replace />} />
           
           {/* Auth & NPS Response */}
           <Route path="/auth" element={<Auth />} />
@@ -108,6 +76,47 @@ const App = () => (
           {/* Embedded NPS Widget */}
           <Route path="/embed" element={<NPSEmbed />} />
           
+          {/* Legacy routes redirect to new structure */}
+          <Route path="/dashboard" element={<Navigate to="/nps/dashboard" replace />} />
+          <Route path="/contacts" element={<Navigate to="/nps/contacts" replace />} />
+          <Route path="/campaigns" element={<Navigate to="/nps/campaigns" replace />} />
+          <Route path="/campaigns/:id" element={<CampaignRedirect />} />
+          <Route path="/settings" element={<Navigate to="/nps/settings" replace />} />
+          <Route path="/csms" element={<Navigate to="/nps/settings" replace />} />
+
+          {/* Protected routes with persistent SidebarLayout */}
+          <Route element={<SidebarLayout />}>
+            {/* Chat Module */}
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/workspace" element={<AdminWorkspace />} />
+            <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
+            <Route path="/admin/attendants" element={<AdminAttendants />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/settings/:tab" element={<AdminSettings />} />
+            <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
+            <Route path="/admin/history" element={<AdminChatHistory />} />
+            <Route path="/admin/banners" element={<AdminBanners />} />
+
+            {/* NPS Module */}
+            <Route path="/nps/dashboard" element={<Dashboard />} />
+            <Route path="/nps/contacts" element={<Contacts />} />
+            <Route path="/nps/people" element={<People />} />
+            <Route path="/nps/campaigns" element={<Campaigns />} />
+            <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
+            <Route path="/nps/settings" element={<Settings />} />
+            <Route path="/nps/nps-settings" element={<NPSSettings />} />
+
+            {/* CS Module */}
+            <Route path="/cs-dashboard" element={<CSDashboard />} />
+            <Route path="/cs-trails" element={<CSTrailsPage />} />
+            <Route path="/cs-health" element={<CSHealthPage />} />
+            <Route path="/cs-churn" element={<CSChurnPage />} />
+            <Route path="/cs-financial" element={<CSFinancialPage />} />
+
+            {/* Profile */}
+            <Route path="/profile" element={<MyProfile />} />
+          </Route>
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

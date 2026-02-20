@@ -1,4 +1,4 @@
-import SidebarLayout from "@/components/SidebarLayout";
+import { Fragment } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Building2, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -14,17 +14,14 @@ const Settings = () => {
 
   if (!isAdmin) {
     return (
-      <SidebarLayout>
-        <div className="text-center py-12 text-muted-foreground">
-          {t("common.noPermission") || "Sem permissão para acessar esta página."}
-        </div>
-      </SidebarLayout>
+      <div className="text-center py-12 text-muted-foreground">
+        {t("common.noPermission") || "Sem permissão para acessar esta página."}
+      </div>
     );
   }
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <PageHeader title={t("settings.title")} subtitle={t("settings.pageSubtitle")} />
 
         <Tabs defaultValue="team" className="space-y-6">
@@ -55,8 +52,7 @@ const Settings = () => {
             <ExternalApiTab />
           </TabsContent>
         </Tabs>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

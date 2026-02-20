@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { CSKanbanBoard } from "@/components/cs/CSKanbanBoard";
 import { CSMetricsHeader } from "@/components/cs/CSMetricsHeader";
 import { PageHeader } from "@/components/ui/page-header";
@@ -51,8 +51,7 @@ export default function CSDashboard() {
   };
 
   return (
-    <SidebarLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <PageHeader title={t("cs.dashboard.title")} subtitle={t("cs.dashboard.subtitle")} />
 
         <CSMetricsHeader metrics={metrics} />
@@ -64,7 +63,6 @@ export default function CSDashboard() {
           onRefresh={refetch}
           canEdit={canEdit}
         />
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

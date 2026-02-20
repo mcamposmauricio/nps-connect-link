@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,8 +87,7 @@ export default function CSChurnPage() {
   const isLoading = loadingChurned || loadingAtRisk || loadingRenewals;
 
   return (
-    <SidebarLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <PageHeader title={t("cs.churn.title")} subtitle={t("cs.churn.subtitle")} />
 
         {/* Summary Cards */}
@@ -242,7 +241,6 @@ export default function CSChurnPage() {
             </Card>
           </div>
         )}
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

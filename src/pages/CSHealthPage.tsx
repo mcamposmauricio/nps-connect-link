@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -45,8 +45,7 @@ export default function CSHealthPage() {
     : 0;
 
   return (
-    <SidebarLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <PageHeader title={t("cs.health.title")} subtitle={t("cs.health.subtitle")} />
 
         {/* Summary Cards */}
@@ -139,7 +138,6 @@ export default function CSHealthPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -441,16 +441,14 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <SidebarLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </SidebarLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
   return (
-    <SidebarLayout>
+    <>
       <div className="space-y-6">
         <PageHeader title={t("dashboard.title")} subtitle={t("dashboard.npsHistory")} />
 
@@ -904,7 +902,7 @@ const Dashboard = () => {
           )}
         </DialogContent>
       </Dialog>
-    </SidebarLayout>
+    </>
   );
 };
 

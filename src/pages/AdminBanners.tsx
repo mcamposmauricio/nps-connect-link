@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,7 +243,7 @@ const AdminBanners = () => {
   );
 
   return (
-    <SidebarLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -513,7 +513,7 @@ const AdminBanners = () => {
           </Card>
         </DialogContent>
       </Dialog>
-    </SidebarLayout>
+    </>
   );
 };
 
