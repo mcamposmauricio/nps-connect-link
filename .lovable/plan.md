@@ -1,289 +1,272 @@
 
-# Corrigir Flickering + Unread Count de Mensagens do Atendente
+# Permissionamento Granular por Submódulo/Aba
 
-## Diagnóstico Completo
+## Diagnóstico do Estado Atual
 
-### Bug 1 — Flickering (confirmado)
+### O que existe hoje
+O sistema tem 5 módulos planos na tabela `user_permissions`:
 
-Em `useChatRealtime.ts`, toda vez que uma mensagem chega via Realtime:
-
-```typescript
-// linha 252-254
-fetchRooms();  // ← chama setLoading(true) → lista some → spinner → lista volta
-```
-
-E no `ChatRoomList.tsx`, o `loading` substitui a lista inteira por um spinner:
-
-```typescript
-if (loading) {
-  return (
-    <div className="glass-card h-full flex items-center justify-center">
-      <div className="animate-spin ..."/>
-    </div>  // ← lista SOME completamente
-  );
-}
-```
-
-**Toda mensagem nova = lista pisca.**
-
-### Bug 2 — Unread Count errado (confirmado + adicionado ao plano)
-
-O handler Realtime chama `fetchRooms()` para qualquer INSERT em `chat_messages`. Quando o atendente logado envia uma mensagem:
-- `sender_type = "attendant"`, `sender_id = user.id`
-- O `fetchRooms()` dispara novamente e recalcula unread counts com query no banco
-
-O count no banco usa `.eq("sender_type", "visitor")` corretamente, **mas** isso só protege o fetch inicial. Quando a lógica cirúrgica for implementada — onde o estado local é atualizado diretamente sem ir ao banco — mensagens do próprio atendente também incrementarão o badge de não lidas se não houver filtro explícito.
-
-**Adicionalmente**, na lógica atual, mesmo que a query do banco filtre por `sender_type = "visitor"`, o `fetchRooms()` completo é chamado mesmo quando o atendente envia — causando flickering desnecessário para mensagens que definitivamente não geram unread.
-
----
-
-## Solução Completa
-
-Tudo em um único arquivo: `src/hooks/useChatRealtime.ts`
-
-### 1. Hook `useChatRooms` recebe `currentUserId` como parâmetro adicional
-
-O hook já recebe `ownerUserId` (o dono do workspace = admin). Para o workspace de atendente, `ownerUserId === user.id`. Então `currentUserId` serve para identificar mensagens enviadas pelo próprio usuário logado.
-
-```typescript
-export function useChatRooms(
-  ownerUserId: string | null,
-  options?: { excludeClosed?: boolean; currentUserId?: string }
-)
-```
-
-No `AdminWorkspace.tsx`, a chamada já passa `user?.id` como `ownerUserId`, então `currentUserId` pode ser derivado do mesmo valor sem alterar a assinatura externa:
-
-```typescript
-// No hook internamente, currentUserId = ownerUserId (são o mesmo no contexto de workspace)
-const currentUserIdRef = useRef<string | null>(ownerUserId);
-```
-
-Ou alternativamente, manter `ownerUserId` como identificador duplo — já que no workspace de atendentes `ownerUserId === user.id`.
-
-### 2. Separar loading inicial de atualizações silenciosas
-
-```typescript
-const isFirstLoad = useRef(true);
-
-const fetchRooms = useCallback(async (showLoading = false) => {
-  if (!ownerUserId) return;
-  if (showLoading) setLoading(true);
-  // ...fetch...
-  if (showLoading) setLoading(false);
-}, [...]);
-
-useEffect(() => {
-  fetchRooms(true);  // ← apenas na montagem inicial mostra loading
-  // ...subscriptions usam fetchRooms() sem loading
-}, [...]);
-```
-
-### 3. Handler de `chat_messages INSERT`: patch cirúrgico
-
-```typescript
-.on("postgres_changes", { event: "INSERT", table: "chat_messages" }, (payload) => {
-  const msg = payload.new as ChatMessage;
-  
-  // === BUG DO ATENDENTE: ignorar completamente mensagens enviadas pelo próprio usuário ===
-  // sender_type "attendant" ou "system" nunca geram unread
-  // sender_id === ownerUserId significa que foi o próprio atendente logado que enviou
-  const isOwnMessage = msg.sender_type !== "visitor";
-  
-  // Som apenas para mensagens do visitante em rooms não selecionados
-  if (msg.sender_type === "visitor" && msg.room_id !== selectedRoomIdRef.current) {
-    // play sound...
-  }
-
-  // === SEM FLICKERING: atualizar estado diretamente, sem fetchRooms ===
-  setRooms((prev) => {
-    const idx = prev.findIndex(r => r.id === msg.room_id);
-    if (idx === -1) return prev;  // room não visível, ignorar
-    
-    const patched = [...prev];
-    const room = { ...patched[idx] };
-    
-    // Atualizar last_message (para qualquer mensagem não-interna)
-    if (!msg.is_internal) {
-      room.last_message = msg.content;
-      room.last_message_at = msg.created_at;
-      room.last_message_sender_type = msg.sender_type;
-    }
-    
-    // Incrementar unread APENAS para mensagens do visitante,
-    // E APENAS se o room não está selecionado no momento
-    if (
-      msg.sender_type === "visitor" &&           // ← apenas visitante
-      !msg.is_internal &&                        // ← não interno
-      msg.room_id !== selectedRoomIdRef.current  // ← room não está aberto
-    ) {
-      room.unread_count = (room.unread_count ?? 0) + 1;
-    }
-    // Se isOwnMessage === true → unread_count NÃO é tocado
-    
-    patched[idx] = room;
-    
-    // Re-ordenar: unread primeiro, depois por last_message_at
-    return patched.sort((a, b) => {
-      const aU = a.unread_count ?? 0;
-      const bU = b.unread_count ?? 0;
-      if (aU > 0 && bU === 0) return -1;
-      if (aU === 0 && bU > 0) return 1;
-      const aTime = a.last_message_at || a.created_at;
-      const bTime = b.last_message_at || b.created_at;
-      return new Date(bTime).getTime() - new Date(aTime).getTime();
-    });
-  });
-})
-```
-
-**Resultado**: mensagem do atendente → `last_message` atualiza, `unread_count` não muda, zero flickering.
-
-### 4. Handler de `chat_rooms *`: patch por evento
-
-Separar os eventos `INSERT`, `UPDATE`, `DELETE` em vez de sempre chamar `fetchRooms()`:
-
-```typescript
-// UPDATE: patch cirúrgico
-.on("postgres_changes", { event: "UPDATE", table: "chat_rooms" }, (payload) => {
-  const updated = payload.new as ChatRoom;
-  
-  setRooms((prev) => {
-    const idx = prev.findIndex(r => r.id === updated.id);
-    
-    // Room passou para closed e excludeClosed=true → remover da lista
-    if (options?.excludeClosed && updated.status === "closed") {
-      return prev.filter(r => r.id !== updated.id);
-    }
-    
-    if (idx === -1) {
-      // Room não está na lista mas agora é active/waiting → adicionar via mini-fetch
-      fetchSingleRoom(updated.id);
-      return prev;
-    }
-    
-    // Patch preservando campos enriquecidos (visitor_name, last_message, unread_count)
-    const patched = [...prev];
-    patched[idx] = {
-      ...patched[idx],
-      status: updated.status,
-      attendant_id: updated.attendant_id,
-      priority: updated.priority,
-      assigned_at: updated.assigned_at,
-      closed_at: updated.closed_at,
-      updated_at: updated.updated_at,
-      // Preservar campos que não vêm do banco no payload:
-      visitor_name: patched[idx].visitor_name,
-      visitor_email: patched[idx].visitor_email,
-      last_message: patched[idx].last_message,
-      last_message_at: patched[idx].last_message_at,
-      last_message_sender_type: patched[idx].last_message_sender_type,
-      unread_count: patched[idx].unread_count,
-    };
-    return patched;
-  });
-})
-
-// INSERT: buscar apenas o novo room (mini-fetch de 1 registro)
-.on("postgres_changes", { event: "INSERT", table: "chat_rooms" }, (payload) => {
-  if (options?.excludeClosed && payload.new.status === "closed") return;
-  fetchSingleRoom(payload.new.id as string);
-})
-
-// DELETE: remover do state
-.on("postgres_changes", { event: "DELETE", table: "chat_rooms" }, (payload) => {
-  setRooms((prev) => prev.filter(r => r.id !== (payload.old.id as string)));
-})
-```
-
-### 5. Função auxiliar `fetchSingleRoom` (mini-fetch sem loading)
-
-```typescript
-const fetchSingleRoom = useCallback(async (roomId: string) => {
-  const { data } = await supabase
-    .from("chat_rooms")
-    .select("*, chat_visitors!visitor_id(name, email)")
-    .eq("id", roomId)
-    .maybeSingle();
-  
-  if (!data) return;
-  
-  const visitor = (data as any).chat_visitors as { name?: string; email?: string } | null;
-  const enriched: ChatRoom = {
-    ...data,
-    visitor_name: visitor?.name ?? undefined,
-    visitor_email: visitor?.email ?? undefined,
-    unread_count: 0,
-  } as ChatRoom;
-  
-  setRooms((prev) => {
-    const filtered = prev.filter(r => r.id !== roomId);  // deduplicar
-    const updated = [enriched, ...filtered];
-    return updated.sort((a, b) => {
-      const aTime = a.last_message_at || a.created_at;
-      const bTime = b.last_message_at || b.created_at;
-      return new Date(bTime).getTime() - new Date(aTime).getTime();
-    });
-  });
-}, []);
-```
-
-### 6. Otimização: unread count com query única no fetch inicial
-
-Substituir o loop de N queries `COUNT` por uma query única que traz os `room_id` + `created_at` de todas as mensagens não lidas:
-
-```typescript
-// Atual: N queries — uma por room
-for (const roomId of roomIds) {
-  const { count } = await supabase.from("chat_messages")
-    .select("*", { count: "exact", head: true })
-    .eq("room_id", roomId)
-    .eq("sender_type", "visitor")...
-
-// Novo: 1 query com todos os rooms
-const oldestReadAt = Object.values(readMap).length > 0
-  ? Object.values(readMap).reduce((a, b) => a < b ? a : b)
-  : "1970-01-01T00:00:00Z";
-
-const { data: unreadMsgs } = await supabase
-  .from("chat_messages")
-  .select("room_id, created_at")
-  .in("room_id", roomIds)
-  .eq("sender_type", "visitor")
-  .eq("is_internal", false)
-  .gt("created_at", oldestReadAt);  // filtra pela mais antiga lida
-
-// Contar por room no JS
-for (const msg of (unreadMsgs ?? []) as { room_id: string; created_at: string }[]) {
-  const lastRead = readMap[msg.room_id] || "1970-01-01T00:00:00Z";
-  if (msg.created_at > lastRead) {
-    unreadCounts[msg.room_id] = (unreadCounts[msg.room_id] ?? 0) + 1;
-  }
-}
-```
-
-Reduz de N queries para 1 — carregamento inicial muito mais rápido.
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | O que muda |
+| Módulo (coluna `module`) | Controla |
 |---|---|
-| `src/hooks/useChatRealtime.ts` | Único arquivo a modificar: (1) `fetchRooms` só usa `setLoading(true)` no primeiro load; (2) handler `chat_messages INSERT` → patch cirúrgico + filtro `sender_type !== "visitor"` para não incrementar unread; (3) handler `chat_rooms *` → separar INSERT/UPDATE/DELETE com patches individuais; (4) `fetchSingleRoom` auxiliar; (5) unread count com query única |
+| `cs` | Acesso a todo o módulo Customer Success (Dashboard Kanban + Jornadas + Relatórios Health/Risco/Receita) |
+| `nps` | Acesso a todo o NPS (Dashboard + Campanhas + Config NPS) |
+| `chat` | Acesso a todo o Chat (Workspace + Histórico + Banners + Configurações + Relatório Gerencial) |
+| `contacts` | Acesso a Cadastros (Empresas + Pessoas) |
+| `settings` | Acesso às Configurações gerais (Equipe/Org/API) |
 
-**Nenhum outro arquivo precisa ser alterado** — `ChatRoomList`, `AdminWorkspace`, e `ChatInput` continuam exatamente iguais.
+**Problema:** Um atendente de chat não tem como ter acesso ao Workspace mas não ao Histórico. Um usuário de NPS não pode ver as Campanhas sem também acessar a aba de Configurações NPS. Os 5 módulos são muito amplos.
+
+### Novas implementações que precisam entrar no permissionamento
+Desde que o sistema de permissões foi criado, foram adicionados:
+- Módulo Reports/Relatórios com 4 sub-relatórios independentes (Health Score, Risco/Churn, Receita, Gerencial de Chat)
+- Banners (atualmente exige `chat.manage`)
+- Configurações do Chat com múltiplas abas (Geral, Widget, Macros, Horários, Regras, API, Atendentes, Times, Categorias)
+- Portal de usuário
+- Histórico de chat (atualmente atrás de `chat.view` sem distinção)
 
 ---
 
-## Comportamento Esperado
+## Mapa Completo de Permissões Granulares Proposto
 
-| Evento | Antes | Depois |
+Cada linha abaixo vira um registro em `user_permissions.module`. São **permissões aditivas** — o módulo pai continua existindo para não quebrar código existente, mas agora os subpermissões refinam o que é visível.
+
+### Estratégia: Hierarquia com herança
+
+```
+módulo-pai (ex: "cs")
+  └── sub-módulo (ex: "cs.kanban", "cs.trails", "cs.reports.health")
+```
+
+Regra de herança no `hasPermission`:
+- Se o usuário tem `cs.view = true` → acessa todos os subitens de `cs.*` salvo se um subitem específico estiver explicitamente configurado (substituição)
+- Se um subitem existe com `can_view = false` → bloqueia aquela seção mesmo com o pai habilitado
+- Admins: acesso total independente de qualquer configuração
+
+Isso mantém **compatibilidade retroativa**: quem já tem `cs.view` continua com tudo, mas o admin pode restringir subseções individualmente.
+
+---
+
+## Árvore Completa de Permissões por Módulo
+
+### Customer Success (`cs`)
+| Chave | Descrição | Ações relevantes |
 |---|---|---|
-| Visitante envia mensagem | Lista pisca (loading) + badge incrementa | Badge incrementa suavemente, lista reordena, sem flash |
-| **Atendente envia mensagem** | **Lista pisca (loading) + badge incrementa incorretamente** | **last_message atualiza, badge NÃO muda, zero flickering** |
-| Atendente seleciona room | Marca como lido, badge some | Igual, mas sem causar refetch adicional |
-| Novo room entra (visitor abre chat) | Lista pisca, refetch completo | Novo card aparece no topo suavemente via mini-fetch |
-| Room fecha | Lista pisca, refetch completo | Card desaparece suavemente via filter local |
-| Atendente atribuído muda | Lista pisca, refetch completo | Card atualiza status inline sem flash |
+| `cs` | Módulo CS completo | view, edit, delete, manage |
+| `cs.kanban` | Dashboard Kanban de clientes | view, edit |
+| `cs.trails` | Jornadas / Trilhas de CS | view, edit, delete |
+| `cs.reports.health` | Relatório Health Score | view |
+| `cs.reports.churn` | Relatório Risco/Churn | view |
+| `cs.reports.financial` | Relatório Receita/Financeiro | view |
+
+### NPS (`nps`)
+| Chave | Descrição | Ações relevantes |
+|---|---|---|
+| `nps` | Módulo NPS completo | view, edit, delete, manage |
+| `nps.dashboard` | Dashboard de métricas NPS | view |
+| `nps.campaigns` | Gestão de campanhas | view, edit, delete |
+| `nps.settings` | Configurações NPS (marca, email, notif., widget) | view, manage |
+
+### Chat (`chat`)
+| Chave | Descrição | Ações relevantes |
+|---|---|---|
+| `chat` | Módulo Chat completo | view, edit, delete, manage |
+| `chat.workspace` | Estação de trabalho / atendimento | view |
+| `chat.history` | Histórico de conversas | view |
+| `chat.banners` | Banners e comunicados | view, edit, delete, manage |
+| `chat.reports` | Relatório Gerencial de Atendimento | view |
+| `chat.settings.general` | Config: Geral + Horários + Regras | view, manage |
+| `chat.settings.widget` | Config: Widget de chat | view, manage |
+| `chat.settings.macros` | Config: Macros de resposta | view, edit, delete |
+| `chat.settings.attendants` | Config: Atendentes | view, manage |
+| `chat.settings.teams` | Config: Times de atendimento | view, manage |
+| `chat.settings.categories` | Config: Categorias e distribuição | view, manage |
+| `chat.settings.apikeys` | Config: Chaves de API do chat | view, manage |
+
+### Cadastros (`contacts`)
+| Chave | Descrição | Ações relevantes |
+|---|---|---|
+| `contacts` | Módulo Cadastros completo | view, edit, delete, manage |
+| `contacts.companies` | Lista de empresas | view, edit, delete |
+| `contacts.people` | Lista de pessoas/contatos | view, edit, delete |
+
+### Configurações Gerais (`settings`)
+| Chave | Descrição | Ações relevantes |
+|---|---|---|
+| `settings` | Configurações gerais (apenas admin geralmente) | view, manage |
+| `settings.team` | Aba Equipe + Permissões | view, manage |
+| `settings.organization` | Aba Organização | view, manage |
+| `settings.apikeys` | Chaves de API externas | view, manage |
+
+**Total: 26 permissões granulares** (vs 5 atuais).
+
+---
+
+## Implementação Técnica
+
+### Sem migração SQL — reaproveitamento da tabela existente
+
+A tabela `user_permissions` já tem a estrutura correta (`module text, can_view, can_edit, can_delete, can_manage`). Basta inserir registros com as novas chaves granulares. **Nenhuma migração de schema é necessária**.
+
+### Mudança no `hasPermission` no `AuthContext`
+
+A lógica atual é:
+```typescript
+const perm = permissions.find(p => p.module === module);
+```
+
+Nova lógica com herança por prefixo:
+```typescript
+const hasPermission = (module: string, action: ...): boolean => {
+  if (isAdmin) return true;
+  
+  // 1. Checar permissão exata (ex: "cs.kanban")
+  const exactPerm = permissions.find(p => p.module === module);
+  if (exactPerm) {
+    if (exactPerm.can_manage) return true;
+    switch (action) {
+      case 'view': return exactPerm.can_view;
+      // ...
+    }
+  }
+  
+  // 2. Herança: checar módulo pai (ex: "cs" para "cs.kanban")
+  const parts = module.split('.');
+  for (let i = parts.length - 1; i > 0; i--) {
+    const parentKey = parts.slice(0, i).join('.');
+    const parentPerm = permissions.find(p => p.module === parentKey);
+    if (parentPerm) {
+      if (parentPerm.can_manage) return true;
+      switch (action) {
+        case 'view': return parentPerm.can_view;
+        // ...
+      }
+    }
+  }
+  
+  return false;
+};
+```
+
+Isso garante: se o usuário tem `cs.view = true` mas não tem `cs.kanban` configurado → herda acesso do pai. Se tem `cs.view = true` mas `cs.kanban.can_view = false` → bloqueado naquela seção.
+
+### Mudança no `UserPermissionsDialog`
+
+O diálogo atual mostra 5 módulos numa tabela plana. A nova interface usa **grupos colapsáveis com accordion** por módulo pai, onde cada grupo expande para mostrar as subpermissões.
+
+Layout proposto:
+
+```
+▼ Customer Success              [view] [edit] [delete] [manage]
+  └ Dashboard Kanban            [view] [edit]
+  └ Jornadas                   [view] [edit] [delete]
+  └ Rel. Health Score           [view]
+  └ Rel. Risco/Churn            [view]
+  └ Rel. Receita                [view]
+
+▼ NPS                          [view] [edit] [delete] [manage]
+  └ Dashboard de Métricas       [view]
+  └ Campanhas                  [view] [edit] [delete]
+  └ Configurações NPS           [view] [manage]
+
+▼ Chat                         [view] [edit] [delete] [manage]
+  └ Estação de Trabalho         [view]
+  └ Histórico                  [view]
+  └ Banners                    [view] [edit] [delete] [manage]
+  └ Relatório Gerencial         [view]
+  └ Config: Geral               [view] [manage]
+  └ Config: Widget              [view] [manage]
+  └ Config: Macros              [view] [edit] [delete]
+  └ Config: Atendentes          [view] [manage]
+  └ Config: Times               [view] [manage]
+  └ Config: Categorias          [view] [manage]
+  └ Config: Chaves de API       [view] [manage]
+
+▼ Cadastros                    [view] [edit] [delete]
+  └ Empresas                   [view] [edit] [delete]
+  └ Pessoas                    [view] [edit] [delete]
+
+▼ Configurações                [view] [manage]
+  └ Equipe e Permissões         [view] [manage]
+  └ Organização                [view] [manage]
+  └ Chaves de API               [view] [manage]
+```
+
+Cada grupo pai tem um switch "Habilitar tudo" que propaga para todos os filhos. Filhos podem ser ajustados individualmente.
+
+### Mudanças no `AppSidebar`
+
+Substituir as chamadas genéricas por granulares onde aplicável:
+
+```typescript
+// Antes:
+{hasPermission("cs", "view") && <CSSection />}
+
+// Depois — por subitem:
+{hasPermission("cs.kanban", "view") && <Link to="/cs-dashboard">Visão Geral</Link>}
+{hasPermission("cs.trails", "view") && <Link to="/cs-trails">Jornadas</Link>}
+{hasPermission("cs.reports.health", "view") && <Link to="/cs-health">Health Score</Link>}
+// etc.
+```
+
+O menu pai (ex: "Customer Success") aparece se **qualquer filho** tiver permissão de view:
+```typescript
+const showCS = hasPermission("cs", "view") || 
+               hasPermission("cs.kanban", "view") || 
+               hasPermission("cs.trails", "view");
+```
+
+### Mudanças nas Páginas com Guard de Permissão
+
+Páginas individuais que hoje fazem `hasPermission('cs', 'view')` serão atualizadas para o subchave correspondente:
+
+| Página | Antes | Depois |
+|---|---|---|
+| `/cs-dashboard` | `cs.view` | `cs.kanban.view` |
+| `/cs-trails` | `cs.view` | `cs.trails.view` |
+| `/cs-health` | `cs.view` | `cs.reports.health.view` |
+| `/cs-churn` | `cs.view` | `cs.reports.churn.view` |
+| `/cs-financial` | `cs.view` | `cs.reports.financial.view` |
+| `/nps/dashboard` | `nps.view` | `nps.dashboard.view` |
+| `/nps/campaigns` | `nps.view` | `nps.campaigns.view` |
+| `/nps/nps-settings` | `settings.manage` | `nps.settings.view` |
+| `/admin/workspace` | `chat.view` | `chat.workspace.view` |
+| `/admin/history` | `chat.view` | `chat.history.view` |
+| `/admin/banners` | `chat.manage` | `chat.banners.view` |
+| `/admin/gerencial` | `chat.view` | `chat.reports.view` |
+| Aba Atendentes (AdminSettings) | `chat.manage` | `chat.settings.attendants.view` |
+| Aba Times (AdminSettings) | `chat.manage` | `chat.settings.teams.view` |
+| Aba Categorias (AdminSettings) | `chat.manage` | `chat.settings.categories.view` |
+
+---
+
+## Compatibilidade Retroativa
+
+Todos os usuários existentes que têm permissões nos 5 módulos antigos continuam funcionando sem alteração — a herança de prefixo garante que `cs.view = true` ainda dá acesso a todos os subitens `cs.*` que não estejam explicitamente configurados.
+
+Apenas quando um admin **explicitamente configura** um subitem (ex: `cs.trails.can_view = false`) é que a restrição entra em vigor — sobrescrevendo a herança do pai.
+
+---
+
+## Arquivos a Criar/Modificar
+
+| Arquivo | Ação | O que muda |
+|---|---|---|
+| `src/contexts/AuthContext.tsx` | MODIFICAR | Lógica `hasPermission` com herança por prefixo de ponto |
+| `src/components/UserPermissionsDialog.tsx` | MODIFICAR | Substituir tabela plana por accordion agrupado com 26 permissões granulares; adicionar lógica de propagação pai→filhos |
+| `src/components/AppSidebar.tsx` | MODIFICAR | Usar permissões granulares por item; visibilidade dos menus pais condicional a qualquer filho ativo |
+| `src/pages/CSDashboard.tsx` | MODIFICAR | Guard: `cs.kanban.view` |
+| `src/pages/CSTrailsPage.tsx` | MODIFICAR | Guard: `cs.trails.view` |
+| `src/pages/CSHealthPage.tsx` | MODIFICAR | Guard: `cs.reports.health.view` |
+| `src/pages/CSChurnPage.tsx` | MODIFICAR | Guard: `cs.reports.churn.view` |
+| `src/pages/CSFinancialPage.tsx` | MODIFICAR | Guard: `cs.reports.financial.view` |
+| `src/pages/Dashboard.tsx` (NPS) | MODIFICAR | Guard: `nps.dashboard.view` |
+| `src/pages/Campaigns.tsx` | MODIFICAR | Guard: `nps.campaigns.view` |
+| `src/pages/NPSSettings.tsx` | MODIFICAR | Guard: `nps.settings.view` |
+| `src/pages/AdminSettings.tsx` | MODIFICAR | Cada aba verificada por sua permissão granular específica |
+| `src/locales/pt-BR.ts` e `en.ts` | MODIFICAR | Adicionar labels para todos os 26 subpermissões |
+
+---
+
+## Sem migração de banco necessária
+
+A tabela `user_permissions` já suporta strings arbitrárias na coluna `module`. Não há necessidade de migration SQL — apenas novos registros serão inseridos quando o admin salvar permissões granulares para um usuário. O sistema de upsert por `user_id,module` já garante idempotência.
