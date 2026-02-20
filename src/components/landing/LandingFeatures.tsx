@@ -116,6 +116,84 @@ type LandingTexts = {
   feature3Desc: string;
 };
 
+type FeatureRowsTexts = {
+  feature1Title: string;
+  feature1Desc: string;
+  feature2Title: string;
+  feature2Desc: string;
+  feature3Title: string;
+  feature3Desc: string;
+};
+
+export const LandingFeatureRows = ({ t }: { t: FeatureRowsTexts }) => {
+  const rows = [
+    {
+      icon: MessageSquare,
+      iconColor: "#FF7A59",
+      title: t.feature1Title,
+      desc: t.feature1Desc,
+      Mockup: ChatMockup,
+      cardRight: true,
+    },
+    {
+      icon: Target,
+      iconColor: "#3498DB",
+      title: t.feature2Title,
+      desc: t.feature2Desc,
+      Mockup: NPSMockup,
+      cardRight: false,
+    },
+    {
+      icon: BarChart3,
+      iconColor: "#2ECC71",
+      title: t.feature3Title,
+      desc: t.feature3Desc,
+      Mockup: DashboardMockup,
+      cardRight: true,
+    },
+  ];
+
+  return (
+    <div style={{ background: "#0F1115" }}>
+      {rows.map(({ icon: Icon, iconColor, title, desc, Mockup, cardRight }, i) => (
+        <section key={i} className="py-10 px-4" style={{ background: "#0F1115" }}>
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+            {/* Text side — always first in DOM (mobile), conditionally ordered on desktop */}
+            <div className={`flex flex-col gap-4 ${!cardRight ? "lg:order-last" : ""}`}>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${iconColor}14` }}
+                >
+                  <Icon style={{ color: iconColor }} className="w-5 h-5" />
+                </div>
+                <h3 className="text-[20px] font-medium text-white">{title}</h3>
+              </div>
+              <p className="text-[14px] leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+                {desc}
+              </p>
+            </div>
+
+            {/* Card side */}
+            <div className={`${!cardRight ? "lg:order-first" : ""}`}>
+              <div
+                className="rounded-xl p-6"
+                style={{
+                  background: "#171C28",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                }}
+              >
+                <Mockup />
+              </div>
+            </div>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+};
+
 const LandingFeatures = ({ t }: { t: LandingTexts }) => {
   const features = [
     {
