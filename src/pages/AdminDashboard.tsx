@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useDashboardStats, DashboardFilters } from "@/hooks/useDashboardStats";
@@ -225,7 +225,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <SidebarLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <PageHeader title={t("chat.dashboard.title")} subtitle={t("chat.dashboard.subtitle")} />
@@ -460,7 +460,7 @@ const AdminDashboard = () => {
         open={!!readOnlyRoom}
         onOpenChange={(open) => !open && setReadOnlyRoom(null)}
       />
-    </SidebarLayout>
+    </>
   );
 };
 

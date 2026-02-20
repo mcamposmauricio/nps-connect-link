@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,8 +141,7 @@ export default function CSMsPage() {
   };
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">{t("cs.csms.title")}</h1>
@@ -295,7 +294,6 @@ export default function CSMsPage() {
             ))}
           </div>
         )}
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

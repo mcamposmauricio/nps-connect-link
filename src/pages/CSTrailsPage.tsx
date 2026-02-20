@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,8 +143,7 @@ export default function CSTrailsPage() {
   };
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
         <PageHeader title={t("cs.trails.title")} subtitle={t("cs.trails.subtitle")} />
           {canEditCS && (
@@ -308,7 +307,6 @@ export default function CSTrailsPage() {
             ))}
           </div>
         )}
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

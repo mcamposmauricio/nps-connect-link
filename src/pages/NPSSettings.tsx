@@ -1,4 +1,4 @@
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Palette, Mail, Bell, Key, Code2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,8 +16,7 @@ const NPSSettings = () => {
   const showApiKeys = isAdmin || hasPermission('nps.settings', 'manage');
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <PageHeader title={t("npsSettings.title")} subtitle={t("npsSettings.subtitle")} />
 
         <Tabs defaultValue="brand" className="space-y-6">
@@ -68,8 +67,7 @@ const NPSSettings = () => {
             </TabsContent>
           )}
         </Tabs>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

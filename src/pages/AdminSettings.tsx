@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -322,17 +322,14 @@ const AdminSettings = () => {
 
   if (loading) {
     return (
-      <SidebarLayout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </SidebarLayout>
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
     );
   }
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">{t("chat.settings.title")}</h1>
           <p className="text-muted-foreground">{t("chat.settings.subtitle")}</p>
@@ -958,8 +955,7 @@ const AdminSettings = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

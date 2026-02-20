@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,8 +46,7 @@ export default function CSFinancialPage() {
   };
 
   return (
-    <SidebarLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <PageHeader title={t("cs.financial.title")} subtitle={t("cs.financial.subtitle")} />
 
         {/* Summary Cards */}
@@ -152,7 +151,6 @@ export default function CSFinancialPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

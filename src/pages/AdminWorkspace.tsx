@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatMessages, useChatRooms } from "@/hooks/useChatRealtime";
@@ -239,7 +239,7 @@ const AdminWorkspace = () => {
   // Mobile layout
   if (isMobile) {
     return (
-      <SidebarLayout>
+      <>
         <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
           {mobileView === "list" && (
             <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
@@ -298,13 +298,13 @@ const AdminWorkspace = () => {
         </div>
         <CloseRoomDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen} onConfirm={handleConfirmClose} />
         <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={selectedRoom?.attendant_id ?? null} onConfirm={handleReassign} />
-      </SidebarLayout>
+      </>
     );
   }
 
   // Desktop layout with resizable panels
   return (
-    <SidebarLayout>
+    <>
       <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left: Room list */}
@@ -389,7 +389,7 @@ const AdminWorkspace = () => {
 
       <CloseRoomDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen} onConfirm={handleConfirmClose} />
       <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={selectedRoom?.attendant_id ?? null} onConfirm={handleReassign} />
-    </SidebarLayout>
+    </>
   );
 };
 

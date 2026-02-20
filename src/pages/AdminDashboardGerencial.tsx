@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useDashboardStats, type DashboardFilters } from "@/hooks/useDashboardStats";
 import { useAttendants } from "@/hooks/useAttendants";
@@ -34,8 +34,7 @@ const AdminDashboardGerencial = () => {
   };
 
   return (
-    <SidebarLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-semibold">{t("chat.gerencial.title")}</h1>
@@ -235,8 +234,7 @@ const AdminDashboardGerencial = () => {
             </Card>
           </>
         )}
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

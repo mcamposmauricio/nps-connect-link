@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import SidebarLayout from "@/components/SidebarLayout";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
@@ -780,26 +780,22 @@ const CampaignDetails = () => {
 
   if (loading) {
     return (
-      <SidebarLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </SidebarLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
   if (!campaign) {
     return (
-      <SidebarLayout>
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">Campanha não encontrada.</p>
-        </Card>
-      </SidebarLayout>
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">Campanha não encontrada.</p>
+      </Card>
     );
   }
 
   return (
-    <SidebarLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -1346,7 +1342,7 @@ const CampaignDetails = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SidebarLayout>
+    </>
   );
 };
 
