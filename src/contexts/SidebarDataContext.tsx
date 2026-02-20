@@ -108,6 +108,8 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Surgical patch handlers — no HTTP requests, just state updates
+  // With REPLICA IDENTITY FULL, oldRoom has all fields.
+  // Fallback: if oldRoom fields are undefined, use newRoom as heuristic.
   const handleRoomChange = useCallback((payload: any) => {
     const { eventType, new: newRoom, old: oldRoom } = payload;
 
@@ -126,28 +128,34 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     }
 
     if (eventType === "UPDATE") {
+      const oldStatus = oldRoom.status ?? undefined;
+      const oldAttendant = oldRoom.attendant_id ?? undefined;
+
       // Room closed → decrement previous owner
-      if (newRoom.status === "closed" && oldRoom.status !== "closed") {
-        if (oldRoom.attendant_id) {
+      if (newRoom.status === "closed" && oldStatus !== "closed") {
+        // Use oldRoom.attendant_id if available, otherwise fall back to newRoom.attendant_id
+        const decrementId = oldAttendant || newRoom.attendant_id;
+        if (decrementId) {
           setTeamAttendants(prev => prev.map(a =>
-            a.id === oldRoom.attendant_id
+            a.id === decrementId
               ? { ...a, active_count: Math.max(0, a.active_count - 1) }
               : a
           ));
-        } else {
+        } else if (oldStatus === undefined || oldStatus === "waiting") {
+          // Was unassigned
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
       }
       // Room reassigned → adjust both sides
-      if (newRoom.attendant_id !== oldRoom.attendant_id && newRoom.status !== "closed") {
-        // Decrement old owner
-        if (oldRoom.attendant_id) {
+      else if (newRoom.attendant_id !== oldAttendant && newRoom.status !== "closed") {
+        // Decrement old owner (only if we know who it was)
+        if (oldAttendant) {
           setTeamAttendants(prev => prev.map(a =>
-            a.id === oldRoom.attendant_id
+            a.id === oldAttendant
               ? { ...a, active_count: Math.max(0, a.active_count - 1) }
               : a
           ));
-        } else if (oldRoom.status !== "closed") {
+        } else if (oldStatus !== "closed" && oldStatus !== undefined) {
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
         // Increment new owner
@@ -164,10 +172,12 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     }
 
     if (eventType === "DELETE") {
-      if (oldRoom.status !== "closed") {
-        if (oldRoom.attendant_id) {
+      const oldStatus = oldRoom.status ?? "active"; // assume active if unknown
+      const oldAttendant = oldRoom.attendant_id ?? undefined;
+      if (oldStatus !== "closed") {
+        if (oldAttendant) {
           setTeamAttendants(prev => prev.map(a =>
-            a.id === oldRoom.attendant_id
+            a.id === oldAttendant
               ? { ...a, active_count: Math.max(0, a.active_count - 1) }
               : a
           ));
@@ -205,6 +215,29 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Periodic re-sync: recount active rooms from DB every 60s as safety net
+  const resyncCounts = useCallback(async () => {
+    const { data: allActiveRooms } = await supabase
+      .from("chat_rooms")
+      .select("attendant_id")
+      .in("status", ["active", "waiting"]);
+
+    let counts: Record<string, number> = {};
+    let unassigned = 0;
+    (allActiveRooms ?? []).forEach((r: any) => {
+      if (r.attendant_id) {
+        counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
+      } else {
+        unassigned++;
+      }
+    });
+    setUnassignedCount(unassigned);
+    setTeamAttendants(prev => prev.map(a => ({
+      ...a,
+      active_count: counts[a.id] || 0,
+    })));
+  }, []);
+
   useEffect(() => {
     if (!user?.id) {
       // User logged out — reset state
@@ -239,9 +272,13 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
+    // Periodic re-sync every 60 seconds
+    const resyncInterval = setInterval(resyncCounts, 60_000);
+
     return () => {
       supabase.removeChannel(roomsChannel);
       supabase.removeChannel(attendantsChannel);
+      clearInterval(resyncInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isAdmin]);
