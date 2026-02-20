@@ -1,62 +1,89 @@
 
-# Remoção de Seções e Redução de Espaçamento na Landing Page
+# Bring Back Feature Cards as Alternating Full-Width Rows
 
-## O que será removido
+## What the User Wants
 
-### 1. Section 3 — Core Modules (LandingFeatures)
-A linha `<LandingFeatures t={t} />` e seu bloco de comentário na linha 426–427 serão deletados. O componente `LandingFeatures.tsx` não será apagado — apenas deixará de ser renderizado na página.
+Replace the old 3-column grid of feature cards with 3 separate **horizontal alternating sections** placed between the Hero and the CRM+Timeline. Each section is a 2-column layout:
 
-O import `LandingFeatures` na linha 5 também será removido para limpar o código.
+- Row 1 (In-Product Conversations): **text left** | **card right**
+- Row 2 (NPS Connected to Revenue): **card left** | **text right**
+- Row 3 (Revenue & Health Signals): **text left** | **card right**
 
-As chaves de texto relacionadas (`featuresLabel`, `featuresH2a`, `featuresH2b`, `featuresSub`, `feature1Title`, `feature1Desc`, `feature2Title`, `feature2Desc`, `feature3Title`, `feature3Desc`) podem permanecer no objeto `texts` sem problema pois não serão usadas e não afetam nada.
-
-### 2. Section 6 — Final CTA com a quote
-O bloco inteiro das linhas 553–576 (a `<section>` com a quote "Customer Experience is a Signal. Revenue is the Outcome." e o botão duplicado) será removido.
-
-As chaves `quote` e `quoteSpan` no objeto `texts` também serão limpas dos dois idiomas.
+No section header or title label above them — just the 3 rows directly.
 
 ---
 
-## Redução de espaçamentos entre seções
-
-As seções restantes usam `py-14` (56px top + bottom). Vamos reduzir para `py-10` (40px) nas seções intermediárias, mantendo o Hero com seu espaçamento atual.
-
-| Seção | Antes | Depois |
-|---|---|---|
-| Hero | `py-16` | `py-12` |
-| LandingTimeline (interno) | `py-14` | `py-8` |
-| LandingKanban (interno) | `py-14` | `py-8` |
-| Early Access Form | `py-14` | `py-10` |
-| Footer | `py-10` | `py-7` |
-
-Os componentes `LandingTimeline` e `LandingKanban` têm o `py-14` hardcoded internamente. Eles serão ajustados diretamente nos seus arquivos.
-
----
-
-## Estrutura da página após as mudanças
+## Layout Structure
 
 ```text
 Navbar
-Hero (py-12)
-Timeline (py-8)
-Kanban (py-8)
-Early Access Form (py-10)
-Footer (py-7)
+Hero
+────────────────────────────────────────
+Row 1: [Text copy] | [ChatMockup card]
+Row 2: [NPSMockup card] | [Text copy]
+Row 3: [Text copy] | [DashboardMockup card]
+────────────────────────────────────────
+CRM + Timeline (LandingTimeline)
+Customer Journey (LandingKanban)
+Early Access Form
+Footer
 ```
+
+On **mobile**: all stacks vertically — icon+title+description first, then the card below it.
 
 ---
 
-## Arquivos a modificar
+## Section Design
 
-| Arquivo | O que muda |
+Each row is a `<section className="py-8">` with a `max-w-7xl` container and a `grid lg:grid-cols-2 gap-12 items-center` layout. The text side shows:
+- A small icon badge (same icon/color as current feature cards)
+- Title (`text-[20px] font-medium text-white`)
+- Description text (`text-[14px]` at `rgba(255,255,255,0.5)`)
+
+The card side shows the same mockup components already in `LandingFeatures.tsx` (`ChatMockup`, `NPSMockup`, `DashboardMockup`), wrapped in the same dark card container (`#171C28` background, `1px solid rgba(255,255,255,0.05)` border, `rounded-xl`, `p-6`).
+
+For rows where the card should be on the **left** (Row 2 — NPS), CSS `order` classes handle the visual swap:
+- Desktop: card column gets `lg:order-first`, text column gets `lg:order-last`
+- Mobile: text always appears first (default DOM order)
+
+---
+
+## Changes Required
+
+### `src/components/landing/LandingFeatures.tsx`
+Move `ChatMockup`, `NPSMockup`, and `DashboardMockup` components plus the `LandingTexts` type out of the current monolithic component, and export them so `LandingPage.tsx` can import and use each independently. The existing `LandingFeatures` default export (the 3-column grid) can remain but will no longer be used.
+
+Alternatively (simpler), the 3 mockup components and the alternating rows can be implemented directly in a new exported component `LandingFeatureRows` within `LandingFeatures.tsx`.
+
+### `src/pages/LandingPage.tsx`
+- Import `LandingFeatures` again (or a new `LandingFeatureRows` export)
+- Insert the 3 alternating rows **after the Hero section** (`</section>`) and **before** `<LandingTimeline t={t} />`
+- The text strings used are already in the `texts` object: `feature1Title`, `feature1Desc`, `feature2Title`, `feature2Desc`, `feature3Title`, `feature3Desc`
+- Add `MessageSquare`, `Target`, `BarChart3` back to the lucide-react import (they may already be there)
+
+---
+
+## Accent Colors per Feature
+
+| Feature | Icon | Color |
+|---|---|---|
+| In-Product Conversations | `MessageSquare` | `#FF7A59` (coral) |
+| NPS Connected to Revenue | `Target` | `#3498DB` (blue) |
+| Revenue & Health Signals | `BarChart3` | `#2ECC71` (green) |
+
+---
+
+## Files to Modify
+
+| File | What changes |
 |---|---|
-| `src/pages/LandingPage.tsx` | Remover import + render de `LandingFeatures`, remover Section 6 (quote + CTA final), reduzir `py-16` → `py-12` no Hero, `py-14` → `py-10` no form, `py-10` → `py-7` no footer, limpar chaves `quote`/`quoteSpan` do objeto `texts` |
-| `src/components/landing/LandingTimeline.tsx` | Reduzir `py-14` → `py-8` |
-| `src/components/landing/LandingKanban.tsx` | Reduzir `py-14` → `py-8` |
+| `src/components/landing/LandingFeatures.tsx` | Add and export a new `LandingFeatureRows` component that renders the 3 alternating rows using the existing mockups |
+| `src/pages/LandingPage.tsx` | Import `LandingFeatureRows`, render it between Hero and Timeline |
 
-## O que NÃO muda
+## What Does NOT Change
 
-- Lógica de idioma, persistência e toggle PT/EN
-- Formulário de lead e submissão
-- Seções Hero, Timeline, Kanban e Footer (apenas espaçamentos ajustados)
-- Qualquer outra página ou componente fora da landing
+- Language toggle logic and persistence
+- The `texts` object keys (already has all feature strings)
+- `LandingTimeline`, `LandingKanban`, the form, the footer
+- Hero section layout
+- Any pages outside the landing
