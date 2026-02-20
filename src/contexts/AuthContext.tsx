@@ -35,16 +35,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = useCallback(
     (module: string, action: 'view' | 'edit' | 'delete' | 'manage'): boolean => {
       if (isAdmin) return true;
-      const perm = permissions.find((p) => p.module === module);
-      if (!perm) return false;
-      if (perm.can_manage) return true;
-      switch (action) {
-        case 'view': return perm.can_view;
-        case 'edit': return perm.can_edit;
-        case 'delete': return perm.can_delete;
-        case 'manage': return perm.can_manage;
-        default: return false;
+
+      const checkPerm = (perm: UserPermission): boolean => {
+        if (perm.can_manage) return true;
+        switch (action) {
+          case 'view': return perm.can_view;
+          case 'edit': return perm.can_edit;
+          case 'delete': return perm.can_delete;
+          case 'manage': return perm.can_manage;
+          default: return false;
+        }
+      };
+
+      // 1. Check exact match first (highest specificity)
+      const exactPerm = permissions.find((p) => p.module === module);
+      if (exactPerm) return checkPerm(exactPerm);
+
+      // 2. Inherit from parent modules (e.g. "cs" for "cs.kanban")
+      const parts = module.split('.');
+      for (let i = parts.length - 1; i > 0; i--) {
+        const parentKey = parts.slice(0, i).join('.');
+        const parentPerm = permissions.find((p) => p.module === parentKey);
+        if (parentPerm) return checkPerm(parentPerm);
       }
+
+      return false;
     },
     [isAdmin, permissions]
   );

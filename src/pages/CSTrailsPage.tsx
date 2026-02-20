@@ -20,8 +20,8 @@ import { PageHeader } from "@/components/ui/page-header";
 export default function CSTrailsPage() {
   const { t } = useLanguage();
   const { user, tenantId, hasPermission } = useAuth();
-  const canEditCS = hasPermission('cs', 'edit');
-  const canDeleteCS = hasPermission('cs', 'delete');
+  const canEditCS = hasPermission('cs.trails', 'edit');
+  const canDeleteCS = hasPermission('cs.trails', 'delete');
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);

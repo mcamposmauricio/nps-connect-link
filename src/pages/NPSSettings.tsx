@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 const NPSSettings = () => {
   const { t } = useLanguage();
   const { isAdmin, hasPermission } = useAuth();
-  const showApiKeys = isAdmin || hasPermission('settings', 'manage');
+  const showApiKeys = isAdmin || hasPermission('nps.settings', 'manage');
 
   return (
     <SidebarLayout>
