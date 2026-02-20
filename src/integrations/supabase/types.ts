@@ -73,6 +73,7 @@ export type Database = {
           display_name: string
           id: string
           max_conversations: number | null
+          skill_level: string | null
           status: string | null
           tenant_id: string | null
           updated_at: string | null
@@ -86,6 +87,7 @@ export type Database = {
           display_name: string
           id?: string
           max_conversations?: number | null
+          skill_level?: string | null
           status?: string | null
           tenant_id?: string | null
           updated_at?: string | null
@@ -99,6 +101,7 @@ export type Database = {
           display_name?: string
           id?: string
           max_conversations?: number | null
+          skill_level?: string | null
           status?: string | null
           tenant_id?: string | null
           updated_at?: string | null
@@ -357,6 +360,84 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_assignment_configs: {
+        Row: {
+          advanced_notify_enabled: boolean
+          advanced_prefer_senior: boolean
+          advanced_reassign_enabled: boolean
+          advanced_reassign_minutes: number
+          allow_over_capacity: boolean
+          capacity_limit: number
+          category_team_id: string
+          created_at: string | null
+          enabled: boolean
+          fallback_mode: string
+          fallback_team_id: string | null
+          id: string
+          model: string
+          online_only: boolean
+          priority_bypass: boolean
+          rr_last_attendant_id: string | null
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          advanced_notify_enabled?: boolean
+          advanced_prefer_senior?: boolean
+          advanced_reassign_enabled?: boolean
+          advanced_reassign_minutes?: number
+          allow_over_capacity?: boolean
+          capacity_limit?: number
+          category_team_id: string
+          created_at?: string | null
+          enabled?: boolean
+          fallback_mode?: string
+          fallback_team_id?: string | null
+          id?: string
+          model?: string
+          online_only?: boolean
+          priority_bypass?: boolean
+          rr_last_attendant_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          advanced_notify_enabled?: boolean
+          advanced_prefer_senior?: boolean
+          advanced_reassign_enabled?: boolean
+          advanced_reassign_minutes?: number
+          allow_over_capacity?: boolean
+          capacity_limit?: number
+          category_team_id?: string
+          created_at?: string | null
+          enabled?: boolean
+          fallback_mode?: string
+          fallback_team_id?: string | null
+          id?: string
+          model?: string
+          online_only?: boolean
+          priority_bypass?: boolean
+          rr_last_attendant_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_assignment_configs_category_team_id_fkey"
+            columns: ["category_team_id"]
+            isOneToOne: false
+            referencedRelation: "chat_category_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_assignment_configs_fallback_team_id_fkey"
+            columns: ["fallback_team_id"]
+            isOneToOne: false
+            referencedRelation: "chat_teams"
             referencedColumns: ["id"]
           },
         ]
