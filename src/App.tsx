@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
+import ChatLandingPage from "./pages/ChatLandingPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
@@ -57,8 +58,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
         <Routes>
-          {/* Public Landing Page */}
-          <Route path="/" element={<LandingPage />} />
+          {/* Public Landing Pages */}
+          <Route path="/" element={<ChatLandingPage />} />
+          <Route path="/journey" element={<LandingPage />} />
           <Route path="/cs-dashboard" element={<CSDashboard />} />
           <Route path="/cs-trails" element={<CSTrailsPage />} />
           <Route path="/cs-health" element={<CSHealthPage />} />

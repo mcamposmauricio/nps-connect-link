@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import LandingTimeline from "@/components/landing/LandingTimeline";
@@ -264,6 +264,17 @@ const LandingPage = () => {
             <img src="/logo-dark.svg" alt="Journey" className="h-12 w-auto" />
           </div>
           <div className="flex items-center gap-2">
+            {/* Cross-link to Chat LP */}
+            <Link
+              to="/"
+              className="hidden md:inline-flex text-sm transition-colors duration-150"
+              style={{ color: "rgba(255,255,255,0.45)", textDecoration: "none" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#FF7A59")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
+            >
+              In-App Chat →
+            </Link>
+
             {/* Lang toggle */}
             <button
               onClick={toggleLang}
