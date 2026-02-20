@@ -1,89 +1,159 @@
 
-# Bring Back Feature Cards as Alternating Full-Width Rows
+# Nova Landing Page "Journey In-App Chat" em `/` + Mover LP atual para `/journey`
 
-## What the User Wants
+## Visão Geral
 
-Replace the old 3-column grid of feature cards with 3 separate **horizontal alternating sections** placed between the Hero and the CRM+Timeline. Each section is a 2-column layout:
+A tarefa tem duas partes:
 
-- Row 1 (In-Product Conversations): **text left** | **card right**
-- Row 2 (NPS Connected to Revenue): **card left** | **text right**
-- Row 3 (Revenue & Health Signals): **text left** | **card right**
+1. **Mover** a `LandingPage.tsx` atual (Journey Platform) para a rota `/journey`, renomeando o arquivo para `JourneyLandingPage.tsx` e adicionando um link no navbar para a nova LP de Chat.
+2. **Criar** uma nova `ChatLandingPage.tsx` no root `/` com branding "Journey In-App Chat", focada em startups B2B SaaS — com seu próprio navbar contendo link para `/journey`.
 
-No section header or title label above them — just the 3 rows directly.
+Ambas as páginas mantêm todas as funcionalidades existentes (auth check, lang toggle, links de sign in/dashboard).
 
 ---
 
-## Layout Structure
+## Estrutura de Rotas (App.tsx)
 
 ```text
-Navbar
-Hero
-────────────────────────────────────────
-Row 1: [Text copy] | [ChatMockup card]
-Row 2: [NPSMockup card] | [Text copy]
-Row 3: [Text copy] | [DashboardMockup card]
-────────────────────────────────────────
-CRM + Timeline (LandingTimeline)
-Customer Journey (LandingKanban)
-Early Access Form
-Footer
+/           → ChatLandingPage  (NOVA - In-App Chat)
+/journey    → JourneyLandingPage  (ATUAL LandingPage renomeada)
 ```
 
-On **mobile**: all stacks vertically — icon+title+description first, then the card below it.
+O link de navegação cruzada ficará no navbar de cada página:
+- Na nova `ChatLandingPage` (root): link "Journey Platform →" apontando para `/journey`
+- Na `JourneyLandingPage` (/journey): link "In-App Chat →" apontando para `/`
 
 ---
 
-## Section Design
+## Parte 1 — Renomear/Mover LP Atual para `/journey`
 
-Each row is a `<section className="py-8">` with a `max-w-7xl` container and a `grid lg:grid-cols-2 gap-12 items-center` layout. The text side shows:
-- A small icon badge (same icon/color as current feature cards)
-- Title (`text-[20px] font-medium text-white`)
-- Description text (`text-[14px]` at `rgba(255,255,255,0.5)`)
+### Arquivo: `src/pages/LandingPage.tsx`
+- Renomear o arquivo para `src/pages/JourneyLandingPage.tsx` (ou criar alias)
+- Adicionar um link no navbar entre o lang toggle e o sign in:  
+  `"In-App Chat →"` → navega para `/`
 
-The card side shows the same mockup components already in `LandingFeatures.tsx` (`ChatMockup`, `NPSMockup`, `DashboardMockup`), wrapped in the same dark card container (`#171C28` background, `1px solid rgba(255,255,255,0.05)` border, `rounded-xl`, `p-6`).
-
-For rows where the card should be on the **left** (Row 2 — NPS), CSS `order` classes handle the visual swap:
-- Desktop: card column gets `lg:order-first`, text column gets `lg:order-last`
-- Mobile: text always appears first (default DOM order)
+### Arquivo: `src/App.tsx`
+- Trocar `<Route path="/" element={<LandingPage />} />` → `<Route path="/journey" element={<JourneyLandingPage />} />`
+- Adicionar `<Route path="/" element={<ChatLandingPage />} />`
 
 ---
 
-## Changes Required
+## Parte 2 — Nova `ChatLandingPage.tsx` (root `/`)
 
-### `src/components/landing/LandingFeatures.tsx`
-Move `ChatMockup`, `NPSMockup`, and `DashboardMockup` components plus the `LandingTexts` type out of the current monolithic component, and export them so `LandingPage.tsx` can import and use each independently. The existing `LandingFeatures` default export (the 3-column grid) can remain but will no longer be used.
-
-Alternatively (simpler), the 3 mockup components and the alternating rows can be implemented directly in a new exported component `LandingFeatureRows` within `LandingFeatures.tsx`.
-
-### `src/pages/LandingPage.tsx`
-- Import `LandingFeatures` again (or a new `LandingFeatureRows` export)
-- Insert the 3 alternating rows **after the Hero section** (`</section>`) and **before** `<LandingTimeline t={t} />`
-- The text strings used are already in the `texts` object: `feature1Title`, `feature1Desc`, `feature2Title`, `feature2Desc`, `feature3Title`, `feature3Desc`
-- Add `MessageSquare`, `Target`, `BarChart3` back to the lucide-react import (they may already be there)
-
----
-
-## Accent Colors per Feature
-
-| Feature | Icon | Color |
-|---|---|---|
-| In-Product Conversations | `MessageSquare` | `#FF7A59` (coral) |
-| NPS Connected to Revenue | `Target` | `#3498DB` (blue) |
-| Revenue & Health Signals | `BarChart3` | `#2ECC71` (green) |
-
----
-
-## Files to Modify
-
-| File | What changes |
+### Paleta de Cores
+| Token | Valor |
 |---|---|
-| `src/components/landing/LandingFeatures.tsx` | Add and export a new `LandingFeatureRows` component that renders the 3 alternating rows using the existing mockups |
-| `src/pages/LandingPage.tsx` | Import `LandingFeatureRows`, render it between Hero and Timeline |
+| Background | `#0F1115` (dark navy, consistente com design system) |
+| Surface | `#131722` |
+| Card | `#171C28` |
+| Primary CTA | `#FF7A59` (Coral) |
+| Accent Blue | `#3498DB` |
+| Success Green | `#2ECC71` |
 
-## What Does NOT Change
+> Note: O `#1A2B48` do brief seria uma mudança brusca em relação ao design system atual. Optamos por manter o `#0F1115` para coerência visual entre as duas LPs, mas o glow e os gradientes introduzem a sensação de "azul naval profundo" pedida.
 
-- Language toggle logic and persistence
-- The `texts` object keys (already has all feature strings)
-- `LandingTimeline`, `LandingKanban`, the form, the footer
-- Hero section layout
-- Any pages outside the landing
+### Estrutura de Seções
+
+```text
+1. Navbar
+2. Hero
+3. Social Proof (faixa de logos)
+4. Diferenciais (grid 3 colunas)
+5. Integrações (Slack, HubSpot, Pipedrive)
+6. Final CTA (gradiente azul → coral)
+7. Footer
+```
+
+---
+
+### Seção 1 — Navbar
+
+- Logo Journey à esquerda (mesmo `/logo-dark.svg`)
+- Links de navegação: "Funcionalidades", "Integrações", "Preços" (scroll anchor)
+- Link cruzado: `"Journey Platform →"` → `/journey`
+- Lang toggle (PT/EN)
+- Botão ghost: "Entrar" / "Dashboard"
+- Botão CTA coral: "Começar Grátis"
+
+---
+
+### Seção 2 — Hero
+
+Layout **2 colunas** no desktop (texto esquerda, mockup direita), stack vertical no mobile.
+
+**Texto:**
+- Badge: "In-App Chat · Para B2B SaaS"
+- H1: `"Transforme conversas dentro do app em retenção de receita"` (EN: `"Turn in-app conversations into revenue retention"`)
+- Subtítulo: `"O chat in-app mais leve do mercado, projetado para startups B2B que precisam de contexto real para fechar tickets e identificar oportunidades de expansão."` 
+- CTA primário: `"Instalar em 5 minutos"` (botão coral grande com ícone)
+- Sub-CTA: `"Sem cartão de crédito · Setup em minutos"`
+
+**Visual (lado direito):**
+Um mockup de widget de chat flutuante — construído com `div`s, sem imagem — simulando um widget no canto inferior direito de uma interface SaaS genérica. Inclui:
+- Uma janela de chat com header do agente, mensagens alternadas (visitante/agente) e um input bar
+- Um badge flutuante de "contexto" mostrando dados do plano do usuário (Plan: Pro, MRR impact: $2.4k)
+
+---
+
+### Seção 3 — Social Proof
+
+Faixa sutil com:
+- Texto: `"Startups que escalam com a Journey"` (EN: `"Startups scaling with Journey"`)
+- 5 logotipos fictícios (texto em cinza, fonte mono, estilo placeholder): `Acme SaaS`, `Orbit`, `Stackly`, `Claros`, `Veryfi`
+
+---
+
+### Seção 4 — Diferenciais (3 colunas)
+
+3 cards `rounded-xl` com:
+1. **Contexto em Tempo Real** — ícone `Eye`, cor `#3498DB`  
+   "Veja os metadados do plano e comportamento do usuário antes mesmo de responder."
+2. **Central de Ajuda Integrada** — ícone `BookOpen`, cor `#2ECC71`  
+   "Reduza o volume de tickets permitindo que o usuário se ajude sem sair do chat."
+3. **Foco em Sucesso** — ícone `TrendingUp`, cor `#FF7A59`  
+   "Identifique automaticamente se a conversa é um risco de churn ou chance de upsell."
+
+---
+
+### Seção 5 — Integrações
+
+Bloco centralizado com:
+- Título: `"Responda do Slack, sincronize com seu CRM"`
+- Sub: `"Conecte em 1 clique com as ferramentas que seu time já usa"`
+- 3 badges de integração: **Slack** (ícone `Hash`), **HubSpot** (ícone `BarChart2`), **Pipedrive** (ícone `GitMerge`)
+- Cada badge tem logo/ícone + nome + linha de status "Conectado ✓"
+
+---
+
+### Seção 6 — Final CTA
+
+Fundo com `background: "linear-gradient(135deg, #131722 0%, #1A2B48 50%, #2A1F18 100%)"` com glow coral suave.
+
+- Título: `"Pronto para elevar o nível do seu atendimento?"`
+- Sub: `"Instale o widget em minutos e comece a ver o contexto dos seus usuários."`
+- Botão: `"Criar conta gratuita agora"` (coral, grande)
+- Detalhe: `"Grátis para sempre até 500 conversas/mês"`
+
+---
+
+### Seção 7 — Footer
+
+Mesmo padrão do footer atual: logo + tagline + copyright.
+
+---
+
+## Arquivos a Criar/Modificar
+
+| Arquivo | Ação |
+|---|---|
+| `src/pages/ChatLandingPage.tsx` | **CRIAR** — nova LP In-App Chat no root |
+| `src/pages/LandingPage.tsx` | **MODIFICAR** — adicionar link "In-App Chat →" para `/` no navbar |
+| `src/App.tsx` | **MODIFICAR** — mover rota `/` para `ChatLandingPage`, adicionar rota `/journey` para `LandingPage` |
+
+## O que NÃO muda
+
+- `LandingPage.tsx` (apenas +1 link no navbar)
+- Todos os sub-componentes (`LandingTimeline`, `LandingKanban`, `LandingFeatureRows`)
+- Rota `/auth`, `/nps/*`, `/admin/*` e demais rotas internas
+- Lógica de autenticação e supabase
+- Design system, cores e fontes do projeto
