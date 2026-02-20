@@ -12,6 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash2, Tag, X, Search } from "lucide-react";
+import { AssignmentConfigPanel } from "@/components/chat/AssignmentConfigPanel";
 
 interface Category {
   id: string;
@@ -38,7 +39,7 @@ const CategoriesTab = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [categoryTeams, setCategoryTeams] = useState<{ category_id: string; team_id: string }[]>([]);
+  const [categoryTeams, setCategoryTeams] = useState<{ id: string; category_id: string; team_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
@@ -57,7 +58,7 @@ const CategoriesTab = () => {
       supabase.from("chat_service_categories").select("id, name, description, color").order("name"),
       supabase.from("chat_teams").select("id, name").order("name"),
       supabase.from("contacts").select("id, name, trade_name, service_category_id").eq("is_company", true).order("name"),
-      supabase.from("chat_category_teams").select("category_id, team_id"),
+      supabase.from("chat_category_teams").select("id, category_id, team_id"),
     ]);
     setCategories((cats as Category[]) ?? []);
     setTeams(tms ?? []);
@@ -181,7 +182,8 @@ const CategoriesTab = () => {
         <div className="grid gap-4">
           {categories.map((cat) => {
             const catCompanies = companies.filter(c => c.service_category_id === cat.id);
-            const catTeamIds = categoryTeams.filter(ct => ct.category_id === cat.id).map(ct => ct.team_id);
+            const catTeamLinks = categoryTeams.filter(ct => ct.category_id === cat.id);
+            const catTeamIds = catTeamLinks.map(ct => ct.team_id);
             const assignedTeams = teams.filter(t => catTeamIds.includes(t.id));
             const availableTeams = teams.filter(t => !catTeamIds.includes(t.id));
 
@@ -224,6 +226,24 @@ const CategoriesTab = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Assignment Config Panels — one per category→team link */}
+                  {catTeamLinks.length > 0 && (
+                    <div className="space-y-2">
+                      {catTeamLinks.map(link => {
+                        const team = teams.find(t => t.id === link.team_id);
+                        if (!team) return null;
+                        return (
+                          <AssignmentConfigPanel
+                            key={link.id}
+                            categoryTeamId={link.id}
+                            teamName={team.name}
+                            allTeams={teams}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Companies */}
                   <div>
