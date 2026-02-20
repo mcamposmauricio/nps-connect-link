@@ -148,7 +148,8 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
   const fetchRooms = useCallback(
     async (showLoading = false) => {
       if (!ownerUserId) return;
-      if (showLoading) setLoading(true);
+      // Only show loading spinner if we have no rooms yet (prevents flash on tab switch)
+      if (showLoading && rooms.length === 0) setLoading(true);
 
       let query = supabase
         .from("chat_rooms")
