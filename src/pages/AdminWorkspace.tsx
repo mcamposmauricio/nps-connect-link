@@ -16,7 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
+import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft, Tag } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type MobileView = "list" | "chat" | "info";
@@ -277,6 +279,16 @@ const AdminWorkspace = () => {
                       <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setReassignOpen(true)}>
                         <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
                       </Button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">
+                            <Tag className="h-3 w-3 mr-1" />Tags
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72" align="end">
+                          <ChatTagSelector roomId={selectedRoom.id} compact />
+                        </PopoverContent>
+                      </Popover>
                       <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={() => handleRequestClose(selectedRoom.id)}>
                         {t("chat.workspace.close")}
                       </Button>
@@ -290,6 +302,16 @@ const AdminWorkspace = () => {
                       <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setReassignOpen(true)}>
                         <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
                       </Button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">
+                            <Tag className="h-3 w-3 mr-1" />Tags
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72" align="end">
+                          <ChatTagSelector roomId={selectedRoom.id} compact />
+                        </PopoverContent>
+                      </Popover>
                     </>
                   )}
                 </div>
@@ -349,6 +371,16 @@ const AdminWorkspace = () => {
                           <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
                             <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
                           </Button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <Tag className="h-3 w-3 mr-1" />Tags
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72" align="end">
+                              <ChatTagSelector roomId={selectedRoom.id} compact />
+                            </PopoverContent>
+                          </Popover>
                         </>
                       )}
                       {selectedRoom.status === "active" && (
@@ -356,6 +388,16 @@ const AdminWorkspace = () => {
                           <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
                             <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
                           </Button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <Tag className="h-3 w-3 mr-1" />Tags
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72" align="end">
+                              <ChatTagSelector roomId={selectedRoom.id} compact />
+                            </PopoverContent>
+                          </Popover>
                           <Button size="sm" variant="destructive" onClick={() => handleRequestClose(selectedRoom.id)}>
                             {t("chat.workspace.close")}
                           </Button>
