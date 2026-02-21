@@ -26,6 +26,7 @@ export interface DashboardFilters {
   status?: string | null;
   priority?: string | null;
   categoryId?: string | null;
+  tagId?: string | null;
 }
 
 export function useDashboardStats(filters: DashboardFilters) {
@@ -99,6 +100,28 @@ export function useDashboardStats(filters: DashboardFilters) {
       categoryContactIds = catContacts?.map(c => c.id) ?? [];
     }
 
+    // If filtering by tag, get room IDs that have this tag
+    let tagRoomIds: string[] | null = null;
+    if (filters.tagId) {
+      const { data: tagRooms } = await supabase
+        .from("chat_room_tags")
+        .select("room_id")
+        .eq("tag_id", filters.tagId);
+      tagRoomIds = tagRooms?.map(r => r.room_id) ?? [];
+      if (tagRoomIds.length === 0) {
+        // No rooms with this tag, return empty stats
+        setStats({
+          totalChats: 0, chatsToday: 0, avgCsat: null, resolutionRate: null,
+          avgResolutionMinutes: null, chartData: [], chatsByAttendant: [],
+          resolutionDistribution: [], activeChats: 0, waitingChats: 0,
+          onlineAttendants: 0, avgFirstResponseMinutes: null, unresolvedChats: 0,
+          csatByDay: [], attendantPerformance: [], chatsByHour: [],
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
     const [roomsRes, attendantsRes] = await Promise.all([
       query,
       supabase.from("attendant_profiles").select("id, display_name, status"),
@@ -110,6 +133,12 @@ export function useDashboardStats(filters: DashboardFilters) {
     // Filter by category if needed
     if (categoryContactIds !== null) {
       rooms = rooms.filter(r => r.contact_id && categoryContactIds!.includes(r.contact_id));
+    }
+
+    // Filter by tag if needed
+    if (tagRoomIds !== null) {
+      const tagSet = new Set(tagRoomIds);
+      rooms = rooms.filter(r => tagSet.has(r.id));
     }
 
     const onlineAttendants = allAttendants.filter((a) => a.status === "available" || a.status === "online").length;
@@ -278,7 +307,7 @@ export function useDashboardStats(filters: DashboardFilters) {
       csatByDay, attendantPerformance, chatsByHour,
     });
     setLoading(false);
-  }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId]);
+  }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId, filters.tagId]);
 
   useEffect(() => {
     fetchStats();

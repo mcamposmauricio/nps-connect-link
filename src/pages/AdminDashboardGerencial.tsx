@@ -17,10 +17,15 @@ const AdminDashboardGerencial = () => {
   const [filters, setFilters] = useState<DashboardFilters>({ period: "month" });
   const { stats, loading } = useDashboardStats(filters);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    supabase.from("chat_service_categories").select("id, name").order("name").then(({ data }) => {
-      setCategories(data ?? []);
+    Promise.all([
+      supabase.from("chat_service_categories").select("id, name").order("name"),
+      supabase.from("chat_tags").select("id, name").order("name"),
+    ]).then(([catRes, tagRes]) => {
+      setCategories(catRes.data ?? []);
+      setTags(tagRes.data ?? []);
     });
   }, []);
 
@@ -81,6 +86,22 @@ const AdminDashboardGerencial = () => {
                   <SelectItem value="all">{t("common.all")}</SelectItem>
                   {categories.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {tags.length > 0 && (
+              <Select
+                value={filters.tagId ?? "all"}
+                onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas Tags</SelectItem>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
