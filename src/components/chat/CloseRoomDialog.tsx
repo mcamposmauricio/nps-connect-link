@@ -3,14 +3,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
 
 interface CloseRoomDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (resolutionStatus: "resolved" | "pending", note?: string) => void;
+  roomId?: string | null;
 }
 
-export function CloseRoomDialog({ open, onOpenChange, onConfirm }: CloseRoomDialogProps) {
+export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: CloseRoomDialogProps) {
   const [note, setNote] = useState("");
   const [closing, setClosing] = useState(false);
 
@@ -40,6 +42,8 @@ export function CloseRoomDialog({ open, onOpenChange, onConfirm }: CloseRoomDial
             rows={3}
             className="resize-none"
           />
+
+          {roomId && <ChatTagSelector roomId={roomId} compact />}
 
           <div className="flex gap-3">
             <Button

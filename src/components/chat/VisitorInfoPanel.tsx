@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TimelineComponent } from "@/components/cs/TimelineComponent";
+import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
 
 interface Visitor {
   id: string;
@@ -85,7 +86,7 @@ function getNpsBadge(score: number) {
   return { label: "Detrator", variant: "destructive" as const, className: "" };
 }
 
-export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyContactId: propCompanyContactId }: VisitorInfoPanelProps) {
+export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, companyContactId: propCompanyContactId }: VisitorInfoPanelProps) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [visitor, setVisitor] = useState<Visitor | null>(null);
@@ -203,6 +204,9 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
           <div className="text-xs text-muted-foreground pt-2 border-t">
             {t("chat.workspace.since")} {new Date(visitor.created_at).toLocaleDateString()}
           </div>
+          <div className="pt-2 border-t border-border">
+            <ChatTagSelector roomId={roomId} />
+          </div>
         </div>
       </div>
     );
@@ -243,6 +247,7 @@ export function VisitorInfoPanel({ visitorId, contactId: propContactId, companyC
 
         <ScrollArea className="flex-1">
           <TabsContent value="contact" className="px-4 pb-4 space-y-3 mt-0">
+            <ChatTagSelector roomId={roomId} />
             {companyContact?.department && <InfoRow icon={Building2} label="Departamento" value={companyContact.department} />}
             {companyContact?.external_id && <InfoRow icon={Hash} label="External ID" value={companyContact.external_id} />}
             <div className="pt-2 border-t border-border space-y-2">

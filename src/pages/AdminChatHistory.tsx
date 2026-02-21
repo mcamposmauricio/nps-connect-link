@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -43,15 +43,24 @@ const AdminChatHistory = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [exporting, setExporting] = useState(false);
+  const [tagId, setTagId] = useState<string | null>(null);
+  const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
 
   // ReadOnly dialog
   const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    supabase.from("chat_tags").select("id, name, color").order("name").then(({ data }) => {
+      setTags(data ?? []);
+    });
+  }, []);
 
   const { rooms, loading, totalCount, totalPages, exportToCSV } = useChatHistory({
     page,
     resolutionStatus,
     attendantId,
     search,
+    tagId,
     csatFilter: csatFilter ?? undefined,
     dateFrom: dateFrom?.toISOString(),
     dateTo: dateTo ? new Date(dateTo.getTime() + 86400000).toISOString() : undefined,
@@ -230,6 +239,22 @@ const AdminChatHistory = () => {
               <SelectItem value="good">4-5 (Bom)</SelectItem>
             </SelectContent>
           </Select>
+          {tags.length > 0 && (
+            <Select
+              value={tagId ?? "all"}
+              onValueChange={(v) => { setTagId(v === "all" ? null : v); handleFilterChange(); }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Tags</SelectItem>
+                {tags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Date range */}
           <Popover>
