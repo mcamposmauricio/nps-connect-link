@@ -287,7 +287,7 @@ export function AppSidebar() {
                                       tooltip={att.display_name}
                                       className="pl-10 text-xs hover:bg-sidebar-accent"
                                     >
-                                      <User className="h-3.5 w-3.5" />
+                                      <span className={`h-2 w-2 rounded-full shrink-0 ${att.status === "online" ? "bg-green-500" : att.status === "busy" ? "bg-amber-500" : "bg-gray-400"}`} />
                                       <span className="truncate">{att.user_id === user?.id ? `${t("chat.workspace.you")} ${att.display_name}` : att.display_name}</span>
                                       <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{att.active_count}</Badge>
                                     </SidebarMenuButton>

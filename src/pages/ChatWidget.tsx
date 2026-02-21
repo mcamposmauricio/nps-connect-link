@@ -805,7 +805,12 @@ const ChatWidget = () => {
                       </div>
                     )}
                     {msg.message_type === "file" && msg.metadata?.file_url
-                      ? renderFileMessage(msg)
+                      ? <>
+                          {renderFileMessage(msg)}
+                          {msg.content && msg.content !== msg.metadata.file_name && (
+                            <p className="mt-1">{msg.content}</p>
+                          )}
+                        </>
                       : <p>{mainContent || msg.content}</p>
                     }
                   </div>

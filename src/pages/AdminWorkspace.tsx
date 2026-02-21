@@ -175,8 +175,10 @@ const AdminWorkspace = () => {
 
   const handleReassign = async (attendantId: string, attendantName: string) => {
     if (!selectedRoomId || !user) return;
+    const isWaiting = selectedRoom?.status === "waiting";
     await supabase.from("chat_rooms").update({
       attendant_id: attendantId, assigned_at: new Date().toISOString(),
+      ...(isWaiting ? { status: "active" } : {}),
     }).eq("id", selectedRoomId);
     await supabase.from("chat_messages").insert({
       room_id: selectedRoomId, sender_type: "system", sender_name: "Sistema",
@@ -281,9 +283,14 @@ const AdminWorkspace = () => {
                     </>
                   )}
                   {selectedRoom.status === "waiting" && (
-                    <Button size="sm" className="h-8 text-xs" onClick={() => handleAssignRoom(selectedRoom.id)}>
-                      {t("chat.workspace.assign")}
-                    </Button>
+                    <>
+                      <Button size="sm" className="h-8 text-xs" onClick={() => handleAssignRoom(selectedRoom.id)}>
+                        {t("chat.workspace.assign")}
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setReassignOpen(true)}>
+                        <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -337,7 +344,12 @@ const AdminWorkspace = () => {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {selectedRoom.status === "waiting" && (
-                        <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>{t("chat.workspace.assign")}</Button>
+                        <>
+                          <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>{t("chat.workspace.assign")}</Button>
+                          <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
+                            <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
+                          </Button>
+                        </>
                       )}
                       {selectedRoom.status === "active" && (
                         <>
