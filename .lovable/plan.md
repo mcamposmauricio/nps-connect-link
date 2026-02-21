@@ -1,58 +1,56 @@
 
 
-# Corrigir: Contadores de chat so contam para cima
+# Plano: 3 Correções no Chat
 
-## Causa Raiz
+## 1. Transferir chat não atribuído para outro atendente
 
-A tabela `chat_rooms` usa **REPLICA IDENTITY DEFAULT** (apenas primary key). Quando o Supabase Realtime envia um evento UPDATE ou DELETE, o campo `old` contem **apenas o `id`** da row -- campos como `attendant_id` e `status` chegam como `undefined`.
+**Problema:** Quando um chat está "Na Fila" (waiting/sem atendente), o único botão disponível é "Atender" que atribui para si mesmo. Não há opção de direcionar para outro atendente.
 
-O codigo em `SidebarDataContext.tsx` depende desses campos para decrementar:
+**Solução:** Adicionar um botão "Transferir" ao lado do botão "Atender" quando o chat estiver em status `waiting`. Ao clicar, abre o `ReassignDialog` existente. Ao confirmar, o chat é atribuído diretamente ao atendente escolhido (status muda para `active`, `attendant_id` é preenchido, `assigned_at` é definido).
 
+**Arquivos:**
+- `src/pages/AdminWorkspace.tsx` -- Adicionar botão "Transferir" nos headers desktop e mobile quando `selectedRoom.status === "waiting"`. Reutilizar o `ReassignDialog` existente. Ajustar `handleReassign` para também definir `status: "active"` quando a room anterior era `waiting`.
+
+## 2. Indicador visual de status (bolinha colorida) nos atendentes
+
+**Problema:** Na sidebar do workspace e no dashboard, o status dos atendentes aparece apenas como texto ou badge sem destaque visual imediato.
+
+**Solução:** Adicionar uma bolinha colorida (dot indicator) antes do nome de cada atendente:
+- Verde para `online`
+- Amarelo para `busy` (ocupado)
+- Cinza para `offline`
+
+**Arquivos:**
+- `src/components/AppSidebar.tsx` (linhas 282-294) -- Adicionar um `<span>` com classe `h-2 w-2 rounded-full` com cor condicional antes do nome do atendente na lista do workspace.
+- `src/pages/AdminDashboard.tsx` (linhas 348-361) -- Adicionar a mesma bolinha antes do nome na tabela de atendentes, mantendo o badge de status textual existente.
+
+Mapeamento de cores:
 ```text
-// Linha 130-131 — nunca executa porque oldRoom.status === undefined
-if (newRoom.status === "closed" && oldRoom.status !== "closed") {
-  if (oldRoom.attendant_id) {  // oldRoom.attendant_id === undefined
+online  -> bg-green-500
+busy    -> bg-amber-500
+offline -> bg-gray-400
 ```
 
-O mesmo problema afeta reassignments (linha 142) e deletes (linha 167).
+## 3. Mensagem com imagem + texto no widget e portal
 
-**Resultado:** contadores so incrementam (INSERT/assign) mas nunca decrementam (close/reassign/delete).
+**Problema:** Quando o visitante envia uma mensagem com arquivo (imagem) e texto simultaneamente, o `ChatMessageList.tsx` (lado do atendente) exibe ambos corretamente. Porém, o `ChatWidget.tsx` (iframe embed) e o `PortalChatView.tsx` mostram apenas a imagem, ignorando o texto.
 
-## Solucao
+**Causa raiz:** Em ambos os componentes, `renderFileMessage` renderiza apenas o arquivo. O `ChatMessageList.tsx` resolve isso verificando `hasTextWithFile` e renderizando o texto abaixo do arquivo -- essa logica nao existe no widget nem no portal.
 
-### 1. Alterar REPLICA IDENTITY para FULL na tabela `chat_rooms`
+**Solução:** Nos dois arquivos, ao renderizar mensagens do tipo `file`, verificar se `msg.content` difere de `msg.metadata.file_name`. Se sim, renderizar o texto abaixo da imagem/arquivo.
 
-Uma unica migracao SQL resolve o problema na raiz:
+**Arquivos:**
+- `src/pages/ChatWidget.tsx` (linhas 807-809) -- Ajustar o bloco de renderização de mensagem para exibir texto apos o arquivo quando houver conteudo textual.
+- `src/components/portal/PortalChatView.tsx` (linhas ~330-335) -- Mesma correção: renderizar texto abaixo do componente de arquivo.
 
-```sql
-ALTER TABLE public.chat_rooms REPLICA IDENTITY FULL;
-```
+## Resumo de Alterações
 
-Com REPLICA IDENTITY FULL, o Supabase Realtime envia **todos os campos** no `old` record, permitindo que a logica de decremento funcione corretamente.
-
-### 2. Adicionar fallback defensivo no handleRoomChange
-
-Como medida de seguranca (caso o Realtime falhe ou perca eventos), adicionar um fallback que usa `newRoom` quando `oldRoom` nao tem os campos esperados. Isso cobre cenarios de reconexao onde eventos podem ser perdidos.
-
-No `SidebarDataContext.tsx`, ajustar o `handleRoomChange`:
-
-- Para UPDATE de fechamento: se `oldRoom.status` for undefined, usar heuristica baseada apenas em `newRoom` (se `newRoom.status === "closed"` e `newRoom.attendant_id` existe, decrementar esse attendant)
-- Para reassignment: se `oldRoom.attendant_id` for undefined, nao tentar decrementar o antigo (o REPLICA IDENTITY FULL resolve isso, mas o fallback evita bugs silenciosos)
-
-### 3. Sincronizacao periodica como safety net
-
-Adicionar um re-sync leve a cada 60 segundos que reconta as rooms ativas do banco e corrige qualquer drift nos contadores. Isso garante que mesmo que um evento Realtime seja perdido, os contadores convergem para o valor correto rapidamente.
-
-## Arquivos a Modificar
-
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---|---|
-| Migracao SQL | `ALTER TABLE public.chat_rooms REPLICA IDENTITY FULL` |
-| `src/contexts/SidebarDataContext.tsx` | Fallback defensivo no handleRoomChange + re-sync periodico |
+| `AdminWorkspace.tsx` | Botão "Transferir" para chats waiting + logica de assign direto |
+| `AppSidebar.tsx` | Bolinha de status antes do nome dos atendentes |
+| `AdminDashboard.tsx` | Bolinha de status antes do nome na tabela |
+| `ChatWidget.tsx` | Exibir texto junto com imagem em mensagens de arquivo |
+| `PortalChatView.tsx` | Exibir texto junto com imagem em mensagens de arquivo |
 
-## Impacto
-
-- **Performance:** REPLICA IDENTITY FULL aumenta marginalmente o tamanho do payload WAL para a tabela chat_rooms, mas o impacto e negligivel para o volume de dados deste sistema
-- **Visual:** Contadores passam a decrementar em tempo real ao fechar/reatribuir chats
-- **Compatibilidade:** Nenhuma mudanca de schema, apenas configuracao de replicacao
-
+Nenhuma migração de banco necessária. Todas as alterações são puramente de interface e lógica frontend.
