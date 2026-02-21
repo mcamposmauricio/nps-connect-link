@@ -374,7 +374,12 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
                     <p className="text-xs font-medium mb-1 opacity-70">{msg.sender_name}</p>
                   )}
                   {msg.message_type === "file" && msg.metadata?.file_url
-                    ? renderFileMessage(msg)
+                    ? <>
+                        {renderFileMessage(msg)}
+                        {msg.content && msg.content !== msg.metadata.file_name && (
+                          <p className="mt-1">{msg.content}</p>
+                        )}
+                      </>
                     : <p>{msg.content}</p>
                   }
                   <p className="text-xs opacity-60 mt-1">

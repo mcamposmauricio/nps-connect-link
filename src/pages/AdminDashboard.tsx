@@ -353,6 +353,7 @@ const AdminDashboard = () => {
                                           {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRightIcon className="h-3 w-3" />}
                                         </span>
                                       </CollapsibleTrigger>
+                                      <span className={`h-2 w-2 rounded-full shrink-0 ${att.status === "online" ? "bg-green-500" : att.status === "busy" ? "bg-amber-500" : "bg-gray-400"}`} />
                                       {att.display_name}
                                       {att.user_id === user?.id && (
                                         <span className="text-xs text-muted-foreground ml-1">(você)</span>
