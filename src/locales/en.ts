@@ -300,6 +300,14 @@ export default {
   "companies.noCompanies": "No companies registered yet",
   "companies.noCompaniesFound": "No companies found",
   "companies.searchPlaceholder": "Search company...",
+  "companies.filterBySector": "Sector",
+  "companies.filterByState": "State",
+  "companies.filterByCity": "City",
+  "companies.allSectors": "All sectors",
+  "companies.allStates": "All states",
+  "companies.allCities": "All cities",
+  "companies.activeFilters": "active filters",
+  "companies.clearFilters": "Clear filters",
 
   // Address
   "address.title": "Address",
@@ -784,6 +792,14 @@ export default {
   "people.chatStatus.waiting": "Waiting",
   "people.chatStatus.active": "Active",
   "people.chatStatus.closed": "Closed",
+  "people.filterByCompany": "Company",
+  "people.filterByRole": "Role",
+  "people.filterByDepartment": "Department",
+  "people.allCompanies": "All companies",
+  "people.allRoles": "All roles",
+  "people.allDepartments": "All departments",
+  "people.activeFilters": "active filters",
+  "people.clearFilters": "Clear filters",
 
   // Team / Permissions
   "settings.tabs.team": "Team",

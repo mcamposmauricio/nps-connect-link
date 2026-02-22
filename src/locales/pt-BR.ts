@@ -300,6 +300,14 @@ export default {
   "companies.noCompanies": "Nenhuma empresa cadastrada ainda",
   "companies.noCompaniesFound": "Nenhuma empresa encontrada",
   "companies.searchPlaceholder": "Buscar empresa...",
+  "companies.filterBySector": "Setor",
+  "companies.filterByState": "Estado",
+  "companies.filterByCity": "Cidade",
+  "companies.allSectors": "Todos os setores",
+  "companies.allStates": "Todos os estados",
+  "companies.allCities": "Todas as cidades",
+  "companies.activeFilters": "filtros ativos",
+  "companies.clearFilters": "Limpar filtros",
 
   // Address
   "address.title": "Endereço",
@@ -784,6 +792,14 @@ export default {
   "people.chatStatus.waiting": "Aguardando",
   "people.chatStatus.active": "Ativo",
   "people.chatStatus.closed": "Encerrado",
+  "people.filterByCompany": "Empresa",
+  "people.filterByRole": "Cargo",
+  "people.filterByDepartment": "Departamento",
+  "people.allCompanies": "Todas as empresas",
+  "people.allRoles": "Todos os cargos",
+  "people.allDepartments": "Todos os departamentos",
+  "people.activeFilters": "filtros ativos",
+  "people.clearFilters": "Limpar filtros",
 
   // Team / Permissions
   "settings.tabs.team": "Equipe",

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2, Users, Upload, ChevronDown } from "lucide-react";
+import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -28,6 +28,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CompanyCard } from "@/components/CompanyCard";
 import { CompanyForm } from "@/components/CompanyForm";
@@ -80,6 +87,9 @@ const Contacts = () => {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [deleteCompanyId, setDeleteCompanyId] = useState<string | null>(null);
   const [bulkImportType, setBulkImportType] = useState<"companies" | "contacts" | null>(null);
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
   
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -318,18 +328,80 @@ const Contacts = () => {
           {canEdit && addDropdownContent}
         </div>
 
-        {/* Search */}
-        {!loading && companies.length > 0 && (
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t("companies.searchPlaceholder")}
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        )}
+        {/* Search & Filters */}
+        {!loading && companies.length > 0 && (() => {
+          const sectors = [...new Set(companies.map(c => c.company_sector).filter(Boolean))] as string[];
+          const states = [...new Set(companies.map(c => c.state).filter(Boolean))] as string[];
+          const cities = [...new Set(
+            companies
+              .filter(c => !stateFilter || c.state === stateFilter)
+              .map(c => c.city)
+              .filter(Boolean)
+          )] as string[];
+          const activeFilterCount = [sectorFilter, stateFilter, cityFilter].filter(Boolean).length;
+
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="relative max-w-md flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t("companies.searchPlaceholder")}
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {sectors.length > 0 && (
+                  <Select value={sectorFilter} onValueChange={(v) => setSectorFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[180px]">
+                      <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <SelectValue placeholder={t("companies.filterBySector")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allSectors")}</SelectItem>
+                      {sectors.sort().map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {states.length > 0 && (
+                  <Select value={stateFilter} onValueChange={(v) => { setStateFilter(v === "all" ? "" : v); setCityFilter(""); }}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder={t("companies.filterByState")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allStates")}</SelectItem>
+                      {states.sort().map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {cities.length > 0 && (
+                  <Select value={cityFilter} onValueChange={(v) => setCityFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder={t("companies.filterByCity")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allCities")}</SelectItem>
+                      {cities.sort().map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); }}>
+                    <X className="h-4 w-4 mr-1" />
+                    {activeFilterCount} {t("companies.activeFilters")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -344,13 +416,18 @@ const Contacts = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {companies.filter((c) => {
-              if (!searchFilter.trim()) return true;
-              const term = searchFilter.toLowerCase();
-              return (
-                c.name.toLowerCase().includes(term) ||
-                (c.trade_name && c.trade_name.toLowerCase().includes(term)) ||
-                (c.company_document && c.company_document.includes(term))
-              );
+              if (searchFilter.trim()) {
+                const term = searchFilter.toLowerCase();
+                if (!(
+                  c.name.toLowerCase().includes(term) ||
+                  (c.trade_name && c.trade_name.toLowerCase().includes(term)) ||
+                  (c.company_document && c.company_document.includes(term))
+                )) return false;
+              }
+              if (sectorFilter && c.company_sector !== sectorFilter) return false;
+              if (stateFilter && c.state !== stateFilter) return false;
+              if (cityFilter && c.city !== cityFilter) return false;
+              return true;
             }).map((company) => (
               <CompanyCard
                 key={company.id}
