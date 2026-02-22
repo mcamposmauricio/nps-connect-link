@@ -15,7 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Users, Link as LinkIcon, Loader2, Copy } from "lucide-react";
+import { Search, Users, Link as LinkIcon, Loader2, Copy, Filter, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PersonDetailsSheet } from "@/components/PersonDetailsSheet";
 import { sanitizeFilterValue } from "@/lib/utils";
 
@@ -42,6 +49,9 @@ const People = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<PersonWithCompany | null>(null);
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
   const { t } = useLanguage();
   const { toast } = useToast();
 
@@ -131,16 +141,73 @@ const People = () => {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("people.search")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        {/* Search & Filters */}
+        {(() => {
+          const companyNames = [...new Set(people.map(p => p.company_trade_name || p.company_name).filter(v => v && v !== "-"))].sort() as string[];
+          const roles = [...new Set(people.map(p => p.role).filter(Boolean))].sort() as string[];
+          const departments = [...new Set(people.map(p => p.department).filter(Boolean))].sort() as string[];
+          const activeFilterCount = [companyFilter, roleFilter, departmentFilter].filter(Boolean).length;
+
+          return (
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative max-w-md flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("people.search")}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {companyNames.length > 1 && (
+                <Select value={companyFilter} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[200px]">
+                    <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder={t("people.filterByCompany")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("people.allCompanies")}</SelectItem>
+                    {companyNames.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {roles.length > 1 && (
+                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue placeholder={t("people.filterByRole")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("people.allRoles")}</SelectItem>
+                    {roles.map(r => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {departments.length > 1 && (
+                <Select value={departmentFilter} onValueChange={(v) => setDepartmentFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder={t("people.filterByDepartment")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("people.allDepartments")}</SelectItem>
+                    {departments.map(d => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {activeFilterCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => { setCompanyFilter(""); setRoleFilter(""); setDepartmentFilter(""); }}>
+                  <X className="h-4 w-4 mr-1" />
+                  {activeFilterCount} {t("people.activeFilters")}
+                </Button>
+              )}
+            </div>
+          );
+        })()}
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
@@ -167,7 +234,13 @@ const People = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {people.map((person) => (
+                {people.filter((person) => {
+                  const displayCompany = person.company_trade_name || person.company_name;
+                  if (companyFilter && displayCompany !== companyFilter) return false;
+                  if (roleFilter && person.role !== roleFilter) return false;
+                  if (departmentFilter && person.department !== departmentFilter) return false;
+                  return true;
+                }).map((person) => (
                   <TableRow
                     key={person.id}
                     className="cursor-pointer"
