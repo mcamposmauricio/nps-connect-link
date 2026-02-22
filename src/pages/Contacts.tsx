@@ -75,6 +75,10 @@ interface Company {
   created_at: string;
   contacts_count: number;
   primary_contact: CompanyContact | null;
+  cs_status: string | null;
+  health_score: number | null;
+  service_priority: string | null;
+  last_nps_score: number | null;
 }
 
 const Contacts = () => {
@@ -90,6 +94,10 @@ const Contacts = () => {
   const [sectorFilter, setSectorFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [csStatusFilter, setCsStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [healthFilter, setHealthFilter] = useState("");
+  const [npsFilter, setNpsFilter] = useState("");
   
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -338,7 +346,9 @@ const Contacts = () => {
               .map(c => c.city)
               .filter(Boolean)
           )] as string[];
-          const activeFilterCount = [sectorFilter, stateFilter, cityFilter].filter(Boolean).length;
+          const csStatuses = [...new Set(companies.map(c => c.cs_status).filter(Boolean))] as string[];
+          const priorities = [...new Set(companies.map(c => c.service_priority).filter(Boolean))] as string[];
+          const activeFilterCount = [sectorFilter, stateFilter, cityFilter, csStatusFilter, priorityFilter, healthFilter, npsFilter].filter(Boolean).length;
 
           return (
             <div className="space-y-3">
@@ -392,8 +402,57 @@ const Contacts = () => {
                     </SelectContent>
                   </Select>
                 )}
+                {csStatuses.length > 0 && (
+                  <Select value={csStatusFilter} onValueChange={(v) => setCsStatusFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder={t("companies.filterByKanban")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allKanbanStages")}</SelectItem>
+                      {csStatuses.sort().map(s => (
+                        <SelectItem key={s} value={s}>{t(`cs.status.${s}`) !== `cs.status.${s}` ? t(`cs.status.${s}`) : s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {priorities.length > 0 && (
+                  <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder={t("companies.filterByPriority")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allPriorities")}</SelectItem>
+                      {priorities.sort().map(s => (
+                        <SelectItem key={s} value={s}>{t(`companies.priority.${s}`) !== `companies.priority.${s}` ? t(`companies.priority.${s}`) : s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={healthFilter} onValueChange={(v) => setHealthFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder={t("companies.filterByHealth")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("companies.allHealthScores")}</SelectItem>
+                    <SelectItem value="healthy">{t("companies.health.healthy")}</SelectItem>
+                    <SelectItem value="warning">{t("companies.health.warning")}</SelectItem>
+                    <SelectItem value="critical">{t("companies.health.critical")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={npsFilter} onValueChange={(v) => setNpsFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder={t("companies.filterByNPS")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("companies.allNPS")}</SelectItem>
+                    <SelectItem value="promoter">{t("companies.nps.promoter")}</SelectItem>
+                    <SelectItem value="neutral">{t("companies.nps.neutral")}</SelectItem>
+                    <SelectItem value="detractor">{t("companies.nps.detractor")}</SelectItem>
+                    <SelectItem value="none">{t("companies.nps.noResponse")}</SelectItem>
+                  </SelectContent>
+                </Select>
                 {activeFilterCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
                     <X className="h-4 w-4 mr-1" />
                     {activeFilterCount} {t("companies.activeFilters")}
                   </Button>
@@ -427,6 +486,21 @@ const Contacts = () => {
               if (sectorFilter && c.company_sector !== sectorFilter) return false;
               if (stateFilter && c.state !== stateFilter) return false;
               if (cityFilter && c.city !== cityFilter) return false;
+              if (csStatusFilter && c.cs_status !== csStatusFilter) return false;
+              if (priorityFilter && c.service_priority !== priorityFilter) return false;
+              if (healthFilter) {
+                const h = c.health_score;
+                if (healthFilter === "healthy" && (h == null || h < 70)) return false;
+                if (healthFilter === "warning" && (h == null || h < 40 || h > 69)) return false;
+                if (healthFilter === "critical" && (h == null || h > 39)) return false;
+              }
+              if (npsFilter) {
+                const n = c.last_nps_score;
+                if (npsFilter === "promoter" && (n == null || n < 9)) return false;
+                if (npsFilter === "neutral" && (n == null || n < 7 || n > 8)) return false;
+                if (npsFilter === "detractor" && (n == null || n > 6)) return false;
+                if (npsFilter === "none" && n != null) return false;
+              }
               return true;
             }).map((company) => (
               <CompanyCard
