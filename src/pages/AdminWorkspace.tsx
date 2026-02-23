@@ -47,7 +47,7 @@ const AdminWorkspace = () => {
   const isMobile = useIsMobile();
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
   const { rooms, loading: roomsLoading, markRoomAsRead, setSelectedRoomRef } = useChatRooms(user?.id ?? null, { excludeClosed: true });
-  const { messages, loading: messagesLoading } = useChatMessages(selectedRoomId);
+  const { messages, loading: messagesLoading, hasMore, loadingMore, loadMore } = useChatMessages(selectedRoomId);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -55,44 +55,33 @@ const AdminWorkspace = () => {
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [userAttendantId, setUserAttendantId] = useState<string | null>(null);
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
 
-  // Polling for time-based auto rules (every 5 min, recursive setTimeout)
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let cancelled = false;
+  // Polling moved to SidebarLayout for reliability (runs even without Workspace open)
 
-    const poll = async () => {
-      if (cancelled) return;
-      try {
-        await supabase.functions.invoke("process-chat-auto-rules");
-      } catch {
-        // silent – edge function may not be deployed yet
-      }
-      if (!cancelled) {
-        timeoutId = setTimeout(poll, 300_000); // 5 minutes
-      }
-    };
-
-    // Start first poll after 10s (let workspace load first)
-    timeoutId = setTimeout(poll, 10_000);
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, []);
-
-  // Get the current user's attendant profile id
+  // Get the current user's attendant profile id and display name
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("attendant_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setUserAttendantId(data.id);
-      });
+    const fetchProfile = async () => {
+      const { data: profile } = await supabase
+        .from("attendant_profiles")
+        .select("id, display_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profile) {
+        setUserAttendantId(profile.id);
+        setUserDisplayName(profile.display_name);
+      } else {
+        // Fallback to user_profiles
+        const { data: userProfile } = await supabase
+          .from("user_profiles")
+          .select("display_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (userProfile?.display_name) setUserDisplayName(userProfile.display_name);
+      }
+    };
+    fetchProfile();
   }, [user]);
 
   useEffect(() => {
@@ -191,7 +180,7 @@ const AdminWorkspace = () => {
     if (note) {
       await supabase.from("chat_messages").insert({
         room_id: closingRoomId, sender_type: "attendant", sender_id: user.id,
-        sender_name: user.email?.split("@")[0] ?? "Atendente", content: `[Encerramento] ${note}`, is_internal: true,
+      sender_name: userDisplayName || user.email?.split("@")[0] || "Atendente", content: `[Encerramento] ${note}`, is_internal: true,
       });
     }
     await supabase.from("chat_rooms").update({
@@ -232,7 +221,7 @@ const AdminWorkspace = () => {
     }
     await supabase.from("chat_messages").insert({
       room_id: selectedRoomId, sender_type: "attendant", sender_id: user.id,
-      sender_name: user.email?.split("@")[0] ?? "Atendente", content: finalContent, is_internal: isInternal,
+      sender_name: userDisplayName || user.email?.split("@")[0] || "Atendente", content: finalContent, is_internal: isInternal,
       ...(metadata ? { message_type: "file", metadata: metadata as any } : {}),
     });
     setReplyTarget(null);
@@ -343,7 +332,7 @@ const AdminWorkspace = () => {
                 </div>
               </div>
               <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
+                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} />
               </div>
               {selectedRoom.status !== "closed" && (
                 <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} /></>
@@ -436,7 +425,7 @@ const AdminWorkspace = () => {
                     </div>
                   </div>
                   <div className="flex-1 overflow-auto">
-                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} />
+                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} />
                   </div>
                   {selectedRoom.status !== "closed" && (
                     <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} /></>

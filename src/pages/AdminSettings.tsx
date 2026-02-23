@@ -10,11 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Plus, Edit, Trash2, Headphones, Users, Tag, Clock, CheckCircle2, XCircle, MessageSquare, Settings2 } from "lucide-react";
+import { Save, Plus, Edit, Trash2, Headphones, Users, Tag, Clock, CheckCircle2, XCircle, MessageSquare, Settings2, ChevronDown, Copy } from "lucide-react";
 import AutoMessagesTab from "@/components/chat/AutoMessagesTab";
 import { Separator } from "@/components/ui/separator";
 import ChatApiKeysTab from "@/components/ChatApiKeysTab";
@@ -149,8 +150,6 @@ const AdminSettings = () => {
       setHours(defaults);
     }
 
-
-    setLoading(false);
 
     setLoading(false);
   }, []);
@@ -401,139 +400,159 @@ const AdminSettings = () => {
                 <CardTitle className="text-base">Comportamento e Mensagens</CardTitle>
                 <CardDescription>Configure o que o widget exibe em cada situação</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Outside Hours */}
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Fora do Horário de Atendimento</p>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Exibir aviso quando fora do horário</Label>
-                    <Switch
-                      checked={settings.show_outside_hours_banner}
-                      onCheckedChange={(v) => setSettings({ ...settings, show_outside_hours_banner: v })}
-                    />
-                  </div>
-                  <div className={`space-y-3 transition-opacity ${settings.show_outside_hours_banner ? "" : "opacity-40 pointer-events-none"}`}>
+              <CardContent className="space-y-2">
+                {/* Outside Hours - Collapsible */}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full py-3 px-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors group">
+                    <span>Fora do Horário de Atendimento</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pb-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Exibir aviso quando fora do horário</Label>
+                      <Switch
+                        checked={settings.show_outside_hours_banner}
+                        onCheckedChange={(v) => setSettings({ ...settings, show_outside_hours_banner: v })}
+                      />
+                    </div>
+                    <div className={`space-y-3 transition-opacity ${settings.show_outside_hours_banner ? "" : "opacity-40 pointer-events-none"}`}>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Título</Label>
+                        <Input
+                          value={settings.outside_hours_title}
+                          onChange={(e) => setSettings({ ...settings, outside_hours_title: e.target.value })}
+                          disabled={!settings.show_outside_hours_banner}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Mensagem</Label>
+                        <Textarea
+                          value={settings.outside_hours_message}
+                          onChange={(e) => setSettings({ ...settings, outside_hours_message: e.target.value })}
+                          disabled={!settings.show_outside_hours_banner}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <Separator />
+
+                {/* All Busy - Collapsible */}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full py-3 px-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors group">
+                    <span>Atendentes Ocupados</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pb-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Exibir aviso quando todos estão ocupados</Label>
+                      <Switch
+                        checked={settings.show_all_busy_banner}
+                        onCheckedChange={(v) => setSettings({ ...settings, show_all_busy_banner: v })}
+                      />
+                    </div>
+                    <div className={`space-y-3 transition-opacity ${settings.show_all_busy_banner ? "" : "opacity-40 pointer-events-none"}`}>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Título</Label>
+                        <Input
+                          value={settings.all_busy_title}
+                          onChange={(e) => setSettings({ ...settings, all_busy_title: e.target.value })}
+                          disabled={!settings.show_all_busy_banner}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Mensagem</Label>
+                        <Textarea
+                          value={settings.all_busy_message}
+                          onChange={(e) => setSettings({ ...settings, all_busy_message: e.target.value })}
+                          disabled={!settings.show_all_busy_banner}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <Separator />
+
+                {/* Form - Collapsible */}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full py-3 px-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors group">
+                    <span>Formulário Inicial</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pb-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Título</Label>
+                      <Label className="text-xs">Texto introdutório</Label>
                       <Input
-                        value={settings.outside_hours_title}
-                        onChange={(e) => setSettings({ ...settings, outside_hours_title: e.target.value })}
-                        disabled={!settings.show_outside_hours_banner}
+                        value={settings.form_intro_text}
+                        onChange={(e) => setSettings({ ...settings, form_intro_text: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Mensagem</Label>
-                      <Textarea
-                        value={settings.outside_hours_message}
-                        onChange={(e) => setSettings({ ...settings, outside_hours_message: e.target.value })}
-                        disabled={!settings.show_outside_hours_banner}
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* All Busy */}
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Atendentes Ocupados</p>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Exibir aviso quando todos estão ocupados</Label>
-                    <Switch
-                      checked={settings.show_all_busy_banner}
-                      onCheckedChange={(v) => setSettings({ ...settings, show_all_busy_banner: v })}
-                    />
-                  </div>
-                  <div className={`space-y-3 transition-opacity ${settings.show_all_busy_banner ? "" : "opacity-40 pointer-events-none"}`}>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Título</Label>
+                      <Label className="text-xs">Texto na tela de aguardo</Label>
                       <Input
-                        value={settings.all_busy_title}
-                        onChange={(e) => setSettings({ ...settings, all_busy_title: e.target.value })}
-                        disabled={!settings.show_all_busy_banner}
+                        value={settings.waiting_message}
+                        onChange={(e) => setSettings({ ...settings, waiting_message: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Mensagem</Label>
-                      <Textarea
-                        value={settings.all_busy_message}
-                        onChange={(e) => setSettings({ ...settings, all_busy_message: e.target.value })}
-                        disabled={!settings.show_all_busy_banner}
-                        rows={2}
-                      />
+                    <div className="flex gap-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm">Exibir campo Email</Label>
+                        <Switch
+                          checked={settings.show_email_field}
+                          onCheckedChange={(v) => setSettings({ ...settings, show_email_field: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm">Exibir campo Telefone</Label>
+                        <Switch
+                          checked={settings.show_phone_field}
+                          onCheckedChange={(v) => setSettings({ ...settings, show_phone_field: v })}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
                 <Separator />
 
-                {/* Form */}
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Formulário Inicial</p>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Texto introdutório</Label>
-                    <Input
-                      value={settings.form_intro_text}
-                      onChange={(e) => setSettings({ ...settings, form_intro_text: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Texto na tela de aguardo</Label>
-                    <Input
-                      value={settings.waiting_message}
-                      onChange={(e) => setSettings({ ...settings, waiting_message: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex gap-6">
-                    <div className="flex items-center justify-between gap-3">
-                      <Label className="text-sm">Exibir campo Email</Label>
-                      <Switch
-                        checked={settings.show_email_field}
-                        onCheckedChange={(v) => setSettings({ ...settings, show_email_field: v })}
-                      />
+                {/* Features - Collapsible */}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full py-3 px-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors group">
+                    <span>Funcionalidades</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                        <Label className="text-sm">Histórico de conversas</Label>
+                        <Switch
+                          checked={settings.show_chat_history}
+                          onCheckedChange={(v) => setSettings({ ...settings, show_chat_history: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                        <Label className="text-sm">CSAT ao encerrar</Label>
+                        <Switch
+                          checked={settings.show_csat}
+                          onCheckedChange={(v) => setSettings({ ...settings, show_csat: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                        <Label className="text-sm">Envio de arquivos</Label>
+                        <Switch
+                          checked={settings.allow_file_attachments}
+                          onCheckedChange={(v) => setSettings({ ...settings, allow_file_attachments: v })}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <Label className="text-sm">Exibir campo Telefone</Label>
-                      <Switch
-                        checked={settings.show_phone_field}
-                        onCheckedChange={(v) => setSettings({ ...settings, show_phone_field: v })}
-                      />
-                    </div>
-                  </div>
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
-                <Separator />
-
-                {/* Features */}
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Funcionalidades</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                      <Label className="text-sm">Histórico de conversas</Label>
-                      <Switch
-                        checked={settings.show_chat_history}
-                        onCheckedChange={(v) => setSettings({ ...settings, show_chat_history: v })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                      <Label className="text-sm">CSAT ao encerrar</Label>
-                      <Switch
-                        checked={settings.show_csat}
-                        onCheckedChange={(v) => setSettings({ ...settings, show_csat: v })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                      <Label className="text-sm">Envio de arquivos</Label>
-                      <Switch
-                        checked={settings.allow_file_attachments}
-                        onCheckedChange={(v) => setSettings({ ...settings, allow_file_attachments: v })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Button onClick={handleSaveGeneral} disabled={saving}>
+                <Button onClick={handleSaveGeneral} disabled={saving} className="mt-4">
                   <Save className="h-4 w-4 mr-2" />
                   {saving ? t("common.saving") : t("common.save")}
                 </Button>
@@ -771,10 +790,28 @@ const AdminSettings = () => {
                     ))}
                   </TableBody>
                 </Table>
-                <Button className="mt-4" onClick={saveBusinessHours} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? t("common.saving") : t("common.save")}
-                </Button>
+                <div className="flex items-center gap-3 mt-4">
+                  <Button onClick={saveBusinessHours} disabled={saving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? t("common.saving") : t("common.save")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const firstActive = hours.find(h => h.is_active);
+                      if (!firstActive) return;
+                      setHours(hours.map(h => ({
+                        ...h,
+                        start_time: firstActive.start_time,
+                        end_time: firstActive.end_time,
+                      })));
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copiar horário para todos
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarDataProvider } from "@/contexts/SidebarDataContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function SidebarLayout() {
   const navigate = useNavigate();
@@ -21,6 +22,32 @@ export default function SidebarLayout() {
       }
     }
   }, [user, loading, userDataLoading, tenantId, isAdmin, navigate]);
+
+  // Polling for time-based auto rules (every 5 min) — runs globally while any admin is logged in
+  useEffect(() => {
+    if (!user) return;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        await supabase.functions.invoke("process-chat-auto-rules");
+      } catch {
+        // silent – edge function may not be deployed yet
+      }
+      if (!cancelled) {
+        timeoutId = setTimeout(poll, 300_000); // 5 minutes
+      }
+    };
+
+    timeoutId = setTimeout(poll, 15_000);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [user]);
 
   if (loading || userDataLoading) {
     return (

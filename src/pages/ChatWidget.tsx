@@ -781,7 +781,13 @@ const ChatWidget = () => {
                   mainContent = lines.slice(i).join("\n");
                 }
 
-                return (
+                return (msg.sender_type === "system" ? (
+                  <div key={msg.id} className="flex justify-center my-2">
+                    <p className="text-[11px] text-muted-foreground bg-muted/60 rounded-full px-3 py-1 text-center max-w-[85%]">
+                      {mainContent || msg.content}
+                    </p>
+                  </div>
+                ) : (
                 <div
                   key={msg.id}
                   className={`flex ${msg.sender_type === "visitor" ? "justify-end" : "justify-start"}`}
@@ -813,9 +819,12 @@ const ChatWidget = () => {
                         </>
                       : <p>{mainContent || msg.content}</p>
                     }
+                    <p className="text-[10px] opacity-50 mt-1 text-right">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
                   </div>
                 </div>
-                );
+                ));
               })}
 
               {phase === "viewTranscript" && messages.length === 0 && (

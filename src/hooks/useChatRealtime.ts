@@ -66,24 +66,55 @@ const SORT_ROOMS = (a: ChatRoom, b: ChatRoom) => {
   return new Date(bTime).getTime() - new Date(aTime).getTime();
 };
 
+const WORKSPACE_PAGE_SIZE = 50;
+
 export function useChatMessages(roomId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (before?: string) => {
     if (!roomId) return;
-    setLoading(true);
-    const { data } = await supabase
+    if (!before) setLoading(true);
+    else setLoadingMore(true);
+
+    let query = supabase
       .from("chat_messages")
       .select("*")
       .eq("room_id", roomId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(WORKSPACE_PAGE_SIZE + 1);
 
-    setMessages((data as ChatMessage[]) ?? []);
-    setLoading(false);
+    if (before) {
+      query = query.lt("created_at", before);
+    }
+
+    const { data } = await query;
+    const items = ((data as ChatMessage[]) ?? []);
+    const moreAvailable = items.length > WORKSPACE_PAGE_SIZE;
+    if (moreAvailable) items.pop();
+    items.reverse();
+
+    if (before) {
+      setMessages((prev) => [...items, ...prev]);
+    } else {
+      setMessages(items);
+    }
+    setHasMore(moreAvailable);
+    if (!before) setLoading(false);
+    else setLoadingMore(false);
   }, [roomId]);
 
+  const loadMore = useCallback(async () => {
+    if (messages.length === 0 || loadingMore || !roomId) return;
+    await fetchMessages(messages[0].created_at);
+  }, [messages, loadingMore, roomId, fetchMessages]);
+
   useEffect(() => {
+    // Clear messages immediately when switching rooms to prevent flash
+    setMessages([]);
+    setHasMore(false);
     fetchMessages();
 
     if (!roomId) return;
@@ -109,7 +140,7 @@ export function useChatMessages(roomId: string | null) {
     };
   }, [roomId, fetchMessages]);
 
-  return { messages, loading, refetch: fetchMessages };
+  return { messages, loading, hasMore, loadingMore, loadMore, refetch: fetchMessages };
 }
 
 export function useChatRooms(ownerUserId: string | null, options?: { excludeClosed?: boolean }) {
