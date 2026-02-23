@@ -1,122 +1,58 @@
 
-# Plano: API de Update no Embed Script + Correcao de Visibilidade Cross-Tenant
 
-## Parte 1: API `window.NPSChat.update()` no Embed Script
+# Auto-provisionar Admin como Atendente de Chat
 
-### Objetivo
-Permitir que a plataforma que embeda o widget envie dados do usuario (nome, email, telefone) e campos customizados via JavaScript, eliminando a necessidade do formulario de identificacao quando os dados ja estao disponiveis.
+## Problema
 
-### Como funciona
+Quando um tenant e criado e o admin aceita o convite, ele recebe apenas o role de `admin`. Nao e criado um registro na tabela `csms` com `is_chat_enabled = true`, o que significa que o admin nao aparece como atendente e nao consegue atender chats nem atribuir conversas a si mesmo.
 
-A plataforma chamara:
-```javascript
-window.NPSChat.update({
-  name: "Joao Silva",
-  email: "joao@empresa.com",
-  phone: "11999999999",
-  company_id: "ABC123",
-  company_name: "Empresa X",
-  plano_contratado: "Premium",
-  client_start_at: "2024-01-15",
-  // qualquer campo customizado...
-});
+## Solucao
+
+Modificar a Edge Function `backoffice-admin` no caso `accept-invite` para que, ao criar o role de admin para o tenant, tambem crie automaticamente um registro CSM com `is_chat_enabled = true`.
+
+A trigger `sync_csm_chat_enabled` ja existente no banco cuidara automaticamente de criar o `attendant_profile` correspondente.
+
+### Cadeia de eventos
+
+```text
+Admin aceita convite
+  --> accept-invite cria role "admin"
+  --> accept-invite cria registro "csms" com is_chat_enabled = true  [NOVO]
+    --> trigger sync_csm_chat_enabled cria "attendant_profile"       [AUTOMATICO]
+      --> Admin aparece como atendente no workspace
+        --> Pode atender e atribuir chats a si mesmo
 ```
 
-### Alteracoes
+### Alteracao em `supabase/functions/backoffice-admin/index.ts`
 
-#### A. `public/nps-chat-embed.js`
+No bloco `accept-invite` (linhas 58-65), apos criar o role de admin, adicionar a criacao do CSM:
 
-1. Expor objeto global `window.NPSChat` com metodo `update(props)`
-2. O metodo `update`:
-   - Armazena as propriedades recebidas em uma variavel interna `visitorProps`
-   - Envia as propriedades ao iframe via `postMessage` com tipo `nps-chat-update`
-   - Se `name`, `email` ou `phone` forem fornecidos, serao usados para preencher/pular o formulario
-
-#### B. `src/pages/ChatWidget.tsx`
-
-1. Escutar mensagens `nps-chat-update` vindas do parent frame
-2. Ao receber:
-   - Preencher `formData` com `name`, `email`, `phone` (se fornecidos)
-   - Armazenar campos extras em um state `customProps` (tudo que nao for name/email/phone)
-   - Se `name` estiver preenchido e nao houver chat ativo, pular automaticamente para criacao do chat (auto-start)
-3. Na criacao do visitor (`handleStartChat`), salvar os `customProps` no campo `metadata` da tabela `chat_visitors`
-4. Na criacao do room, salvar `customProps` no campo `metadata` da tabela `chat_rooms`
-
-### Fluxo
-
-```
-Plataforma chama window.NPSChat.update({name, email, ...custom})
-  --> postMessage para iframe
-    --> ChatWidget recebe, preenche form, armazena custom props
-      --> Se name presente, auto-cria visitor com metadata
-        --> Cria room com metadata
-          --> Atendente ve os dados customizados no painel
-```
-
-### Campos reservados vs customizados
-
-- **Reservados** (usados para identificacao): `name`, `email`, `phone`
-- **Customizados** (salvos em metadata): todos os demais campos passados
-
----
-
-## Parte 2: Correcao de Visibilidade Cross-Tenant de Usuarios
-
-### Problema
-
-A politica RLS `"Admins or self can view profiles"` na tabela `user_profiles` permite que qualquer usuario com role `admin` (de qualquer tenant) veja TODOS os perfis do sistema. O usuario admin da MARQ consegue ver atendentes da Suporte e vice-versa.
-
-### Causa
-
-```sql
--- Politica atual (sem filtro de tenant):
-USING (has_role(auth.uid(), 'admin') OR (auth.uid() = user_id))
-```
-
-### Correcao
-
-Adicionar filtro de `tenant_id` para admins:
-
-```sql
-DROP POLICY "Admins or self can view profiles" ON user_profiles;
-
-CREATE POLICY "Admins can view tenant profiles"
-  ON user_profiles FOR SELECT
-  USING (
-    has_role(auth.uid(), 'admin'::app_role)
-    AND tenant_id = get_user_tenant_id(auth.uid())
+```typescript
+// Create admin role if tenant admin
+if (profile.tenant_id && (!profile.specialty || profile.specialty.length === 0)) {
+  const { error: roleErr } = await adminClient.from("user_roles").upsert(
+    { user_id: userId, role: "admin" },
+    { onConflict: "user_id,role" }
   );
+  if (roleErr) console.error("Role creation error:", roleErr);
 
-CREATE POLICY "Users can view own profile"
-  ON user_profiles FOR SELECT
-  USING (auth.uid() = user_id);
+  // NEW: Auto-provision admin as chat attendant
+  await adminClient.from("csms").insert({
+    user_id: userId,
+    name: displayName || profile.email.split("@")[0],
+    email: profile.email,
+    is_chat_enabled: true,
+    tenant_id: profile.tenant_id,
+  });
+}
 ```
 
-Tambem corrigir as politicas de INSERT e UPDATE de admin para incluir filtro de tenant:
-
-```sql
-DROP POLICY "Admins can insert any profile" ON user_profiles;
-CREATE POLICY "Admins can insert tenant profiles"
-  ON user_profiles FOR INSERT
-  WITH CHECK (
-    has_role(auth.uid(), 'admin'::app_role)
-    AND tenant_id = get_user_tenant_id(auth.uid())
-  );
-
-DROP POLICY "Admins can update any profile" ON user_profiles;
-CREATE POLICY "Admins can update tenant profiles"
-  ON user_profiles FOR UPDATE
-  USING (
-    has_role(auth.uid(), 'admin'::app_role)
-    AND tenant_id = get_user_tenant_id(auth.uid())
-  );
-```
-
-A politica `"Master can view all profiles"` permanece inalterada (masters devem ver tudo).
+A trigger `sync_csm_chat_enabled` ja existente fara o resto (criar `attendant_profile` com `max_conversations = 5`).
 
 ### Resultado
 
-- Admins verao apenas usuarios do seu proprio tenant
-- Masters continuam vendo tudo (backoffice)
-- Cada usuario pode ver seu proprio perfil independente de role
-- O painel de equipe da MARQ mostrara apenas membros da MARQ
+- Novo admin de tenant ja vem pronto para atender chats imediatamente apos aceitar o convite
+- Aparece na lista de atendentes do workspace
+- Pode clicar em "Atender" em chats nao atribuidos
+- Pode adicionar mais membros ao time depois via configuracoes
+
