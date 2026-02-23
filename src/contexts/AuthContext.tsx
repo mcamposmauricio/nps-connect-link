@@ -20,6 +20,11 @@ interface AuthContextType {
   tenantId: string | null;
   permissions: UserPermission[];
   hasPermission: (module: string, action: 'view' | 'edit' | 'delete' | 'manage') => boolean;
+  // Impersonation (ghost mode)
+  isImpersonating: boolean;
+  impersonatedTenantName: string | null;
+  setImpersonation: (tenantId: string, tenantName: string) => void;
+  clearImpersonation: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +38,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userDataLoading, setUserDataLoading] = useState(false);
+
+  // Impersonation state
+  const [impersonatedTenantId, setImpersonatedTenantId] = useState<string | null>(null);
+  const [impersonatedTenantName, setImpersonatedTenantName] = useState<string | null>(null);
+  const isImpersonating = !!impersonatedTenantId;
+
+  const setImpersonation = useCallback((tid: string, tname: string) => {
+    setImpersonatedTenantId(tid);
+    setImpersonatedTenantName(tname);
+  }, []);
+
+  const clearImpersonation = useCallback(() => {
+    setImpersonatedTenantId(null);
+    setImpersonatedTenantName(null);
+  }, []);
+
+  // Effective tenantId: impersonated overrides real
+  const effectiveTenantId = impersonatedTenantId ?? tenantId;
 
   const hasPermission = useCallback(
     (module: string, action: 'view' | 'edit' | 'delete' | 'manage'): boolean => {
@@ -148,7 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUserData]);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isMaster, isChatEnabled, loading, userDataLoading, tenantId, permissions, hasPermission }}>
+    <AuthContext.Provider value={{
+      user, isAdmin, isMaster,
+      isChatEnabled: isImpersonating ? true : isChatEnabled,
+      loading, userDataLoading,
+      tenantId: effectiveTenantId,
+      permissions, hasPermission,
+      isImpersonating, impersonatedTenantName,
+      setImpersonation, clearImpersonation,
+    }}>
       {children}
     </AuthContext.Provider>
   );
