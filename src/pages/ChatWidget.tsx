@@ -316,6 +316,38 @@ const ChatWidget = () => {
     return () => { supabase.removeChannel(channel); };
   }, [roomId, phase]);
 
+  // Realtime subscription for proactive chats (new rooms created by attendants)
+  useEffect(() => {
+    if (!visitorId) return;
+
+    const channel = supabase
+      .channel(`widget-new-rooms-${visitorId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "chat_rooms",
+        filter: `visitor_id=eq.${visitorId}`,
+      }, (payload) => {
+        const newRoom = payload.new as any;
+        // If not currently in an active conversation, auto-enter the new proactive chat
+        if (phase !== "chat" && phase !== "waiting" && phase !== "csat") {
+          setRoomId(newRoom.id);
+          setMessages([]);
+          setCsatScore(0);
+          setCsatComment("");
+          setPhase(newRoom.status === "active" ? "chat" : "waiting");
+          postMsg("chat-ready");
+        }
+        // If viewing history, refresh the list
+        if (phase === "history") {
+          fetchHistory(visitorId);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [visitorId, phase, fetchHistory]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
