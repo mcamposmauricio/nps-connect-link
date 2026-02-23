@@ -24,6 +24,9 @@ interface ChatMessageListProps {
   messages: ChatMessage[];
   loading: boolean;
   onReply?: (msg: ChatMessage) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function getDayLabel(dateStr: string): string {
@@ -64,7 +67,7 @@ function renderTextWithLinks(text: string, isOwn: boolean) {
   );
 }
 
-export function ChatMessageList({ messages, loading, onReply }: ChatMessageListProps) {
+export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore }: ChatMessageListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,6 +94,17 @@ export function ChatMessageList({ messages, loading, onReply }: ChatMessageListP
 
   return (
     <div className="space-y-3 p-4">
+      {hasMore && onLoadMore && (
+        <div className="flex justify-center">
+          <button
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="text-xs py-1.5 px-4 border rounded-md hover:bg-muted/50 disabled:opacity-50 flex items-center gap-1 text-muted-foreground"
+          >
+            {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : "▲ Carregar anteriores"}
+          </button>
+        </div>
+      )}
       {messages.map((msg) => {
         const isFile = msg.message_type === "file" && msg.metadata?.file_url;
         const isOwn = msg.sender_type !== "visitor";

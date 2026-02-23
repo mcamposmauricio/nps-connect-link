@@ -97,8 +97,8 @@ function RoomItem({ room, selectedRoomId, onSelectRoom }: { room: ChatRoom; sele
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {unread > 0 && (
-            <span className="bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
-              {unread > 99 ? "99+" : unread}
+          <span className="bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
+              {unread > 9 ? "9+" : unread}
             </span>
           )}
           <Badge variant={room.status === "active" ? "default" : room.status === "waiting" ? "secondary" : "outline"} className="text-[10px] gap-1 shrink-0">
@@ -141,7 +141,12 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
   }
 
   const filtered = search
-    ? rooms.filter((r) => (r.visitor_name ?? "").toLowerCase().includes(search.toLowerCase()))
+    ? rooms.filter((r) => {
+        const q = search.toLowerCase();
+        return (r.visitor_name ?? "").toLowerCase().includes(q) ||
+          (r.visitor_email ?? "").toLowerCase().includes(q) ||
+          (r.last_message ?? "").toLowerCase().includes(q);
+      })
     : rooms;
 
   const waitingRooms = sortRooms(filtered.filter((r) => r.status === "waiting"), sortField, sortDir);
@@ -163,7 +168,7 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." className="h-8 text-xs pl-8" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome, email ou mensagem..." className="h-8 text-xs pl-8" />
         </div>
         <Select value={sortValue} onValueChange={handleSortChange}>
           <SelectTrigger className="h-7 text-[10px]">
