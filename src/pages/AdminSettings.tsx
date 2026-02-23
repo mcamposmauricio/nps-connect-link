@@ -15,6 +15,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, Plus, Edit, Trash2, Headphones, Users, Tag, Clock, CheckCircle2, XCircle, MessageSquare, Settings2 } from "lucide-react";
+import AutoMessagesTab from "@/components/chat/AutoMessagesTab";
 import { Separator } from "@/components/ui/separator";
 import ChatApiKeysTab from "@/components/ChatApiKeysTab";
 import WidgetPreview from "@/components/chat/WidgetPreview";
@@ -38,13 +39,6 @@ interface BusinessHour {
   is_active: boolean;
 }
 
-interface AutoRule {
-  id: string;
-  rule_type: string;
-  is_enabled: boolean;
-  trigger_minutes: number | null;
-  message_content: string | null;
-}
 
 const DAY_NAMES_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const DAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -91,9 +85,6 @@ const AdminSettings = () => {
 
   // Business Hours
   const [hours, setHours] = useState<BusinessHour[]>([]);
-
-  // Auto Rules
-  const [rules, setRules] = useState<AutoRule[]>([]);
 
   const fetchAll = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -158,12 +149,8 @@ const AdminSettings = () => {
       setHours(defaults);
     }
 
-    // Auto Rules
-    const { data: rulesData } = await supabase
-      .from("chat_auto_rules")
-      .select("id, rule_type, is_enabled, trigger_minutes, message_content")
-      .order("created_at");
-    setRules(rulesData ?? []);
+
+    setLoading(false);
 
     setLoading(false);
   }, []);
@@ -283,36 +270,6 @@ const AdminSettings = () => {
 
     toast({ title: t("chat.settings.saved") });
     setSaving(false);
-    fetchAll();
-  };
-
-  // Auto Rules
-  const toggleRule = async (id: string, enabled: boolean) => {
-    await supabase.from("chat_auto_rules").update({ is_enabled: enabled }).eq("id", id);
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, is_enabled: enabled } : r));
-  };
-
-  const updateRuleField = async (id: string, field: string, value: string | number | null) => {
-    await supabase.from("chat_auto_rules").update({ [field]: value }).eq("id", id);
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const addRule = async (ruleType: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    await supabase.from("chat_auto_rules").insert({
-      user_id: session.user.id,
-      rule_type: ruleType,
-      is_enabled: false,
-      message_content: "",
-    });
-
-    fetchAll();
-  };
-
-  const deleteRule = async (id: string) => {
-    await supabase.from("chat_auto_rules").delete().eq("id", id);
     fetchAll();
   };
 
@@ -671,101 +628,7 @@ const AdminSettings = () => {
 
           {/* ===== Msgs Automáticas Tab ===== */}
           <TabsContent value="rules" className="space-y-4 mt-4">
-            {/* Default Messages (welcome + offline) from settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Mensagens Padrão</CardTitle>
-                <CardDescription>Mensagens de boas-vindas e offline exibidas automaticamente</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>{t("chat.settings.welcome_message")}</Label>
-                  <Textarea
-                    value={settings.welcome_message}
-                    onChange={(e) => setSettings({ ...settings, welcome_message: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("chat.settings.offline_message")}</Label>
-                  <Textarea
-                    value={settings.offline_message}
-                    onChange={(e) => setSettings({ ...settings, offline_message: e.target.value })}
-                  />
-                </div>
-                <Button onClick={handleSaveGeneral} disabled={saving} size="sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? t("common.saving") : t("common.save")}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Auto Rules */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">{t("chat.settings.rules.title")}</CardTitle>
-                    <CardDescription>{t("chat.settings.rules.description")}</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    {["welcome_message", "offline_message", "inactivity_warning", "auto_close"].map((type) => {
-                      const exists = rules.some((r) => r.rule_type === type);
-                      if (exists) return null;
-                      return (
-                        <Button key={type} variant="outline" size="sm" onClick={() => addRule(type)}>
-                          <Plus className="h-4 w-4 mr-1" />
-                          {t(`chat.settings.rules.${type.replace("_message", "").replace("_warning", "").replace("auto_", "auto_")}`)}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {rules.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">{t("chat.gerencial.no_data")}</p>
-                ) : (
-                  rules.map((rule) => (
-                    <Card key={rule.id} className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Switch
-                            checked={rule.is_enabled}
-                            onCheckedChange={(v) => toggleRule(rule.id, v)}
-                          />
-                          <Label className="font-medium capitalize">
-                            {rule.rule_type.replace(/_/g, " ")}
-                          </Label>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteRule(rule.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                      {(rule.rule_type === "inactivity_warning" || rule.rule_type === "auto_close") && (
-                        <div className="space-y-2 mb-3">
-                          <Label>{t("chat.settings.rules.minutes")}</Label>
-                          <Input
-                            type="number"
-                            value={rule.trigger_minutes ?? ""}
-                            className="w-[120px]"
-                            onChange={(e) => updateRuleField(rule.id, "trigger_minutes", Number(e.target.value) || null)}
-                          />
-                        </div>
-                      )}
-                      {(rule.rule_type === "welcome_message" || rule.rule_type === "offline_message" || rule.rule_type === "inactivity_warning") && (
-                        <div className="space-y-2">
-                          <Label>{t("chat.settings.macros.content")}</Label>
-                          <Textarea
-                            value={rule.message_content ?? ""}
-                            onChange={(e) => updateRuleField(rule.id, "message_content", e.target.value)}
-                          />
-                        </div>
-                      )}
-                    </Card>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+            <AutoMessagesTab />
           </TabsContent>
 
           {/* ===== Macros Tab ===== */}
