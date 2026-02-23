@@ -73,52 +73,148 @@ Deno.serve(async (req) => {
         const { tenantId, email, displayName } = params;
         if (!tenantId || !email || !displayName) throw new Error("tenantId, email and displayName required");
 
-        // 1. Check if user already exists
-        const { data: existingUsers } = await adminClient.auth.admin.listUsers({ perPage: 1 });
-        let userId: string;
+        // Generate invite token
+        const inviteToken = crypto.randomUUID();
 
-        // Try to find by email
-        const { data: userByEmail } = await adminClient.auth.admin.listUsers();
-        const found = userByEmail?.users?.find((u: any) => u.email === email);
+        // Check if user already exists in auth
+        const { data: allUsers } = await adminClient.auth.admin.listUsers();
+        const existingAuthUser = allUsers?.users?.find((u: any) => u.email === email);
 
-        if (found) {
-          userId = found.id;
-        } else {
-          // Create new user
-          const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
-            email,
-            email_confirm: false,
-          });
-          if (createErr) throw createErr;
-          userId = newUser.user.id;
-        }
-
-        // 2. Create user_profile
+        // Create user_profile with invite_status='pending' and user_id=NULL
+        // The user_id will be set when the invite is accepted
         const { error: profileErr } = await adminClient.from("user_profiles").insert({
-          user_id: userId,
+          user_id: null,
           email,
           display_name: displayName,
           tenant_id: tenantId,
-          invite_status: "accepted",
+          invite_status: "pending",
+          invite_token: inviteToken,
           is_active: true,
         });
         if (profileErr) throw profileErr;
 
-        // 3. Create user_role as admin
-        const { error: roleErr } = await adminClient.from("user_roles").insert({
-          user_id: userId,
-          role: "admin",
-        });
-        // Ignore duplicate role error
-        if (roleErr && !roleErr.message?.includes("duplicate")) throw roleErr;
+        // Do NOT create user_roles here — role will be created when invite is accepted
 
-        // 4. Send password reset email so user can set their password
-        const { error: resetErr } = await adminClient.auth.resetPasswordForEmail(email);
-        if (resetErr) {
-          console.error("Warning: could not send reset email:", resetErr.message);
+        // If user already exists in auth, send them a notification via password reset
+        if (existingAuthUser) {
+          try {
+            await adminClient.auth.resetPasswordForEmail(email, {
+              redirectTo: `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/auth?invite=${inviteToken}`,
+            });
+          } catch (e) {
+            console.error("Warning: could not send notification email:", e);
+          }
         }
 
-        return new Response(JSON.stringify({ success: true, userId }), {
+        return new Response(JSON.stringify({
+          success: true,
+          inviteToken,
+          inviteUrl: `/auth?invite=${inviteToken}`,
+          userAlreadyExists: !!existingAuthUser,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "check-email-exists": {
+        const { email } = params;
+        if (!email) throw new Error("Email required");
+
+        // Check user_profiles for this email
+        const { data: profiles } = await adminClient
+          .from("user_profiles")
+          .select("id, email, display_name, tenant_id, invite_status")
+          .eq("email", email)
+          .eq("invite_status", "accepted");
+
+        // Get tenant names for existing profiles
+        const results = [];
+        if (profiles && profiles.length > 0) {
+          for (const p of profiles) {
+            let tenantName = "Sem plataforma";
+            if (p.tenant_id) {
+              const { data: tenant } = await adminClient
+                .from("tenants")
+                .select("name")
+                .eq("id", p.tenant_id)
+                .maybeSingle();
+              if (tenant) tenantName = tenant.name;
+            }
+            results.push({ ...p, tenant_name: tenantName });
+          }
+        }
+
+        return new Response(JSON.stringify({
+          exists: results.length > 0,
+          profiles: results,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "cleanup-orphan-auth-users": {
+        const dryRun = params.dry_run !== false; // default true
+
+        // Get all auth users
+        const { data: authData, error: authErr } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+        if (authErr) throw authErr;
+        const authUsers = authData?.users || [];
+
+        // Get all user_ids from profiles and roles
+        const { data: profileUserIds } = await adminClient
+          .from("user_profiles")
+          .select("user_id")
+          .not("user_id", "is", null);
+        const { data: roleUserIds } = await adminClient
+          .from("user_roles")
+          .select("user_id");
+
+        const knownUserIds = new Set<string>();
+        profileUserIds?.forEach((p: any) => { if (p.user_id) knownUserIds.add(p.user_id); });
+        roleUserIds?.forEach((r: any) => { if (r.user_id) knownUserIds.add(r.user_id); });
+
+        // Never delete the calling master user
+        knownUserIds.add(user.id);
+
+        // Find orphans
+        const orphans = authUsers.filter((u: any) => !knownUserIds.has(u.id));
+
+        if (dryRun) {
+          return new Response(JSON.stringify({
+            dry_run: true,
+            orphan_count: orphans.length,
+            orphans: orphans.map((u: any) => ({
+              id: u.id,
+              email: u.email,
+              created_at: u.created_at,
+            })),
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Execute cleanup
+        const deleted: string[] = [];
+        const errors: string[] = [];
+        for (const orphan of orphans) {
+          try {
+            const { error: delErr } = await adminClient.auth.admin.deleteUser(orphan.id);
+            if (delErr) {
+              errors.push(`${orphan.email}: ${delErr.message}`);
+            } else {
+              deleted.push(orphan.email || orphan.id);
+            }
+          } catch (e: any) {
+            errors.push(`${orphan.email}: ${e.message}`);
+          }
+        }
+
+        return new Response(JSON.stringify({
+          dry_run: false,
+          deleted_count: deleted.length,
+          deleted,
+          errors,
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

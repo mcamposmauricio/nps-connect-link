@@ -5,12 +5,13 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarDataProvider } from "@/contexts/SidebarDataContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, X } from "lucide-react";
+import { Eye, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SidebarLayout() {
   const navigate = useNavigate();
-  const { user, loading, userDataLoading, tenantId, isAdmin, isImpersonating, impersonatedTenantName, clearImpersonation } = useAuth();
+  const { user, loading, userDataLoading, tenantId, isAdmin, isImpersonating, impersonatedTenantName, clearImpersonation, availableTenants, selectTenant, needsTenantSelection } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem("sidebar-open") !== "false"
   );
@@ -19,11 +20,11 @@ export default function SidebarLayout() {
     if (!loading && !userDataLoading) {
       if (!user) {
         navigate("/auth");
-      } else if (!tenantId && !isAdmin) {
+      } else if (!tenantId && !isAdmin && !needsTenantSelection) {
         navigate("/pending-approval");
       }
     }
-  }, [user, loading, userDataLoading, tenantId, isAdmin, navigate]);
+  }, [user, loading, userDataLoading, tenantId, isAdmin, navigate, needsTenantSelection]);
 
   // Polling for time-based auto rules (every 5 min) — runs globally while any admin is logged in
   useEffect(() => {
@@ -59,6 +60,35 @@ export default function SidebarLayout() {
     );
   }
 
+  // Tenant selection screen
+  if (needsTenantSelection) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="max-w-md w-full space-y-6">
+          <div className="text-center">
+            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto mx-auto mb-6" />
+            <h1 className="text-xl font-semibold">Selecione sua plataforma</h1>
+            <p className="text-sm text-muted-foreground mt-1">Você tem acesso a múltiplas plataformas</p>
+          </div>
+          <div className="space-y-3">
+            {availableTenants.map(t => (
+              <Card
+                key={t.tenantId}
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => selectTenant(t.tenantId)}
+              >
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium">{t.tenantName}</span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarDataProvider>
       <SidebarProvider
@@ -90,6 +120,20 @@ export default function SidebarLayout() {
                 </Button>
               </div>
             )}
+
+            {/* Multi-tenant switcher banner */}
+            {availableTenants.length > 1 && !isImpersonating && (
+              <div className="h-8 bg-muted/50 border-b flex items-center justify-center gap-2 text-xs text-muted-foreground px-4 shrink-0">
+                <Building2 className="h-3 w-3" />
+                <span>Plataforma: <strong className="text-foreground">{availableTenants.find(t => t.tenantId === tenantId)?.tenantName}</strong></span>
+                {availableTenants.filter(t => t.tenantId !== tenantId).map(t => (
+                  <Button key={t.tenantId} variant="ghost" size="sm" className="h-5 px-2 text-xs" onClick={() => selectTenant(t.tenantId)}>
+                    Trocar para {t.tenantName}
+                  </Button>
+                ))}
+              </div>
+            )}
+
             <header className="h-14 border-b border-sidebar-border flex items-center px-4 bg-sidebar">
               <SidebarTrigger className="text-foreground/50 hover:text-foreground transition-colors" />
             </header>
