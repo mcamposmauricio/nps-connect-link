@@ -113,6 +113,14 @@ Deno.serve(async (req) => {
       .select("id, visitor_token, name, email")
       .single();
 
+    // Sync bidirectional link
+    if (newVisitor) {
+      await supabase
+        .from("company_contacts")
+        .update({ chat_visitor_id: newVisitor.id })
+        .eq("id", companyContact.id);
+    }
+
     if (createError || !newVisitor) {
       console.error("Error creating chat visitor:", createError);
       return new Response(
