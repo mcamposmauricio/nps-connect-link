@@ -69,6 +69,60 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "provision-tenant-admin": {
+        const { tenantId, email, displayName } = params;
+        if (!tenantId || !email || !displayName) throw new Error("tenantId, email and displayName required");
+
+        // 1. Check if user already exists
+        const { data: existingUsers } = await adminClient.auth.admin.listUsers({ perPage: 1 });
+        let userId: string;
+
+        // Try to find by email
+        const { data: userByEmail } = await adminClient.auth.admin.listUsers();
+        const found = userByEmail?.users?.find((u: any) => u.email === email);
+
+        if (found) {
+          userId = found.id;
+        } else {
+          // Create new user
+          const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
+            email,
+            email_confirm: false,
+          });
+          if (createErr) throw createErr;
+          userId = newUser.user.id;
+        }
+
+        // 2. Create user_profile
+        const { error: profileErr } = await adminClient.from("user_profiles").insert({
+          user_id: userId,
+          email,
+          display_name: displayName,
+          tenant_id: tenantId,
+          invite_status: "accepted",
+          is_active: true,
+        });
+        if (profileErr) throw profileErr;
+
+        // 3. Create user_role as admin
+        const { error: roleErr } = await adminClient.from("user_roles").insert({
+          user_id: userId,
+          role: "admin",
+        });
+        // Ignore duplicate role error
+        if (roleErr && !roleErr.message?.includes("duplicate")) throw roleErr;
+
+        // 4. Send password reset email so user can set their password
+        const { error: resetErr } = await adminClient.auth.resetPasswordForEmail(email);
+        if (resetErr) {
+          console.error("Warning: could not send reset email:", resetErr.message);
+        }
+
+        return new Response(JSON.stringify({ success: true, userId }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
           status: 400,
