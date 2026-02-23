@@ -16,6 +16,10 @@
   var resolvedCompanyContactId = null;
   var resolvedContactId = null;
 
+  // Update API state
+  var visitorProps = {};
+  var chatIframe = null;
+
   // --- Banner Logic ---
   var bannerContainer = null;
 
@@ -226,6 +230,7 @@
       ";width:80px;height:80px;border:none;z-index:99998;background:transparent;";
     iframe.allow = "clipboard-write";
     document.body.appendChild(iframe);
+    chatIframe = iframe;
 
     // Listen for chat open/close to resize iframe dynamically
     window.addEventListener("message", function (event) {
@@ -244,6 +249,24 @@
       }
     });
   }
+
+  // --- Public API: window.NPSChat ---
+  window.NPSChat = {
+    update: function (props) {
+      if (!props || typeof props !== "object") return;
+      for (var key in props) {
+        if (props.hasOwnProperty(key)) {
+          visitorProps[key] = props[key];
+        }
+      }
+      if (chatIframe && chatIframe.contentWindow) {
+        chatIframe.contentWindow.postMessage(
+          { type: "nps-chat-update", props: visitorProps },
+          "*"
+        );
+      }
+    },
+  };
 
   // Init: resolve visitor first (if api_key + external_id provided), then load banners + chat
   function init() {

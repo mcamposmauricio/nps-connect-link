@@ -53,6 +53,7 @@ const ChatWidget = () => {
   const [visitorId, setVisitorId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [customProps, setCustomProps] = useState<Record<string, any>>({});
   const [input, setInput] = useState("");
   const [csatScore, setCsatScore] = useState(0);
   const [csatComment, setCsatComment] = useState("");
@@ -113,6 +114,32 @@ const ChatWidget = () => {
       });
     }
   }, [isEmbed]);
+
+  // Listen for NPSChat.update() messages from parent frame
+  const autoStartTriggered = useRef(false);
+  useEffect(() => {
+    if (!isEmbed) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data && event.data.type === "nps-chat-update" && event.data.props) {
+        const props = event.data.props;
+        const { name, email, phone, ...custom } = props;
+        setFormData(prev => ({
+          name: name ?? prev.name,
+          email: email ?? prev.email,
+          phone: phone ?? prev.phone,
+        }));
+        if (Object.keys(custom).length > 0) {
+          setCustomProps(prev => ({ ...prev, ...custom }));
+        }
+        // Auto-start: if name provided and still on form phase with no active visitor
+        if (name && !autoStartTriggered.current && !visitorId) {
+          autoStartTriggered.current = true;
+        }
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [isEmbed, visitorId]);
 
   const fetchHistory = useCallback(async (vId: string) => {
     setHistoryLoading(true);
@@ -505,6 +532,8 @@ const ChatWidget = () => {
 
     const ownerUserId = paramOwnerUserId || "00000000-0000-0000-0000-000000000000";
 
+    const hasCustomProps = Object.keys(customProps).length > 0;
+
     const { data: visitor, error: vError } = await supabase
       .from("chat_visitors")
       .insert({
@@ -512,6 +541,7 @@ const ChatWidget = () => {
         email: formData.email || null,
         phone: formData.phone || null,
         owner_user_id: ownerUserId,
+        ...(hasCustomProps ? { metadata: customProps } : {}),
       })
       .select("id, visitor_token")
       .single();
@@ -531,6 +561,7 @@ const ChatWidget = () => {
         visitor_id: visitor.id,
         owner_user_id: ownerUserId,
         status: "waiting",
+        ...(hasCustomProps ? { metadata: customProps } : {}),
       })
       .select("id, status, attendant_id")
       .single();
