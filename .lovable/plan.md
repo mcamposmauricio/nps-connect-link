@@ -1,58 +1,88 @@
 
 
-# Auto-provisionar Admin como Atendente de Chat
+# Fix: Rooms orfaos com tenant_id NULL (solucao server-side definitiva)
 
-## Problema
+## Problema recorrente
 
-Quando um tenant e criado e o admin aceita o convite, ele recebe apenas o role de `admin`. Nao e criado um registro na tabela `csms` com `is_chat_enabled = true`, o que significa que o admin nao aparece como atendente e nao consegue atender chats nem atribuir conversas a si mesmo.
+O fix no `nps-chat-embed.js` esta correto no codigo, mas os navegadores dos visitantes ainda usam a versao cacheada do script servido por `jornadacliente.com.br`. Isso causa rooms e visitors criados com `owner_user_id = 00000000-...` e `tenant_id = NULL`, tornando-os invisiveis para os atendentes.
 
-## Solucao
+## Solucao: Safety net no banco de dados
 
-Modificar a Edge Function `backoffice-admin` no caso `accept-invite` para que, ao criar o role de admin para o tenant, tambem crie automaticamente um registro CSM com `is_chat_enabled = true`.
+Criar uma trigger `BEFORE INSERT` na tabela `chat_visitors` que resolve o `tenant_id` a partir da API key quando `owner_user_id` e o UUID nulo. Adicionalmente, criar uma trigger similar na `chat_rooms` que herda o `tenant_id` do visitor vinculado.
 
-A trigger `sync_csm_chat_enabled` ja existente no banco cuidara automaticamente de criar o `attendant_profile` correspondente.
+### 1. Trigger na tabela `chat_visitors` (BEFORE INSERT)
 
-### Cadeia de eventos
+Quando um visitor e inserido com `owner_user_id = 00000000-...`:
+- Buscar o ultimo `api_keys` ativo no sistema (pelo `key_prefix = 'chat_'`) para descobrir o tenant
+- Nao ideal, mas como fallback funciona para tenants unicos
 
-```text
-Admin aceita convite
-  --> accept-invite cria role "admin"
-  --> accept-invite cria registro "csms" com is_chat_enabled = true  [NOVO]
-    --> trigger sync_csm_chat_enabled cria "attendant_profile"       [AUTOMATICO]
-      --> Admin aparece como atendente no workspace
-        --> Pode atender e atribuir chats a si mesmo
-```
+**Abordagem melhor**: passar a API key via URL param para o widget, e usar essa informacao no `handleStartChat` para resolver o owner via edge function antes de criar o visitor.
 
-### Alteracao em `supabase/functions/backoffice-admin/index.ts`
+### 2. Abordagem recomendada: resolver owner no widget antes de criar visitor
 
-No bloco `accept-invite` (linhas 58-65), apos criar o role de admin, adicionar a criacao do CSM:
+Modificar `ChatWidget.tsx` para que, quando `paramOwnerUserId` for null/vazio e existir uma API key disponivel, chamar a edge function `resolve-chat-visitor` para obter o `owner_user_id` correto antes de criar o visitor.
 
-```typescript
-// Create admin role if tenant admin
-if (profile.tenant_id && (!profile.specialty || profile.specialty.length === 0)) {
-  const { error: roleErr } = await adminClient.from("user_roles").upsert(
-    { user_id: userId, role: "admin" },
-    { onConflict: "user_id,role" }
-  );
-  if (roleErr) console.error("Role creation error:", roleErr);
+#### A. `public/nps-chat-embed.js` - Passar apiKey como parametro do iframe
 
-  // NEW: Auto-provision admin as chat attendant
-  await adminClient.from("csms").insert({
-    user_id: userId,
-    name: displayName || profile.email.split("@")[0],
-    email: profile.email,
-    is_chat_enabled: true,
-    tenant_id: profile.tenant_id,
-  });
+Mesmo sem resolvedToken, sempre passar a API key para o iframe:
+
+```javascript
+// Always pass API key to iframe for fallback resolution
+if (apiKey) {
+  iframeSrc += "&apiKey=" + encodeURIComponent(apiKey);
 }
 ```
 
-A trigger `sync_csm_chat_enabled` ja existente fara o resto (criar `attendant_profile` com `max_conversations = 5`).
+#### B. `src/pages/ChatWidget.tsx` - Resolver owner via API key
+
+No `handleStartChat`, quando `paramOwnerUserId` estiver ausente mas existir `paramApiKey`:
+
+```javascript
+const paramApiKey = searchParams.get("apiKey");
+
+// In handleStartChat, before creating visitor:
+let ownerUserId = paramOwnerUserId;
+if (!ownerUserId && paramApiKey) {
+  const res = await fetch(`${supabaseUrl}/functions/v1/resolve-chat-visitor`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: supabaseAnonKey },
+    body: JSON.stringify({ api_key: paramApiKey }),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    ownerUserId = data.user_id || null;
+  }
+}
+if (!ownerUserId) ownerUserId = "00000000-0000-0000-0000-000000000000";
+```
+
+#### C. Limpeza SQL dos rooms orfaos atuais
+
+```sql
+-- Fix orphaned visitors
+UPDATE chat_visitors SET
+  owner_user_id = '17755531-96a2-4a46-9c11-9bee2b71aaf0',
+  tenant_id = 'ff3876d4-5a07-44b9-be1b-b1899ce96df8'
+WHERE owner_user_id = '00000000-0000-0000-0000-000000000000'
+  AND tenant_id IS NULL;
+
+-- Fix orphaned rooms
+UPDATE chat_rooms SET
+  owner_user_id = '17755531-96a2-4a46-9c11-9bee2b71aaf0',
+  tenant_id = 'ff3876d4-5a07-44b9-be1b-b1899ce96df8'
+WHERE owner_user_id = '00000000-0000-0000-0000-000000000000'
+  AND tenant_id IS NULL;
+```
+
+### Arquivos alterados
+
+1. **`public/nps-chat-embed.js`** - Sempre passar `apiKey` como parametro do iframe
+2. **`src/pages/ChatWidget.tsx`** - Resolver `ownerUserId` via edge function quando ausente, usando a API key
 
 ### Resultado
 
-- Novo admin de tenant ja vem pronto para atender chats imediatamente apos aceitar o convite
-- Aparece na lista de atendentes do workspace
-- Pode clicar em "Atender" em chats nao atribuidos
-- Pode adicionar mais membros ao time depois via configuracoes
+- Mesmo com script cacheado (sem ownerUserId no URL), o widget consegue resolver o owner via API key
+- Rooms e visitors sempre terao `tenant_id` correto
+- Os 2 rooms orfaos atuais serao corrigidos via SQL
+- Solucao robusta que nao depende do cache do navegador do visitante
 
