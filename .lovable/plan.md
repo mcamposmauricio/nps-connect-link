@@ -1,140 +1,111 @@
 
 
-# Correcao de Seguranca + Limpeza de Auth Users Orfaos
+# Reabrir Chats Pendentes, Chat Proativo e Controle de Multiplos Chats
 
-## Problemas Atuais
+## Visao Geral
 
-1. **Email duplicado nao detectado**: O `provision-tenant-admin` cria um segundo `user_profile` para um email ja existente sem aviso, causando conflito de tenant no login.
-2. **Acesso direto sem convite**: O perfil e criado com `invite_status: 'accepted'`, permitindo login imediato -- deveria usar fluxo de convite com `invite_status: 'pending'`.
-3. **Auth users orfaos**: O provisionamento pode ter criado usuarios no `auth.users` que nao correspondem a nenhum perfil valido, ou existem usuarios antigos sem vinculo.
-4. **`loadUserData` usa `.maybeSingle()`**: Se um usuario tiver perfis em multiplos tenants, retorna erro ou o perfil errado.
+Quatro funcionalidades relacionadas ao ciclo de vida de chats:
 
----
-
-## 1. Limpeza de Dados (Edge Function + UI)
-
-### 1.1 Nova action `cleanup-orphan-auth-users` na Edge Function
-
-**Arquivo:** `supabase/functions/backoffice-admin/index.ts`
-
-Nova action que:
-
-1. Lista todos os usuarios do `auth.users` via `adminClient.auth.admin.listUsers()`
-2. Lista todos os `user_id` distintos da tabela `user_profiles`
-3. Lista todos os `user_id` distintos da tabela `user_roles`
-4. Identifica **orfaos**: usuarios no `auth.users` cujo `id` NAO aparece em `user_profiles` NEM em `user_roles`
-5. Modo `dry_run` (padrao): retorna a lista de orfaos sem deletar
-6. Modo `execute`: deleta os orfaos do `auth.users` via `adminClient.auth.admin.deleteUser()`
-7. Nunca deleta o proprio master que esta executando
-
-### 1.2 Limpeza do perfil duplicado de `mauricio@marqponto.com.br`
-
-Alem da funcionalidade generica, uma correcao pontual:
-
-- O perfil criado em MARQ HR para `mauricio@marqponto.com.br` (user_id: `0f04ffe2`) com `invite_status: 'accepted'` deve ser convertido para `invite_status: 'pending'` com `user_id: NULL` para forcar o fluxo de convite
-- O auth user `0f04ffe2` criado pelo provisionamento deve ser removido (e orfao, foi criado desnecessariamente)
-- A role `admin` para esse user_id tambem deve ser removida (sera recriada no aceite do convite)
-
-### 1.3 UI na aba Operacoes
-
-**Arquivo:** `src/components/backoffice/Operations.tsx`
-
-Adicionar secao "Limpeza de Usuarios":
-
-- Botao **"Verificar orfaos"** (dry_run) que lista usuarios no auth sem perfil
-- Exibe a lista com email e data de criacao
-- Botao **"Limpar orfaos"** (execute) com dialog de confirmacao
-- Exibe resultado: quantos foram removidos
+1. **Reabrir chats fechados com pendencia** -- tanto o atendente (pelo historico) quanto o visitante/cliente (pelo widget/portal) podem reativar um chat "pending"
+2. **Controle de multiplos chats simultaneos** -- configuracao no AdminSettings para permitir ou nao que visitantes tenham mais de um chat ativo
+3. **Chat proativo do atendente** -- o atendente inicia uma conversa com uma empresa/contato, que aparece automaticamente no widget/portal do visitante
+4. **Gestao de pendencias no historico** -- filtrar por "pending", e acoes em lote/individuais para arquivar ou marcar como resolvido
 
 ---
 
-## 2. Correcao do Provisionamento
+## 1. Reabrir Chats Pendentes
 
-### 2.1 Validacao de email no frontend
+### 1.1 Pelo Atendente -- Historico de Chats (AdminChatHistory.tsx)
 
-**Arquivo:** `src/components/backoffice/TenantManagement.tsx`
+Na tabela de historico, quando um chat fechado tem `resolution_status = 'pending'`:
 
-Antes de salvar um novo tenant:
+- Exibir botao **"Reabrir"** na linha
+- Ao clicar:
+  - Atualiza `chat_rooms` com `status: 'active'`, `closed_at: null`, `resolution_status: null`
+  - Re-atribui ao atendente original (se disponivel) ou deixa como `waiting`
+  - Insere mensagem de sistema: "[Sistema] Chat reaberto por [atendente]"
+  - O chat aparece imediatamente no Workspace via Realtime
 
-- Consultar `user_profiles` filtrando por `email` do admin
-- Se encontrar perfil existente:
-  - Exibir **AlertDialog** informando: "Este email ja esta associado a plataforma [Nome]. Deseja criar um convite para esta nova plataforma?"
-  - Mostrar o tenant atual do usuario
-  - Permitir continuar com confirmacao explicita
-- Se nao encontrar: prosseguir normalmente
+### 1.2 Pelo Cliente -- Widget e Portal
 
-### 2.2 Edge Function corrigida
+**Arquivo:** `src/pages/ChatWidget.tsx`, `src/components/portal/PortalChatList.tsx`, `src/components/portal/PortalChatView.tsx`
 
-**Arquivo:** `supabase/functions/backoffice-admin/index.ts`
+Na lista de historico do visitante (widget e portal), chats fechados com `resolution_status = 'pending'`:
 
-Alterar `provision-tenant-admin`:
+- Exibir badge **"Pendente"** e botao **"Retomar conversa"** ao lado do chat
+- Ao clicar:
+  - Atualiza `chat_rooms` com `status: 'waiting'`, `closed_at: null`, `resolution_status: null`
+  - Insere mensagem de sistema: "[Sistema] Chat reaberto pelo cliente"
+  - O visitante e redirecionado para a view do chat (PortalChatView ou tela de conversa do widget)
+  - A sala entra na fila de atribuicao normalmente (trigger `assign_chat_room` e disparado ao voltar para `waiting`)
+- Se `allow_multiple_chats = false` e ja houver outro chat ativo, bloquear a reabertura com mensagem explicativa
 
-**Para email que NAO existe no auth:**
-1. Criar usuario via `admin.createUser({ email, email_confirm: true })` -- confirma email para evitar login direto
-2. Criar `user_profile` com `invite_status: 'pending'`, `user_id: NULL`, e `invite_token` gerado
-3. Retornar link de convite: `/auth?invite=TOKEN`
+### 1.3 Impacto no Widget/Portal
 
-**Para email que JA existe no auth (usuario ja tem conta):**
-1. NAO reutilizar o user_id no profile imediatamente
-2. Criar `user_profile` com `invite_status: 'pending'`, `user_id: NULL`, e `invite_token`
-3. Enviar email com link de convite via `resetPasswordForEmail` com redirect para `/auth?invite=TOKEN`
-4. O usuario aceitara o convite e o sistema vinculara o `user_id` ao novo perfil
-
-Em ambos os casos, a role `admin` NAO e criada no provisionamento -- sera criada quando o usuario aceitar o convite.
+- O Realtime existente nos canais de `chat_rooms` ja detecta mudancas de status, entao o chat reaberto sera refletido automaticamente para ambas as partes
 
 ---
 
-## 3. AuthContext -- Suporte Multi-Tenant
+## 2. Configuracao de Multiplos Chats Simultaneos
 
-### 3.1 Buscar todos os perfis
+### 2.1 Nova coluna em `chat_settings`
 
-**Arquivo:** `src/contexts/AuthContext.tsx`
-
-Alterar `loadUserData`:
-
-- Substituir `.maybeSingle()` por `.eq("invite_status", "accepted")` para buscar todos os perfis aceitos
-- Se houver 1 perfil: usar normalmente (comportamento atual)
-- Se houver multiplos: armazenar lista e expor `availableTenants`
-- Expor `selectTenant(tenantId)` para troca de plataforma
-- Persistir selecao em `localStorage`
-
-### 3.2 Novos campos no contexto
-
-```
-availableTenants: { tenantId: string; tenantName: string }[]
-selectTenant: (tenantId: string) => void
+```sql
+ALTER TABLE chat_settings ADD COLUMN allow_multiple_chats boolean NOT NULL DEFAULT false;
 ```
 
----
+### 2.2 AdminSettings.tsx -- Nova opcao na aba Widget
 
-## 4. Tela de Selecao de Tenant
+Switch "Permitir multiplos chats simultaneos" junto com os outros switches existentes.
 
-### 4.1 Componente inline no SidebarLayout
+### 2.3 ChatWidget.tsx e UserPortal -- Validacao
 
-**Arquivo:** `src/components/SidebarLayout.tsx`
+No `handleNewChat` e na reabertura de chats pendentes:
 
-Quando `availableTenants.length > 1` e nenhum tenant selecionado:
-
-- Exibir tela intermediaria com cards para cada plataforma
-- Ao selecionar, define o tenantId e carrega o dashboard
-
-### 4.2 Seletor no header (para troca rapida)
-
-Quando ja logado com multiplos tenants, adicionar dropdown no header da sidebar para trocar entre plataformas.
+- Se `allow_multiple_chats = false`: verificar se ja existe `chat_room` com `status in ('active', 'waiting')` para esse `visitor_id`. Se existir, impedir e mostrar mensagem.
+- Se `allow_multiple_chats = true`: permitir normalmente
 
 ---
 
-## 5. Auth.tsx -- Aceite de Convite para Admin de Tenant
+## 3. Chat Proativo pelo Atendente
 
-**Arquivo:** `src/pages/Auth.tsx`
+### 3.1 UI no Workspace (AdminWorkspace.tsx)
 
-O fluxo de convite ja existe. Ajustar para admin de tenant:
+Botao **"Novo Chat"** no header que abre dialog com:
 
-- Ao aceitar convite, verificar se o usuario ja tem conta no auth:
-  - **Sim**: Usar `signInWithPassword` ao inves de `signUp` e vincular `user_id` ao novo perfil
-  - **Nao**: Usar `signUp` normalmente (fluxo atual)
-- Apos aceite, criar a role `admin` para o novo perfil
-- Redirecionar para selecao de tenant (se multiplos) ou dashboard
+- Seletor de empresa (contacts com `is_company = true`)
+- Seletor de contato da empresa (company_contacts)
+- Campo para mensagem inicial
+- Botao "Iniciar Conversa"
+
+### 3.2 Logica de criacao
+
+1. Buscar ou criar `chat_visitor` associado ao `company_contact`
+2. Criar `chat_room` com `status: 'active'`, `attendant_id` do atendente atual
+3. Inserir mensagem inicial como `sender_type: 'attendant'`
+
+### 3.3 Impacto no Widget/Portal
+
+- Adicionar subscription Realtime para `INSERT` em `chat_rooms` filtrado por `visitor_id` no widget e portal
+- Visitante identificado (via `external_id`) recebe o chat automaticamente
+
+---
+
+## 4. Gestao de Pendencias no Historico
+
+### 4.1 Novo status: "archived"
+
+Usar `resolution_status = 'archived'` como valor adicional (coluna texto, sem migracao necessaria).
+
+### 4.2 AdminChatHistory.tsx -- Acoes em lote
+
+- Checkbox de selecao em cada linha + "selecionar todos"
+- Barra de acoes: **"Marcar como Resolvido"** e **"Arquivar"**
+- Filtro de "Arquivado" no dropdown de status
+
+### 4.3 Acao individual
+
+Dropdown por linha com: "Reabrir", "Marcar como Resolvido", "Arquivar"
 
 ---
 
@@ -142,35 +113,57 @@ O fluxo de convite ja existe. Ajustar para admin de tenant:
 
 | Arquivo | Alteracao |
 |---|---|
-| `supabase/functions/backoffice-admin/index.ts` | Corrigir `provision-tenant-admin` para usar convite pendente; adicionar action `cleanup-orphan-auth-users` |
-| `src/components/backoffice/TenantManagement.tsx` | Validacao de email duplicado com AlertDialog de confirmacao |
-| `src/components/backoffice/Operations.tsx` | Secao de limpeza de usuarios orfaos com dry_run e execute |
-| `src/contexts/AuthContext.tsx` | Multi-perfil: buscar todos os perfis aceitos, expor `availableTenants` e `selectTenant` |
-| `src/components/SidebarLayout.tsx` | Tela de selecao de tenant quando multiplos disponiveis |
-| `src/pages/Auth.tsx` | Suporte a aceite de convite para usuario que ja tem conta; criacao de role admin no aceite |
+| **Migracao SQL** | Adicionar `allow_multiple_chats` em `chat_settings` |
+| `src/pages/AdminSettings.tsx` | Switch para "Permitir multiplos chats" |
+| `src/pages/AdminChatHistory.tsx` | Botao "Reabrir" para pendentes; selecao em lote; acoes "Resolver/Arquivar"; dropdown individual; filtro "archived" |
+| `src/hooks/useChatHistory.ts` | Suportar filtro por `archived` no `resolution_status` |
+| `src/pages/AdminWorkspace.tsx` | Botao "Novo Chat" proativo com dialog de selecao de empresa/contato |
+| `src/pages/ChatWidget.tsx` | Validacao de `allow_multiple_chats`; botao "Retomar" para chats pendentes; subscription Realtime para chats proativos |
+| `src/pages/UserPortal.tsx` | Subscription para chats proativos; exibir opcao de retomar chats pendentes |
+| `src/components/portal/PortalChatList.tsx` | Badge "Pendente" e botao "Retomar conversa" para chats com `resolution_status = 'pending'` |
+| `src/components/portal/PortalChatView.tsx` | Nenhuma alteracao (ja escuta Realtime) |
 
-## Fluxo Corrigido
+## Fluxo: Reabrir Chat pelo Atendente
 
 ```text
-CRIACAO DE TENANT COM ADMIN NOVO:
-1. Master cria tenant "MARQ HR" com admin "novo@empresa.com"
-2. Sistema verifica: email nao existe -> prossegue
-3. Edge function cria auth user + user_profile com invite_status='pending'
-4. Email de convite enviado com link /auth?invite=TOKEN
-5. Novo admin clica no link -> define senha -> perfil vinculado -> acessa a plataforma
+1. Atendente acessa Historico de Chats
+2. Filtra por "Com pendencia"
+3. Clica "Reabrir" no chat desejado
+4. Sistema reativa a sala: status='active', closed_at=null
+5. Chat aparece no Workspace do atendente
+6. Visitante ve o chat ativo novamente no widget/portal
+```
 
-CRIACAO DE TENANT COM EMAIL JA EXISTENTE:
-1. Master cria tenant "MARQ HR" com admin "mauricio@marqponto.com.br"
-2. Sistema detecta: "Email ja associado a Organizacao Principal"
-3. Master confirma: "Sim, criar convite para MARQ HR"
-4. Edge function cria user_profile com invite_status='pending', user_id=NULL
-5. Email de convite enviado
-6. Mauricio clica no link -> confirma -> perfil vinculado com user_id existente
-7. Proximo login: selecao de plataforma "Organizacao Principal" ou "MARQ HR"
+## Fluxo: Reabrir Chat pelo Cliente
 
-LIMPEZA DE ORFAOS:
-1. Master vai em Operacoes -> Limpeza de Usuarios
-2. Clica "Verificar orfaos" -> ve lista de auth users sem perfil
-3. Confirma "Limpar orfaos" -> sistema remove do auth.users
+```text
+1. Cliente acessa historico no widget ou portal
+2. Ve chat fechado com badge "Pendente"
+3. Clica "Retomar conversa"
+4. Sistema valida: nao ha outro chat ativo (ou allow_multiple_chats=true)
+5. Sala volta para status='waiting', entra na fila de atribuicao
+6. Mensagem de sistema registrada: "Chat reaberto pelo cliente"
+7. Atendente recebe a sala no Workspace quando atribuida
+```
+
+## Fluxo: Chat Proativo
+
+```text
+1. Atendente clica "Novo Chat" no Workspace
+2. Seleciona empresa e contato
+3. Escreve mensagem inicial
+4. Sistema cria visitor + room + mensagem
+5. Chat aparece no Workspace como "ativo"
+6. Visitante recebe o chat no widget automaticamente
+```
+
+## Fluxo: Gestao de Pendencias em Lote
+
+```text
+1. Admin acessa Historico
+2. Filtra por "Com pendencia"
+3. Seleciona multiplos chats via checkbox
+4. Clica "Marcar como Resolvido" ou "Arquivar"
+5. Sistema atualiza resolution_status em lote
 ```
 
