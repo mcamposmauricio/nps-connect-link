@@ -77,6 +77,25 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
         if (existing) visitorId = existing.id;
       }
 
+      // Fallback: search by company_contact_id in chat_visitors
+      if (!visitorId) {
+        const { data: byContact } = await supabase
+          .from("chat_visitors")
+          .select("id")
+          .eq("company_contact_id", contact.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (byContact) {
+          visitorId = byContact.id;
+          await supabase
+            .from("company_contacts")
+            .update({ chat_visitor_id: visitorId })
+            .eq("id", contact.id);
+        }
+      }
+
+      // Create new visitor if none found
       if (!visitorId) {
         const { data: visitor } = await supabase
           .from("chat_visitors")
@@ -93,7 +112,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
         if (!visitor) throw new Error("Failed to create visitor");
         visitorId = visitor.id;
 
-        // Link visitor to contact
         await supabase
           .from("company_contacts")
           .update({ chat_visitor_id: visitorId })
