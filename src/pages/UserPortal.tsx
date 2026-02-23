@@ -38,6 +38,7 @@ export interface WidgetConfig {
   waiting_message: string | null;
   show_csat: boolean;
   allow_file_attachments: boolean;
+  allow_multiple_chats: boolean;
 }
 
 const UserPortal = () => {
@@ -98,7 +99,7 @@ const UserPortal = () => {
           .maybeSingle(),
         supabase
           .from("chat_settings")
-          .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_csat, allow_file_attachments")
+          .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_csat, allow_file_attachments, allow_multiple_chats")
           .eq("user_id", contactData.user_id)
           .maybeSingle(),
       ]);
@@ -200,13 +201,21 @@ const UserPortal = () => {
     setAllBusy(false);
     setOutsideHours(false);
 
+    // Check allow_multiple_chats
+    if (!(widgetConfig as any)?.allow_multiple_chats) {
+      const existingActive = rooms.find((r) => r.status === "active" || r.status === "waiting");
+      if (existingActive) {
+        setCreatingChat(false);
+        return;
+      }
+    }
+
     const visitorId = await getOrCreateVisitor();
     if (!visitorId) {
       setCreatingChat(false);
       return;
     }
 
-    // Create room with all linking fields so triggers fire correctly
     const { data: room } = await supabase
       .from("chat_rooms")
       .insert({
@@ -222,13 +231,45 @@ const UserPortal = () => {
     if (room) {
       setActiveRoomId(room.id);
       setActiveVisitorId(visitorId);
-      // Refresh rooms list
       await fetchRooms(contact.id);
-      // Check queue status (outside hours / all busy) unless trigger already assigned
       if (!(room.status === "active" && room.attendant_id)) {
         await checkRoomAssignment(room.id);
       }
     }
+
+    setCreatingChat(false);
+  };
+
+  const handleReopenChat = async (roomId: string) => {
+    if (!contact || creatingChat) return;
+
+    // Check allow_multiple_chats
+    if (!(widgetConfig as any)?.allow_multiple_chats) {
+      const existingActive = rooms.find((r) => r.status === "active" || r.status === "waiting");
+      if (existingActive) return;
+    }
+
+    setCreatingChat(true);
+
+    await supabase.from("chat_rooms").update({
+      status: "waiting",
+      closed_at: null,
+      resolution_status: null,
+    }).eq("id", roomId);
+
+    await supabase.from("chat_messages").insert({
+      room_id: roomId,
+      sender_type: "system",
+      sender_name: "Sistema",
+      content: "[Sistema] Chat reaberto pelo cliente",
+      is_internal: false,
+    });
+
+    const visitorId = contact.chat_visitor_id ?? (await getOrCreateVisitor());
+    setActiveRoomId(roomId);
+    setActiveVisitorId(visitorId);
+    await fetchRooms(contact.id);
+    await checkRoomAssignment(roomId);
 
     setCreatingChat(false);
   };
@@ -327,6 +368,7 @@ const UserPortal = () => {
           activeRoom={activeRoom}
           onNewChat={handleNewChat}
           onResumeChat={handleResumeChat}
+          onReopenChat={handleReopenChat}
           loading={creatingChat}
         />
       </main>
