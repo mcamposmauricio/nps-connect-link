@@ -31,9 +31,9 @@ const AdminDashboardGerencial = () => {
 
   const resolutionColor = (status: string) => {
     switch (status) {
-      case "resolved": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "pending": return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
-      case "escalated": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      case "resolved": return "bg-green-100 text-green-800";
+      case "pending": return "bg-orange-100 text-orange-800";
+      case "escalated": return "bg-red-100 text-red-800";
       default: return "";
     }
   };

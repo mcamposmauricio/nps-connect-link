@@ -74,11 +74,11 @@ const AdminChatHistory = () => {
   const resolutionBadge = (status: string | null) => {
     switch (status) {
       case "resolved":
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">{t("chat.history.resolved")}</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t("chat.history.resolved")}</Badge>;
       case "escalated":
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">{t("chat.history.escalated")}</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{t("chat.history.escalated")}</Badge>;
       case "pending":
-        return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">{t("chat.history.pending_status")}</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800">{t("chat.history.pending_status")}</Badge>;
       case "archived":
         return <Badge className="bg-muted text-muted-foreground">Arquivado</Badge>;
       default:

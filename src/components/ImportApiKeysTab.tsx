@@ -115,7 +115,7 @@ const ImportApiKeysTab = () => {
 
   return (
     <div className="space-y-4">
-      <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-500">
+      <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-700 [&>svg]:text-amber-500">
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>{t("externalApi.keyWarning")}</AlertDescription>
       </Alert>
