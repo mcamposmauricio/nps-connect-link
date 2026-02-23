@@ -5,10 +5,12 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarDataProvider } from "@/contexts/SidebarDataContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Eye, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function SidebarLayout() {
   const navigate = useNavigate();
-  const { user, loading, userDataLoading, tenantId, isAdmin } = useAuth();
+  const { user, loading, userDataLoading, tenantId, isAdmin, isImpersonating, impersonatedTenantName, clearImpersonation } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem("sidebar-open") !== "false"
   );
@@ -69,6 +71,25 @@ export default function SidebarLayout() {
         <div className="min-h-screen flex w-full">
           <AppSidebar />
           <main className="flex-1 flex flex-col">
+            {/* Impersonation banner */}
+            {isImpersonating && (
+              <div className="h-10 bg-amber-500/90 text-amber-950 flex items-center justify-center gap-2 text-sm font-medium px-4 shrink-0">
+                <Eye className="h-4 w-4" />
+                <span>Visualizando: {impersonatedTenantName}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 ml-2 text-amber-950 hover:bg-amber-600/50 hover:text-amber-950"
+                  onClick={() => {
+                    clearImpersonation();
+                    navigate("/backoffice");
+                  }}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Sair
+                </Button>
+              </div>
+            )}
             <header className="h-14 border-b border-sidebar-border flex items-center px-4 bg-sidebar">
               <SidebarTrigger className="text-foreground/50 hover:text-foreground transition-colors" />
             </header>

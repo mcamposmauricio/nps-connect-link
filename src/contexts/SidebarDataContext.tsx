@@ -20,7 +20,7 @@ interface SidebarDataContextType {
 const SidebarDataContext = createContext<SidebarDataContextType | undefined>(undefined);
 
 export function SidebarDataProvider({ children }: { children: ReactNode }) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isMaster, isImpersonating, tenantId } = useAuth();
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [initialized, setInitialized] = useState(false);
@@ -30,7 +30,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
   const totalActiveChats = teamAttendants.reduce((sum, a) => sum + a.active_count, 0) + unassignedCount;
 
   // One-time initial fetch — builds the baseline state
-  const initializeData = useCallback(async (userId: string, adminStatus: boolean) => {
+  const initializeData = useCallback(async (userId: string, adminStatus: boolean, currentTenantId?: string | null, masterImpersonating?: boolean) => {
     const { data: myProfile } = await supabase
       .from("attendant_profiles")
       .select("id")
@@ -38,7 +38,15 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     let attendants: any[] = [];
-    if (adminStatus) {
+
+    // When master is impersonating, fetch attendants for that specific tenant
+    if (masterImpersonating && currentTenantId) {
+      const { data } = await supabase
+        .from("attendant_profiles")
+        .select("id, display_name, user_id, status")
+        .eq("tenant_id", currentTenantId);
+      attendants = data ?? [];
+    } else if (adminStatus) {
       const { data } = await supabase
         .from("attendant_profiles")
         .select("id, display_name, user_id, status");
@@ -71,11 +79,17 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fetch active room counts in one query (including unassigned)
-    const { data: allActiveRooms } = await supabase
+    // Fetch active room counts — filter by tenant when impersonating
+    let roomsQuery = supabase
       .from("chat_rooms")
       .select("attendant_id")
       .in("status", ["active", "waiting"]);
+
+    if (masterImpersonating && currentTenantId) {
+      roomsQuery = roomsQuery.eq("tenant_id", currentTenantId);
+    }
+
+    const { data: allActiveRooms } = await roomsQuery;
 
     let counts: Record<string, number> = {};
     let unassigned = 0;
@@ -104,7 +118,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
 
     setTeamAttendants(sorted);
     setInitialized(true);
-    initializedForRef.current = userId;
+    initializedForRef.current = userId + (currentTenantId ?? '');
   }, []);
 
   // Surgical patch handlers — no HTTP requests, just state updates
@@ -247,10 +261,12 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Only re-initialize when the user actually changes
-    if (initializedForRef.current !== user.id) {
+    const cacheKey = user.id + (tenantId ?? '');
+
+    // Re-initialize when the user or impersonated tenant changes
+    if (initializedForRef.current !== cacheKey) {
       setInitialized(false);
-      initializeData(user.id, isAdmin);
+      initializeData(user.id, isAdmin, tenantId, isMaster && isImpersonating);
     }
 
     // Permanent Realtime channels — created once, never destroyed during navigation
@@ -281,7 +297,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       clearInterval(resyncInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, isAdmin]);
+  }, [user?.id, isAdmin, tenantId, isImpersonating]);
 
   return (
     <SidebarDataContext.Provider value={{ teamAttendants, totalActiveChats, unassignedCount, initialized }}>

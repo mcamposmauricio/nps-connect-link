@@ -60,7 +60,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
-  const { user, isAdmin, isMaster, hasPermission, userDataLoading } = useAuth();
+  const { user, isAdmin, isMaster, hasPermission, userDataLoading, isImpersonating, impersonatedTenantName } = useAuth();
   const { state } = useSidebar();
   const { theme, setTheme } = useTheme();
   const collapsed = state === "collapsed";
@@ -152,6 +152,11 @@ export function AppSidebar() {
             <img src={logoSrc} alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
           )}
         </button>
+        {isImpersonating && !collapsed && (
+          <div className="mt-2 text-[10px] font-medium text-muted-foreground text-center truncate px-2">
+            {impersonatedTenantName}
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent>

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Building2, Users, Send, MessageSquare } from "lucide-react";
+import { Plus, Pencil, Building2, Users, Send, MessageSquare, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 interface Tenant {
@@ -33,6 +35,8 @@ interface TenantStats {
 export default function TenantManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { setImpersonation } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [form, setForm] = useState({ name: "", slug: "", logo_url: "" });
@@ -196,6 +200,17 @@ export default function TenantManagement() {
                     <TableCell className="text-center">{s?.chat_rooms ?? "—"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Visualizar plataforma"
+                          onClick={() => {
+                            setImpersonation(t.id, t.name);
+                            navigate("/admin/dashboard");
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
                         <Switch checked={!!t.is_active} onCheckedChange={v => toggleActive.mutate({ id: t.id, active: v })} />
                       </div>
