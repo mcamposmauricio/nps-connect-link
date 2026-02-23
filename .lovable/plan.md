@@ -1,70 +1,54 @@
 
-
-# Adicionar Opcao de Formato do Botao do Widget (Circulo / Quadrado)
+# Remover Suporte a Tema Escuro Completamente
 
 ## Resumo
 
-Adicionar uma nova configuracao `widget_button_shape` que permite escolher entre botao circular (atual) ou quadrado com cantos levemente arredondados. A mudanca afeta o banco de dados, as configuracoes do admin, o preview, o widget real e o script de embed.
+Remover todo o suporte a dark mode da aplicacao: bloco CSS `.dark`, toggle de tema no sidebar, `defaultTheme` para `"light"`, e limpeza de todas as classes `dark:` nos componentes.
 
-## Alteracoes
+## Arquivos a Alterar
 
-### 1. Banco de Dados -- Nova coluna
+### 1. `src/index.css`
+- Remover o bloco `.dark { ... }` inteiro (linhas 76-109 aproximadamente) que define as variaveis CSS do tema escuro
 
-Adicionar coluna `widget_button_shape` na tabela `chat_settings`:
+### 2. `src/App.tsx`
+- Mudar `defaultTheme="dark"` para `defaultTheme="light"` no `ThemeProvider`
 
-```sql
-ALTER TABLE chat_settings
-ADD COLUMN widget_button_shape text NOT NULL DEFAULT 'circle';
-```
+### 3. `src/components/AppSidebar.tsx`
+- Remover import de `Moon`, `Sun` (linha 25-26)
+- Remover import de `useTheme` do `next-themes` (linha 30)
+- Remover `const { theme, setTheme } = useTheme()` (linha 65)
+- Fixar `logoSrc` e `iconSrc` para usar sempre as versoes light (linhas 133-134):
+  - `const logoSrc = "/logo-light.svg"`
+  - `const iconSrc = "/logo-icon-light.svg"`
+- Remover o botao de toggle de tema no footer (linhas 483-490)
 
-Valores aceitos: `'circle'` (padrao atual) ou `'square'`.
+### 4. `src/components/ui/chart.tsx`
+- Simplificar constante THEMES para apenas `{ light: "" }` (linha 7)
 
-### 2. `src/pages/AdminSettings.tsx`
+### 5. `src/components/ui/alert.tsx`
+- Linha 12: remover `dark:border-destructive` da variante destructive
 
-- Adicionar `widget_button_shape: "circle"` ao estado inicial (junto com `widget_position`, ~linha 65)
-- Carregar o valor do banco ao buscar settings
-- Incluir no payload de save
-- Adicionar um seletor (RadioGroup) na secao de aparencia do widget (proximo ao seletor de posicao, ~linha 394), com opcoes "Circulo" e "Quadrado"
-- Passar a nova prop `buttonShape` ao `WidgetPreview`
-- Incluir `data-button-shape` no snippet de embed gerado (~linha 633)
+### 6. Limpeza de classes `dark:` nos componentes (13 arquivos, 89 ocorrencias)
 
-### 3. `src/components/chat/WidgetPreview.tsx`
+Cada `dark:*` sera simplesmente removido da string de classes, mantendo apenas a versao light:
 
-- Adicionar prop `buttonShape?: "circle" | "square"` a interface `WidgetPreviewProps`
-- No botao FAB (~linha 151), trocar `rounded-full` por condicional:
-  - `circle` -> `rounded-full` (atual)
-  - `square` -> `rounded-lg` (cantos levemente arredondados)
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/EmailSettingsTab.tsx` | Remover `dark:bg-blue-900/20`, `dark:text-blue-300` |
+| `src/pages/AdminDashboard.tsx` | Remover `dark:bg-green-900/30 dark:text-green-400`, `dark:bg-amber-900/30 dark:text-amber-400` |
+| `src/pages/AdminDashboardGerencial.tsx` | Remover `dark:bg-*` e `dark:text-*` nos status colors |
+| `src/pages/AdminChatHistory.tsx` | Remover `dark:bg-*` e `dark:text-*` nos badges de status |
+| `src/pages/AdminSettings.tsx` | Remover `dark:text-green-400` |
+| `src/components/chat/ChatInput.tsx` | Remover `dark:text-yellow-400` |
+| `src/components/chat/ChatMessageList.tsx` | Remover `dark:bg-yellow-900/30`, `dark:border-yellow-700`, `dark:text-yellow-400` |
+| `src/components/chat/ReadOnlyChatDialog.tsx` | Remover `dark:text-yellow-400` |
+| `src/components/CNPJPreview.tsx` | Remover `dark:text-emerald-500` |
+| `src/components/ImportApiKeysTab.tsx` | Remover `dark:text-amber-400` |
+| `src/components/portal/PortalChatList.tsx` | Remover todos os `dark:bg-*` e `dark:text-*` nos badges |
 
-### 4. `src/pages/ChatWidget.tsx`
+### 7. `tailwind.config.ts`
+- Remover a linha `darkMode: ["class"]` (linha 4), pois nao sera mais necessaria
 
-- Ler novo parametro `buttonShape` do `searchParams` (~linha 40)
-- No botao FAB (~linha 688), aplicar `rounded-full` ou `rounded-lg` conforme o valor
+## Resultado
 
-### 5. `public/nps-chat-embed.js`
-
-- Ler `data-button-shape` do script tag (~linha 7)
-- Passar como query param `&buttonShape=...` na URL do iframe (~linha 196)
-
-## Secao Tecnica
-
-### Condicional de border-radius
-
-```
-circle -> className="rounded-full" (border-radius: 9999px)
-square  -> className="rounded-lg"  (border-radius: 0.5rem / 8px)
-```
-
-### Fluxo de dados
-
-```text
-Admin Settings (DB) --> embed script (data-attribute) --> iframe query param --> ChatWidget.tsx (FAB shape)
-Admin Settings (DB) --> WidgetPreview.tsx (preview shape)
-```
-
-### Arquivos modificados
-
-1. **Migracao SQL** -- nova coluna `widget_button_shape`
-2. **`src/pages/AdminSettings.tsx`** -- estado, save, UI de selecao, snippet de embed
-3. **`src/components/chat/WidgetPreview.tsx`** -- prop e condicional no FAB
-4. **`src/pages/ChatWidget.tsx`** -- leitura do param e condicional no FAB
-5. **`public/nps-chat-embed.js`** -- leitura do data-attribute e passagem via query param
+A aplicacao funcionara exclusivamente no tema claro. O toggle de tema desaparece do sidebar, e nenhuma classe `dark:` tera efeito. A paleta de cores sera determinada apenas pelas variaveis `:root`.
