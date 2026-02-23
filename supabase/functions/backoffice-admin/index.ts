@@ -62,6 +62,16 @@ Deno.serve(async (req) => {
           { onConflict: "user_id,role" }
         );
         if (roleErr) console.error("Role creation error:", roleErr);
+
+        // Auto-provision admin as chat attendant
+        const { error: csmErr } = await adminClient.from("csms").insert({
+          user_id: userId,
+          name: displayName || profile.email.split("@")[0],
+          email: profile.email,
+          is_chat_enabled: true,
+          tenant_id: profile.tenant_id,
+        });
+        if (csmErr) console.error("CSM auto-provision error:", csmErr);
       }
 
       // Create CSM if has specialty
