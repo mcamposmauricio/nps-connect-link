@@ -238,10 +238,10 @@ const EmailSettingsTab = () => {
 
         {settings.provider === "gmail" && (
           <div className="space-y-4 border-t pt-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 flex items-start gap-3">
+            <div className="bg-blue-50 rounded-lg p-4 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-700 dark:text-blue-300">
+                <p className="font-medium text-blue-700">
                   {t("settings.email.gmailInstructions")}
                 </p>
                 <a

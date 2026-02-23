@@ -63,8 +63,8 @@ const PortalChatList = ({ rooms, activeRoom, onNewChat, onResumeChat, onReopenCh
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "active": return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Ativo</Badge>;
-      case "waiting": return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Aguardando</Badge>;
+      case "active": return <Badge className="bg-green-100 text-green-800">Ativo</Badge>;
+      case "waiting": return <Badge className="bg-yellow-100 text-yellow-800">Aguardando</Badge>;
       case "closed": return <Badge variant="outline">Encerrado</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
@@ -72,9 +72,9 @@ const PortalChatList = ({ rooms, activeRoom, onNewChat, onResumeChat, onReopenCh
 
   const resolutionBadge = (status: string | null) => {
     switch (status) {
-      case "resolved": return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Resolvido</Badge>;
-      case "escalated": return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Escalado</Badge>;
-      case "pending": return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">Pendente</Badge>;
+      case "resolved": return <Badge className="bg-green-100 text-green-800">Resolvido</Badge>;
+      case "escalated": return <Badge className="bg-red-100 text-red-800">Escalado</Badge>;
+      case "pending": return <Badge className="bg-orange-100 text-orange-800">Pendente</Badge>;
       default: return null;
     }
   };

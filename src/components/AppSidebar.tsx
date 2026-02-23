@@ -22,12 +22,10 @@ import {
   Flag,
   User,
   Inbox,
-  Moon,
-  Sun,
   Shield,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useTheme } from "next-themes";
+
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,7 +60,7 @@ export function AppSidebar() {
   const { t, language, setLanguage } = useLanguage();
   const { user, isAdmin, isMaster, hasPermission, userDataLoading, isImpersonating, impersonatedTenantName } = useAuth();
   const { state } = useSidebar();
-  const { theme, setTheme } = useTheme();
+  
   const collapsed = state === "collapsed";
 
   const [npsOpen, setNpsOpen] = useState(
@@ -130,8 +128,8 @@ export function AppSidebar() {
     "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
   const groupLabelCls = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-2 py-1.5";
 
-  const logoSrc = theme === "dark" ? "/logo-dark.svg" : "/logo-light.svg";
-  const iconSrc = theme === "dark" ? "/logo-icon-dark.svg" : "/logo-icon-light.svg";
+  const logoSrc = "/logo-light.svg";
+  const iconSrc = "/logo-icon-light.svg";
 
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
@@ -480,14 +478,6 @@ export function AppSidebar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="h-8 w-8 text-foreground/50 hover:text-foreground"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
             <Button
               variant="ghost"
               size="icon"

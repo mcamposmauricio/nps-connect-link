@@ -205,7 +205,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   return (
     <div className="border-t p-3 space-y-2" onDrop={handleDrop} onDragOver={handleDragOver}>
       {isInternal && (
-        <div className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+        <div className="text-xs text-yellow-600 flex items-center gap-1">
           <Eye className="h-3 w-3" />
           {t("chat.workspace.internal_note")}
         </div>

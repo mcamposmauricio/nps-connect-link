@@ -55,7 +55,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange }: 
 
         {/* Internal note only */}
         <div className="border-t pt-3 space-y-2">
-          <div className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+          <div className="text-xs text-yellow-600 flex items-center gap-1">
             <Eye className="h-3 w-3" />
             {t("chat.workspace.internal_note")}
           </div>

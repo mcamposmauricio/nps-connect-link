@@ -820,7 +820,7 @@ const AdminSettings = () => {
                 todayHour.start_time <= timeStr &&
                 todayHour.end_time >= timeStr;
               return (
-                <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium ${isWithinHours ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
+                <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-medium ${isWithinHours ? "bg-green-500/10 border-green-500/30 text-green-600" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
                   {isWithinHours
                     ? <CheckCircle2 className="h-4 w-4 shrink-0" />
                     : <XCircle className="h-4 w-4 shrink-0" />}

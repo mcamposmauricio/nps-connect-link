@@ -41,7 +41,7 @@ export function CNPJPreview({ data, onUseData, onFillManually }: CNPJPreviewProp
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-medium">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-500" />
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
             {t("cnpj.found")}
           </CardTitle>
           <Badge variant={isActive ? "default" : "destructive"} className="gap-1">
