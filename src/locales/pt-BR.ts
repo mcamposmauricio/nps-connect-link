@@ -765,6 +765,7 @@ export default {
   "chat.autoMsg.timeGroup": "Mensagens de Tempo",
   "chat.autoMsg.specialGroup": "Mensagens Especiais",
   "chat.autoMsg.minutesLabel": "Tempo (minutos)",
+  "chat.autoMsg.minutesMin": "Mínimo: 5 minutos",
 
   "chat.autoMsg.welcome_message.title": "Boas-vindas",
   "chat.autoMsg.welcome_message.description": "Enviada automaticamente quando o visitante inicia uma nova conversa",

@@ -49,7 +49,7 @@ const AUTO_MESSAGE_TYPES: AutoMessageTypeConfig[] = [
   // Time group
   { rule_type: "inactivity_warning", icon: Clock, hasMinutes: true, defaultEnabled: false, defaultMinutes: 5, group: "time" },
   { rule_type: "auto_close", icon: XCircle, hasMinutes: true, defaultEnabled: false, defaultMinutes: 30, group: "time" },
-  { rule_type: "attendant_absence", icon: UserX, hasMinutes: true, defaultEnabled: false, defaultMinutes: 3, group: "time" },
+  { rule_type: "attendant_absence", icon: UserX, hasMinutes: true, defaultEnabled: false, defaultMinutes: 5, group: "time" },
   // Special group
   { rule_type: "offline_message", icon: WifiOff, hasMinutes: false, defaultEnabled: true, group: "special" },
   { rule_type: "post_service_csat", icon: Star, hasMinutes: false, defaultEnabled: false, group: "special" },
@@ -126,7 +126,7 @@ const AutoMessagesTab = () => {
     setSavingId(rule.id);
     const updates: Record<string, any> = {};
     if (edits.message_content !== undefined) updates.message_content = edits.message_content;
-    if (edits.trigger_minutes !== undefined) updates.trigger_minutes = edits.trigger_minutes;
+    if (edits.trigger_minutes !== undefined) updates.trigger_minutes = Math.max(5, edits.trigger_minutes ?? 5);
 
     await supabase.from("chat_auto_rules").update(updates).eq("id", rule.id);
     setRules((prev) => prev.map((r) => r.id === rule.id ? { ...r, ...updates } : r));
@@ -218,11 +218,12 @@ const AutoMessagesTab = () => {
                           <Label className="text-xs">{t("chat.autoMsg.minutesLabel")}</Label>
                           <Input
                             type="number"
-                            min={1}
+                            min={5}
                             value={getLocalValue(rule, "trigger_minutes") ?? ""}
-                            onChange={(e) => setLocalEdit(rule.id, "trigger_minutes", Number(e.target.value) || null)}
+                            onChange={(e) => setLocalEdit(rule.id, "trigger_minutes", Math.max(5, Number(e.target.value) || 5))}
                             className="w-[120px]"
                           />
+                          <p className="text-[11px] text-muted-foreground">{t("chat.autoMsg.minutesMin")}</p>
                         </div>
                       )}
                       <div className="space-y-1.5">
