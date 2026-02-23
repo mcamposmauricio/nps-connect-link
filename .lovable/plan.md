@@ -1,42 +1,51 @@
 
 
-# Adicionar Filtros Avancados na Tela de Empresas
+# Corrigir Contador de Conversas Ativas Dessincronizado
 
-## Objetivo
+## Problema Identificado
 
-Adicionar o filtro de **coluna do Kanban (cs_status)** e outros filtros relevantes na tela de Empresas (`/nps/contacts`), aproveitando dados que ja existem na tabela `contacts` mas nao estao expostos na interface de filtragem.
+O atendente **Felipão** (`felipe@marqponto.com.br`) tem `active_conversations = 3` na tabela `attendant_profiles`, porem possui **zero salas ativas** atribuidas a ele. O contador ficou "preso" em um valor alto, fazendo com que o sistema de atribuicao automatica o ignore por achar que ele ja esta no limite de capacidade (`capacity_limit = 2`).
 
-## Novos Filtros
+Enquanto isso, o **Lucas** (`lucas@marqponto.com.br`) recebeu todas as atribuicoes corretamente porque seu contador estava sincronizado.
 
-| Filtro | Campo | Valores |
-|---|---|---|
-| **Etapa do Kanban** | `cs_status` | Implementacao, Onboarding, Acompanhamento, Churn |
-| **Prioridade** | `service_priority` | Normal, Alta, Urgente |
-| **Health Score** | `health_score` | Saudavel (70-100), Atencao (40-69), Critico (0-39) |
-| **NPS** | `last_nps_score` | Promotor (9-10), Neutro (7-8), Detrator (0-6), Sem resposta |
+## Solucao
 
-Esses filtros se somam aos ja existentes (Setor, Estado, Cidade).
+### 1. Corrigir o contador do Felipe (migracao SQL)
 
-## Mudancas Tecnicas
+Executar um UPDATE que recalcula o `active_conversations` baseado nas salas realmente ativas:
 
-### 1. `src/pages/Contacts.tsx`
+```sql
+UPDATE attendant_profiles
+SET active_conversations = (
+  SELECT COUNT(*)
+  FROM chat_rooms
+  WHERE chat_rooms.attendant_id = attendant_profiles.id
+    AND chat_rooms.status IN ('active', 'waiting')
+),
+updated_at = now()
+WHERE id = '5c8ab003-a237-436e-9a74-4309a5317ebf';
+```
 
-- Adicionar estados: `csStatusFilter`, `priorityFilter`, `healthFilter`, `npsFilter`
-- Incluir os novos `Select` na barra de filtros, usando as traducoes ja existentes para cs_status (`cs.status.implementacao`, etc.)
-- Atualizar a logica de filtragem do `.filter()` para considerar os novos campos
-- Atualizar o contador de filtros ativos e o botao de limpar
-- Expandir a interface `Company` para incluir `cs_status`, `health_score`, `service_priority`, `last_nps_score`
+### 2. Prevencao: reconciliar todos os atendentes
 
-### 2. `src/locales/pt-BR.ts` e `src/locales/en.ts`
+Para evitar o mesmo problema com outros atendentes, aplicar a reconciliacao para todos:
 
-- Adicionar chaves para os novos filtros:
-  - `companies.filterByKanban` / `companies.allKanbanStages`
-  - `companies.filterByPriority` / `companies.allPriorities`
-  - `companies.filterByHealth` / `companies.allHealthScores`
-  - `companies.filterByNPS` / `companies.allNPS`
-  - Labels para faixas de health score e NPS
+```sql
+UPDATE attendant_profiles
+SET active_conversations = (
+  SELECT COUNT(*)
+  FROM chat_rooms
+  WHERE chat_rooms.attendant_id = attendant_profiles.id
+    AND chat_rooms.status IN ('active', 'waiting')
+),
+updated_at = now();
+```
 
-### 3. Nenhuma alteracao no banco de dados
+### Arquivos alterados
 
-Todos os campos ja existem na tabela `contacts` e ja sao retornados pela query `select("*")`.
+Nenhum arquivo de codigo sera alterado. Apenas uma migracao SQL para corrigir os dados.
+
+### Causa raiz provavel
+
+Os triggers `decrement_attendant_active_conversations` e `decrement_on_room_delete` existem no banco, mas podem ter falhado em algum cenario especifico (ex: sala fechada diretamente via update em batch, ou race condition). A reconciliacao corrige o estado atual.
 
