@@ -38,6 +38,7 @@ import UserPortal from "./pages/UserPortal";
 import People from "./pages/People";
 import NPSSettings from "./pages/NPSSettings";
 import MyProfile from "./pages/MyProfile";
+import Backoffice from "./pages/Backoffice";
 import SidebarLayout from "./components/SidebarLayout";
 
 const queryClient = new QueryClient();
@@ -115,6 +116,9 @@ const App = () => (
 
             {/* Profile */}
             <Route path="/profile" element={<MyProfile />} />
+
+            {/* Backoffice Master */}
+            <Route path="/backoffice" element={<Backoffice />} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
