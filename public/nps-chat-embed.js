@@ -222,6 +222,11 @@
       iframeSrc += "&ownerUserId=" + encodeURIComponent(resolvedOwnerUserId);
     }
 
+    // Always pass API key so iframe can resolve owner even with cached script
+    if (apiKey) {
+      iframeSrc += "&apiKey=" + encodeURIComponent(apiKey);
+    }
+
     iframe.src = iframeSrc;
     // Start small (FAB size only) to avoid blocking clicks on the host page
     iframe.style.cssText =

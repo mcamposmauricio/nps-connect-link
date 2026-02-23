@@ -14,9 +14,9 @@ Deno.serve(async (req) => {
   try {
     const { api_key, external_id } = await req.json();
 
-    if (!api_key || !external_id) {
+    if (!api_key) {
       return new Response(
-        JSON.stringify({ error: "api_key and external_id are required" }),
+        JSON.stringify({ error: "api_key is required" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
@@ -63,6 +63,14 @@ Deno.serve(async (req) => {
       .from("api_keys")
       .update({ last_used_at: new Date().toISOString() })
       .eq("id", apiKeyData.id);
+
+    // If no external_id provided, just return the user_id (owner resolution only)
+    if (!external_id) {
+      return new Response(
+        JSON.stringify({ visitor_token: null, user_id: userId }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Find company_contact by external_id + user_id
     const { data: companyContact, error: contactError } = await supabase
