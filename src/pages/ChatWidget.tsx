@@ -503,13 +503,15 @@ const ChatWidget = () => {
     setLoading(true);
     setAllBusy(false);
 
+    const ownerUserId = paramOwnerUserId || "00000000-0000-0000-0000-000000000000";
+
     const { data: visitor, error: vError } = await supabase
       .from("chat_visitors")
       .insert({
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
-        owner_user_id: "00000000-0000-0000-0000-000000000000",
+        owner_user_id: ownerUserId,
       })
       .select("id, visitor_token")
       .single();
@@ -527,7 +529,7 @@ const ChatWidget = () => {
       .from("chat_rooms")
       .insert({
         visitor_id: visitor.id,
-        owner_user_id: "00000000-0000-0000-0000-000000000000",
+        owner_user_id: ownerUserId,
         status: "waiting",
       })
       .select("id, status, attendant_id")

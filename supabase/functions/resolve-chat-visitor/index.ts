@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 
     if (contactError || !companyContact) {
       return new Response(
-        JSON.stringify({ visitor_token: null, error: "contact_not_found" }),
+        JSON.stringify({ visitor_token: null, error: "contact_not_found", user_id: userId }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
