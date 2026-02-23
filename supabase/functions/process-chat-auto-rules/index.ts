@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
           .from("chat_messages")
           .select("id, created_at, sender_type, metadata")
           .eq("room_id", room.id)
+          .neq("sender_type", "system")
           .order("created_at", { ascending: false })
           .limit(1);
 
@@ -88,8 +89,9 @@ Deno.serve(async (req) => {
           }
 
           if (rule.rule_type === "inactivity_warning") {
-            // For active rooms only
+            // For active rooms only, and only when the attendant spoke last (client didn't reply)
             if (room.status !== "active") continue;
+            if (lastMsg.sender_type !== "attendant") continue;
           }
 
           // Check for duplicate: has this auto_rule already been sent after the last real message?
