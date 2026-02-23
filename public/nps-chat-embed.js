@@ -178,6 +178,9 @@
           resolvedCompanyContactId = data.company_contact_id || "";
           resolvedContactId = data.contact_id || "";
           localStorage.setItem("chat_visitor_token", data.visitor_token);
+        } else if (data.user_id) {
+          // Fallback: contact not found but API key valid — use owner user_id
+          resolvedOwnerUserId = data.user_id;
         }
         callback();
       })
