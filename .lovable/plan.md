@@ -1,104 +1,74 @@
 
 
-# Modo Fantasma: Impersonacao de Plataforma pelo Master
+# Provisionar Primeiro Admin ao Criar Tenant
 
-## Visao Geral
+## Objetivo
 
-Quando o usuario master selecionar uma plataforma, o sistema carrega completamente como se fosse um admin dessa plataforma -- sidebar, chats, dados, configuracoes -- porem sem contabilizar como atendente ou usuario da organizacao.
-
----
-
-## 1. AuthContext -- Estado de Impersonacao
-
-Adicionar ao `AuthContext.tsx`:
-
-- `impersonatedTenantId: string | null` -- o tenant selecionado para impersonacao
-- `impersonatedTenantName: string | null` -- nome para exibir no banner
-- `isImpersonating: boolean` -- flag de conveniencia
-- `setImpersonation(tenantId: string, tenantName: string)` -- ativa impersonacao
-- `clearImpersonation()` -- sai do modo fantasma
-
-O `tenantId` exposto pelo contexto retorna `impersonatedTenantId` quando ativo, permitindo que TODO o sistema existente funcione sem alteracoes nos componentes filhos.
-
-Quando impersonando:
-- `isAdmin` permanece `true` (master herda admin)
-- `isChatEnabled` se torna `true` (para ver menus de chat)
-- `hasPermission` retorna `true` para tudo (admin)
+Ao criar uma nova plataforma (tenant) no backoffice, incluir campos para o primeiro usuario administrador (nome e email). Esse usuario sera automaticamente provisionado com convite pendente e role `admin`, permitindo que ele acesse a plataforma e comece a convidar outros usuarios.
 
 ---
 
-## 2. SidebarLayout -- Banner de Impersonacao
+## 1. Frontend -- Formulario de Criacao de Tenant
 
-No `SidebarLayout.tsx`, adicionar na `header` (barra superior com o SidebarTrigger):
+**Arquivo:** `src/components/backoffice/TenantManagement.tsx`
 
-- Quando `isImpersonating === true`, exibir um banner colorido (ex: fundo amber/warning) mostrando:
-  - Icone `Eye` + "Visualizando: [Nome da Plataforma]"
-  - Botao "Sair" que chama `clearImpersonation()` e navega para `/backoffice`
-- Quando impersonando, o redirect de `!tenantId && !isAdmin` nao dispara (master ja e admin)
+Adicionar ao formulario de "Novo Tenant" (apenas quando NAO esta editando):
 
----
+- Campo **"Email do primeiro admin"** (obrigatorio na criacao)
+- Campo **"Nome do primeiro admin"** (obrigatorio na criacao)
+- Separador visual com titulo "Primeiro Administrador"
 
-## 3. SidebarDataContext -- Filtro por Tenant Impersonado
+Ao salvar:
+1. Criar o tenant via `supabase.from("tenants").insert(...)` e obter o `id` retornado
+2. Chamar a Edge Function `backoffice-admin` com action `provision-tenant-admin` passando `tenantId`, `email` e `displayName`
+3. Exibir toast de sucesso com informacao de que o convite foi criado
 
-O `SidebarDataContext` atualmente busca TODOS os attendants (porque master e admin). Quando impersonando:
-
-- Filtrar `attendant_profiles` pelo `tenant_id` do tenant impersonado (via join com `user_profiles`)
-- Filtrar `chat_rooms` pelo `tenant_id` impersonado
-- O master NAO aparece na lista de atendentes (nao tem `attendant_profile`)
-- Re-inicializar dados quando o tenant impersonado mudar
+O estado do form passa a incluir `admin_email` e `admin_name`.
 
 ---
 
-## 4. Backoffice -- Seletor de Plataforma
+## 2. Edge Function -- Nova Action `provision-tenant-admin`
 
-No `TenantManagement.tsx`, adicionar um botao **"Visualizar"** (icone `Eye`) em cada linha da tabela de tenants:
+**Arquivo:** `supabase/functions/backoffice-admin/index.ts`
 
-- Ao clicar, chama `setImpersonation(tenant.id, tenant.name)`
-- Navega automaticamente para `/admin/dashboard` (ou outra pagina inicial)
-- O sistema carrega completamente com a visao daquele tenant
+Adicionar case `"provision-tenant-admin"` que:
 
----
+1. Recebe `tenantId`, `email`, `displayName`
+2. Verifica se ja existe usuario no `auth.users` com esse email
+   - Se **SIM**: usa o `user_id` existente
+   - Se **NAO**: cria o usuario via `adminClient.auth.admin.createUser({ email, email_confirm: false })` (gera convite por email)
+3. Cria o `user_profile` com:
+   - `user_id`, `email`, `display_name`, `tenant_id`, `invite_status: 'accepted'`, `is_active: true`
+4. Insere `user_roles` com `role: 'admin'` para esse `user_id`
+5. Envia email de reset de senha via `adminClient.auth.resetPasswordForEmail(email)` para que o usuario defina sua senha
+6. Retorna sucesso com o `user_id` criado
 
-## 5. AppSidebar -- Adaptacao para Modo Fantasma
-
-Quando `isImpersonating`:
-- O grupo "Backoffice" continua visivel (para o master poder voltar)
-- Todos os outros grupos (CS, NPS, Chat, Cadastros, Reports) ficam visiveis como admin
-- O nome do tenant impersonado aparece no header da sidebar (abaixo do logo)
-- O master NAO aparece na lista de atendentes do workspace (nao tem attendant_profile naquele tenant)
-
----
-
-## 6. Protecao "Fantasma"
-
-O master nao deve ser contabilizado como usuario da plataforma:
-- Nao tem `attendant_profile` -- logo nao aparece em listas de atendentes
-- Nao tem `csm` no tenant -- logo nao conta como CSM
-- Nao altera `active_conversations` de ninguem
-- Ao enviar mensagens no workspace (se permitido), usa `sender_name: "Master"` com `is_internal: true`
-- Nao aparece em metricas de atendimento
+Isso usa `service_role_key` (necessario para `auth.admin`) e ja esta protegido pela verificacao de role `master`.
 
 ---
 
-## Secao Tecnica -- Arquivos Afetados
+## 3. Fluxo Completo
+
+```text
+1. Master clica "Novo Tenant"
+2. Preenche: Nome da plataforma, Slug, Logo
+3. Preenche: Email e Nome do primeiro admin
+4. Clica "Salvar"
+5. Sistema cria o tenant no banco
+6. Sistema chama edge function para provisionar o admin:
+   a. Cria usuario no auth (ou reutiliza existente)
+   b. Cria user_profile vinculado ao tenant
+   c. Cria user_role como admin
+   d. Envia email de definicao de senha
+7. Toast: "Plataforma criada! Convite enviado para [email]"
+```
+
+---
+
+## Secao Tecnica
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/contexts/AuthContext.tsx` | Adicionar estado de impersonacao, override de `tenantId`, funcoes `setImpersonation`/`clearImpersonation` |
-| `src/components/SidebarLayout.tsx` | Banner de impersonacao no header com botao "Sair" |
-| `src/contexts/SidebarDataContext.tsx` | Filtrar attendants e rooms pelo tenant impersonado |
-| `src/components/backoffice/TenantManagement.tsx` | Botao "Visualizar" por tenant |
-| `src/components/AppSidebar.tsx` | Exibir nome do tenant impersonado, manter Backoffice visivel |
-
-## Fluxo do Usuario
-
-```
-1. Master faz login -> ve sidebar com apenas "Backoffice" e "Perfil"
-2. Navega para /backoffice -> ve lista de plataformas
-3. Clica em "Visualizar" no tenant "Empresa X"
-4. Sistema carrega: sidebar mostra todos os menus de CS, NPS, Chat
-5. Banner no topo: "Visualizando: Empresa X [Sair]"
-6. Master navega livremente, ve dados, configs, chats da Empresa X
-7. Clica "Sair" -> volta ao /backoffice, sidebar limpa
-```
+| `src/components/backoffice/TenantManagement.tsx` | Adicionar campos admin_email e admin_name ao form, chamar edge function apos criar tenant |
+| `supabase/functions/backoffice-admin/index.ts` | Adicionar action `provision-tenant-admin` |
 
