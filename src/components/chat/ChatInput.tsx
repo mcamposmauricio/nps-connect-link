@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Eye, Loader2, Paperclip, X, FileText, Zap } from "lucide-react";
+import { Send, Eye, Loader2, Paperclip, X, FileText, Zap, Keyboard } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -288,6 +288,28 @@ export function ChatInput({ onSend }: ChatInputProps) {
               <Zap className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 h-9 w-9"
+              title="Atalhos de teclado"
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-3" align="start" side="top">
+            <p className="text-xs font-semibold mb-2">Atalhos de teclado</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span>Enviar mensagem</span><kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Enter</kbd></div>
+              <div className="flex justify-between"><span>Nova linha</span><kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Shift+Enter</kbd></div>
+              <div className="flex justify-between"><span>Nota interna</span><kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Ctrl+Shift+I</kbd></div>
+              <div className="flex justify-between"><span>Macros</span><kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">/</kbd></div>
+            </div>
+          </PopoverContent>
         </Popover>
 
         <Textarea

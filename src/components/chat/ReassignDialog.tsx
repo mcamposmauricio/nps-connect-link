@@ -10,6 +10,8 @@ interface Attendant {
   display_name: string;
   status: string | null;
   user_id: string;
+  active_conversations: number | null;
+  max_conversations: number | null;
 }
 
 interface ReassignDialogProps {
@@ -31,7 +33,7 @@ export function ReassignDialog({ open, onOpenChange, currentAttendantId, onConfi
     setSelected(null);
     supabase
       .from("attendant_profiles")
-      .select("id, display_name, status, user_id")
+      .select("id, display_name, status, user_id, active_conversations, max_conversations")
       .then(({ data }) => {
         const list = (data ?? []) as Attendant[];
         setAttendants(list.filter((a) => a.id !== currentAttendantId));
@@ -75,9 +77,14 @@ export function ReassignDialog({ open, onOpenChange, currentAttendantId, onConfi
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <User className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="flex-1 text-left">
+                   <div className="flex-1 text-left">
                     <p className="font-medium">{att.display_name}</p>
-                    <p className="text-xs text-muted-foreground">{att.status === "online" ? "Online" : "Offline"}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">{att.status === "online" ? "Online" : "Offline"}</p>
+                      <span className="text-[10px] text-muted-foreground">
+                        {att.active_conversations ?? 0}/{att.max_conversations ?? "∞"} conversas
+                      </span>
+                    </div>
                   </div>
                 </button>
               ))}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity, ExternalLink } from "lucide-react";
+import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity, ExternalLink, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -94,63 +94,68 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   const [companyContact, setCompanyContact] = useState<CompanyContact | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    const { data: visitorData } = await supabase
+      .from("chat_visitors")
+      .select("id, name, email, phone, role, department, created_at, contact_id, company_contact_id")
+      .eq("id", visitorId)
+      .maybeSingle();
+
+    const v = visitorData as Visitor | null;
+    setVisitor(v);
+
+    const cId = propContactId || v?.contact_id;
+    const ccId = propCompanyContactId || v?.company_contact_id;
+    const promises: Promise<void>[] = [];
+
+    if (cId) {
+      promises.push(
+        (async () => {
+          const { data } = await supabase
+            .from("contacts")
+            .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document")
+            .eq("id", cId)
+            .maybeSingle();
+          setCompany(data as Company | null);
+        })()
+      );
+      promises.push(
+        (async () => {
+          const { data } = await supabase
+            .from("timeline_events")
+            .select("id, type, title, description, date, user_name, metadata")
+            .eq("contact_id", cId)
+            .order("date", { ascending: false })
+            .limit(10);
+          setTimelineEvents((data as TimelineEvent[]) ?? []);
+        })()
+      );
+    }
+
+    if (ccId) {
+      promises.push(
+        (async () => {
+          const { data } = await supabase
+            .from("company_contacts")
+            .select("id, name, email, phone, role, department, external_id, chat_total, chat_avg_csat, chat_last_at")
+            .eq("id", ccId)
+            .maybeSingle();
+          setCompanyContact(data as CompanyContact | null);
+        })()
+      );
+    }
+
+    await Promise.all(promises);
+    setLoading(false);
+    setRefreshing(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { data: visitorData } = await supabase
-        .from("chat_visitors")
-        .select("id, name, email, phone, role, department, created_at, contact_id, company_contact_id")
-        .eq("id", visitorId)
-        .maybeSingle();
-
-      const v = visitorData as Visitor | null;
-      setVisitor(v);
-
-      const cId = propContactId || v?.contact_id;
-      const ccId = propCompanyContactId || v?.company_contact_id;
-      const promises: Promise<void>[] = [];
-
-      if (cId) {
-        promises.push(
-          (async () => {
-            const { data } = await supabase
-              .from("contacts")
-              .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document")
-              .eq("id", cId)
-              .maybeSingle();
-            setCompany(data as Company | null);
-          })()
-        );
-        promises.push(
-          (async () => {
-            const { data } = await supabase
-              .from("timeline_events")
-              .select("id, type, title, description, date, user_name, metadata")
-              .eq("contact_id", cId)
-              .order("date", { ascending: false })
-              .limit(10);
-            setTimelineEvents((data as TimelineEvent[]) ?? []);
-          })()
-        );
-      }
-
-      if (ccId) {
-        promises.push(
-          (async () => {
-            const { data } = await supabase
-              .from("company_contacts")
-              .select("id, name, email, phone, role, department, external_id, chat_total, chat_avg_csat, chat_last_at")
-              .eq("id", ccId)
-              .maybeSingle();
-            setCompanyContact(data as CompanyContact | null);
-          })()
-        );
-      }
-
-      await Promise.all(promises);
-      setLoading(false);
-    };
     fetchData();
   }, [visitorId, propContactId, propCompanyContactId]);
 
@@ -170,8 +175,11 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   if (!hasLinkedData) {
     return (
       <div className="glass-card h-full">
-        <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-semibold">{t("chat.workspace.visitor_info")}</h3>
+          <button onClick={() => fetchData(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Atualizar dados">
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
         </div>
         <div className="p-4 space-y-4">
           <div className="flex items-center gap-3">
@@ -211,7 +219,10 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
 
   return (
     <div className="glass-card h-full flex flex-col">
-      <div className="p-4 border-b border-border space-y-2">
+      <div className="p-4 border-b border-border space-y-2 relative">
+        <button onClick={() => fetchData(true)} disabled={refreshing} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Atualizar dados">
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <User className="h-5 w-5 text-primary" />
