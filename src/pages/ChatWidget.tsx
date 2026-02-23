@@ -103,8 +103,13 @@ const ChatWidget = () => {
   // Force transparent background on html/body when embedded in iframe
   useEffect(() => {
     if (isEmbed) {
-      document.documentElement.style.background = "transparent";
-      document.body.style.background = "transparent";
+      document.documentElement.setAttribute("data-embed", "true");
+      [document.documentElement, document.body, document.getElementById("root")].forEach((el) => {
+        if (el) {
+          el.style.setProperty("background", "transparent", "important");
+          el.style.setProperty("background-color", "transparent", "important");
+        }
+      });
     }
   }, [isEmbed]);
 
