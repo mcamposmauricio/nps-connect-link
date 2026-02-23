@@ -27,6 +27,7 @@ const Auth = () => {
   const [inviteProfile, setInviteProfile] = useState<InviteProfile | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -35,8 +36,8 @@ const Auth = () => {
   const { user: authUser } = useAuthContext();
 
   useEffect(() => {
-    if (authUser) navigate("/nps/dashboard", { replace: true });
-  }, [authUser, navigate]);
+    if (authUser && !inviteToken) navigate("/nps/dashboard", { replace: true });
+  }, [authUser, navigate, inviteToken]);
 
   useEffect(() => {
     if (!inviteToken) return;
@@ -55,11 +56,16 @@ const Auth = () => {
         setInviteProfile(data as InviteProfile);
         setEmail(data.email);
         setDisplayName(data.display_name || "");
+
+        // Check if user already has an auth account (existing user accepting invite for new tenant)
+        if (authUser && authUser.email === data.email) {
+          setIsExistingUser(true);
+        }
       }
       setInviteLoading(false);
     };
     loadInvite();
-  }, [inviteToken]);
+  }, [inviteToken, authUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,22 +84,44 @@ const Auth = () => {
     if (!inviteProfile) return;
     setLoading(true);
     try {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: inviteProfile.email,
-        password,
-        options: {
-          data: { display_name: displayName || inviteProfile.display_name },
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-      if (signUpError) throw signUpError;
-      const newUserId = signUpData.user?.id;
-      if (!newUserId) throw new Error("User creation failed");
+      let userId: string;
 
+      if (isExistingUser && authUser) {
+        // Existing user accepting invite for a new tenant — no need to sign up
+        userId = authUser.id;
+      } else {
+        // Try to sign in first (user might already have an auth account)
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: inviteProfile.email,
+          password,
+        });
+
+        if (signInData?.user) {
+          // Existing auth user — login succeeded
+          userId = signInData.user.id;
+          setIsExistingUser(true);
+        } else {
+          // New user — sign up
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: inviteProfile.email,
+            password,
+            options: {
+              data: { display_name: displayName || inviteProfile.display_name },
+              emailRedirectTo: `${window.location.origin}/dashboard`,
+            },
+          });
+          if (signUpError) throw signUpError;
+          userId = signUpData.user?.id || "";
+          if (!userId) throw new Error("User creation failed");
+        }
+      }
+
+      // Update the invite profile with the user_id
       const { error: updateError } = await supabase
         .from("user_profiles")
         .update({
-          user_id: newUserId, invite_status: "accepted",
+          user_id: userId,
+          invite_status: "accepted",
           display_name: displayName || inviteProfile.display_name,
           last_sign_in_at: new Date().toISOString(),
         })
@@ -101,16 +129,72 @@ const Auth = () => {
         .eq("invite_status", "pending");
       if (updateError) console.error("Profile update error:", updateError);
 
+      // Create admin role for tenant admin invites
+      // Check if this profile has a tenant_id but no specialty (admin provisioning)
+      if (inviteProfile.tenant_id && (!inviteProfile.specialty || inviteProfile.specialty.length === 0)) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: userId, role: "admin" as any });
+        // Ignore duplicate role error
+        if (roleError && !roleError.message?.includes("duplicate")) {
+          console.error("Role creation error:", roleError);
+        }
+      }
+
+      // CSM creation for attendant invites (has specialty)
       if (inviteProfile.specialty && inviteProfile.specialty.length > 0) {
         await supabase.from("csms").insert({
-          user_id: newUserId,
+          user_id: userId,
           name: displayName || inviteProfile.display_name || inviteProfile.email.split("@")[0],
           email: inviteProfile.email,
           specialty: inviteProfile.specialty,
         });
       }
-      toast({ title: t("auth.signupSuccess"), description: t("auth.checkEmail") });
-      navigate("/auth", { replace: true });
+
+      if (isExistingUser) {
+        toast({ title: "Convite aceito!", description: "Você agora tem acesso à nova plataforma." });
+        // Force reload to pick up new tenant
+        window.location.href = "/nps/dashboard";
+      } else {
+        toast({ title: t("auth.signupSuccess"), description: t("auth.checkEmail") });
+        navigate("/auth", { replace: true });
+      }
+    } catch (error: any) {
+      toast({ title: t("auth.error"), description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Existing user accepting invite — simplified flow
+  const handleAcceptAsExistingUser = async () => {
+    if (!inviteProfile || !authUser) return;
+    setLoading(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("user_profiles")
+        .update({
+          user_id: authUser.id,
+          invite_status: "accepted",
+          display_name: authUser.user_metadata?.display_name || inviteProfile.display_name,
+          last_sign_in_at: new Date().toISOString(),
+        })
+        .eq("id", inviteProfile.id)
+        .eq("invite_status", "pending");
+      if (updateError) throw updateError;
+
+      // Create admin role for tenant admin invites
+      if (inviteProfile.tenant_id && (!inviteProfile.specialty || inviteProfile.specialty.length === 0)) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: authUser.id, role: "admin" as any });
+        if (roleError && !roleError.message?.includes("duplicate")) {
+          console.error("Role creation error:", roleError);
+        }
+      }
+
+      toast({ title: "Convite aceito!", description: "Você agora tem acesso à nova plataforma." });
+      window.location.href = "/nps/dashboard";
     } catch (error: any) {
       toast({ title: t("auth.error"), description: error.message, variant: "destructive" });
     } finally {
@@ -148,7 +232,33 @@ const Auth = () => {
     );
   }
 
-  // Invite acceptance form
+  // Existing user already logged in — simplified accept
+  if (inviteToken && inviteProfile && isExistingUser && authUser) {
+    return (
+      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+        <div className={cardClasses}>
+          <div className="flex justify-center mb-6">
+            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
+          </div>
+          <div className="text-center mb-6">
+            <Badge variant="accent" className="mb-2">
+              <UserPlus className="h-3 w-3 mr-1" />Convite para nova plataforma
+            </Badge>
+            <h2 className="text-lg font-semibold">Olá, {authUser.user_metadata?.display_name || authUser.email}!</h2>
+            <p className="text-sm text-muted-foreground mt-2">
+              Você foi convidado para acessar uma nova plataforma. Clique abaixo para aceitar.
+            </p>
+          </div>
+          <Button onClick={handleAcceptAsExistingUser} className="w-full" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Aceitar convite
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Invite acceptance form (new user)
   if (inviteToken && inviteProfile) {
     return (
       <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
@@ -177,6 +287,9 @@ const Auth = () => {
               <label className="block text-sm font-medium text-foreground/80 mb-2">{t("auth.password")}</label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••" required minLength={6} />
+              <p className="text-xs text-muted-foreground mt-1">
+                Se você já possui conta, use sua senha atual. Caso contrário, defina uma nova senha.
+              </p>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

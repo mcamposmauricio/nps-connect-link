@@ -10,6 +10,11 @@ interface UserPermission {
   can_manage: boolean;
 }
 
+interface TenantOption {
+  tenantId: string;
+  tenantName: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
@@ -20,6 +25,10 @@ interface AuthContextType {
   tenantId: string | null;
   permissions: UserPermission[];
   hasPermission: (module: string, action: 'view' | 'edit' | 'delete' | 'manage') => boolean;
+  // Multi-tenant
+  availableTenants: TenantOption[];
+  selectTenant: (tenantId: string) => void;
+  needsTenantSelection: boolean;
   // Impersonation (ghost mode)
   isImpersonating: boolean;
   impersonatedTenantName: string | null;
@@ -39,6 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userDataLoading, setUserDataLoading] = useState(false);
 
+  // Multi-tenant state
+  const [availableTenants, setAvailableTenants] = useState<TenantOption[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
+    () => localStorage.getItem("selected-tenant-id")
+  );
+
   // Impersonation state
   const [impersonatedTenantId, setImpersonatedTenantId] = useState<string | null>(null);
   const [impersonatedTenantName, setImpersonatedTenantName] = useState<string | null>(null);
@@ -54,8 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setImpersonatedTenantName(null);
   }, []);
 
-  // Effective tenantId: impersonated overrides real
+  const selectTenant = useCallback((tid: string) => {
+    setSelectedTenantId(tid);
+    localStorage.setItem("selected-tenant-id", tid);
+    setTenantId(tid);
+  }, []);
+
+  // Effective tenantId: impersonated overrides selected overrides real
   const effectiveTenantId = impersonatedTenantId ?? tenantId;
+
+  // Whether user needs to pick a tenant
+  const needsTenantSelection = availableTenants.length > 1 && !tenantId && !isImpersonating && !isMaster;
 
   const hasPermission = useCallback(
     (module: string, action: 'view' | 'edit' | 'delete' | 'manage'): boolean => {
@@ -72,11 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      // 1. Check exact match first (highest specificity)
       const exactPerm = permissions.find((p) => p.module === module);
       if (exactPerm) return checkPerm(exactPerm);
 
-      // 2. Inherit from parent modules (e.g. "cs" for "cs.kanban")
       const parts = module.split('.');
       for (let i = parts.length - 1; i > 0; i--) {
         const parentKey = parts.slice(0, i).join('.');
@@ -120,16 +142,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissions([]);
     }
 
-    const { data: profile } = await supabase
+    // Fetch ALL accepted profiles for this user (multi-tenant support)
+    const { data: profiles } = await supabase
       .from("user_profiles")
       .select("tenant_id")
       .eq("user_id", currentUser.id)
-      .maybeSingle();
+      .eq("invite_status", "accepted");
 
-    setTenantId(profile?.tenant_id ?? null);
+    const userTenantIds = (profiles || [])
+      .map(p => p.tenant_id)
+      .filter((tid): tid is string => !!tid);
+
+    if (userTenantIds.length === 0) {
+      setTenantId(null);
+      setAvailableTenants([]);
+    } else if (userTenantIds.length === 1) {
+      setTenantId(userTenantIds[0]);
+      setAvailableTenants([]);
+    } else {
+      // Multiple tenants — fetch names
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("id, name")
+        .in("id", userTenantIds);
+
+      const options: TenantOption[] = (tenantData || []).map(t => ({
+        tenantId: t.id,
+        tenantName: t.name,
+      }));
+      setAvailableTenants(options);
+
+      // Use previously selected tenant if still valid, otherwise leave null for selection screen
+      const savedTid = localStorage.getItem("selected-tenant-id");
+      if (savedTid && userTenantIds.includes(savedTid)) {
+        setTenantId(savedTid);
+      } else if (userTenantIds.length > 0) {
+        // Default to first tenant
+        setTenantId(userTenantIds[0]);
+        localStorage.setItem("selected-tenant-id", userTenantIds[0]);
+      }
+    }
 
     // Only update last_sign_in_at if profile already exists (no upsert — prevents orphan profile creation)
-    if (profile) {
+    if (profiles && profiles.length > 0) {
       await supabase.from("user_profiles")
         .update({ last_sign_in_at: new Date().toISOString() })
         .eq("user_id", currentUser.id);
@@ -154,7 +209,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        // Use setTimeout to avoid Supabase auth deadlock, but track loading state
         setUserDataLoading(true);
         setTimeout(() => loadUserData(currentUser), 0);
       } else {
@@ -163,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsChatEnabled(false);
         setPermissions([]);
         setTenantId(null);
+        setAvailableTenants([]);
         setUserDataLoading(false);
       }
     });
@@ -177,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading, userDataLoading,
       tenantId: effectiveTenantId,
       permissions, hasPermission,
+      availableTenants, selectTenant, needsTenantSelection,
       isImpersonating, impersonatedTenantName,
       setImpersonation, clearImpersonation,
     }}>
