@@ -1,63 +1,70 @@
 
 
-# Fix: Fundo do Widget Sempre Transparente
+# Adicionar Opcao de Formato do Botao do Widget (Circulo / Quadrado)
 
-## Problema
+## Resumo
 
-O `useEffect` atual (linhas 104-109 do `ChatWidget.tsx`) usa apenas `style.background = "transparent"`, mas a regra do Tailwind no `index.css` (`@apply bg-background` na linha 128) compila para `background-color`, que tem precedencia sobre a shorthand `background` definida inline. No tema dark, isso resulta no quadrado preto visivel atras do FAB.
+Adicionar uma nova configuracao `widget_button_shape` que permite escolher entre botao circular (atual) ou quadrado com cantos levemente arredondados. A mudanca afeta o banco de dados, as configuracoes do admin, o preview, o widget real e o script de embed.
 
 ## Alteracoes
 
-### 1. `src/pages/ChatWidget.tsx` (linhas 104-109)
+### 1. Banco de Dados -- Nova coluna
 
-Substituir o useEffect de transparencia:
+Adicionar coluna `widget_button_shape` na tabela `chat_settings`:
 
-**De:**
-```typescript
-useEffect(() => {
-  if (isEmbed) {
-    document.documentElement.style.background = "transparent";
-    document.body.style.background = "transparent";
-  }
-}, [isEmbed]);
+```sql
+ALTER TABLE chat_settings
+ADD COLUMN widget_button_shape text NOT NULL DEFAULT 'circle';
 ```
 
-**Para:**
-```typescript
-useEffect(() => {
-  if (isEmbed) {
-    document.documentElement.setAttribute("data-embed", "true");
-    [document.documentElement, document.body, document.getElementById("root")].forEach((el) => {
-      if (el) {
-        el.style.setProperty("background", "transparent", "important");
-        el.style.setProperty("background-color", "transparent", "important");
-      }
-    });
-  }
-}, [isEmbed]);
+Valores aceitos: `'circle'` (padrao atual) ou `'square'`.
+
+### 2. `src/pages/AdminSettings.tsx`
+
+- Adicionar `widget_button_shape: "circle"` ao estado inicial (junto com `widget_position`, ~linha 65)
+- Carregar o valor do banco ao buscar settings
+- Incluir no payload de save
+- Adicionar um seletor (RadioGroup) na secao de aparencia do widget (proximo ao seletor de posicao, ~linha 394), com opcoes "Circulo" e "Quadrado"
+- Passar a nova prop `buttonShape` ao `WidgetPreview`
+- Incluir `data-button-shape` no snippet de embed gerado (~linha 633)
+
+### 3. `src/components/chat/WidgetPreview.tsx`
+
+- Adicionar prop `buttonShape?: "circle" | "square"` a interface `WidgetPreviewProps`
+- No botao FAB (~linha 151), trocar `rounded-full` por condicional:
+  - `circle` -> `rounded-full` (atual)
+  - `square` -> `rounded-lg` (cantos levemente arredondados)
+
+### 4. `src/pages/ChatWidget.tsx`
+
+- Ler novo parametro `buttonShape` do `searchParams` (~linha 40)
+- No botao FAB (~linha 688), aplicar `rounded-full` ou `rounded-lg` conforme o valor
+
+### 5. `public/nps-chat-embed.js`
+
+- Ler `data-button-shape` do script tag (~linha 7)
+- Passar como query param `&buttonShape=...` na URL do iframe (~linha 196)
+
+## Secao Tecnica
+
+### Condicional de border-radius
+
+```
+circle -> className="rounded-full" (border-radius: 9999px)
+square  -> className="rounded-lg"  (border-radius: 0.5rem / 8px)
 ```
 
-Mudancas:
-- Marca o `html` com atributo `data-embed` para targeting CSS
-- Aplica transparencia em `html`, `body` e `#root`
-- Usa `setProperty` com `!important` para vencer qualquer regra do Tailwind/tema
+### Fluxo de dados
 
-### 2. `src/index.css` (adicionar ao final do arquivo)
-
-Regra CSS de seguranca que garante transparencia independente do tema:
-
-```css
-/* Embedded widget: force transparent background regardless of theme */
-html[data-embed],
-html[data-embed] body,
-html[data-embed] #root {
-  background: transparent !important;
-  background-color: transparent !important;
-}
+```text
+Admin Settings (DB) --> embed script (data-attribute) --> iframe query param --> ChatWidget.tsx (FAB shape)
+Admin Settings (DB) --> WidgetPreview.tsx (preview shape)
 ```
 
-Esta regra funciona como dupla protecao: mesmo que o JS demore a executar, ou que futuras regras CSS sejam adicionadas, o fundo permanecera transparente quando o atributo `data-embed` estiver presente. Cobre tanto o tema light quanto o dark.
+### Arquivos modificados
 
-## Resultado
-
-O botao FAB e o container do chat flutuarao diretamente sobre o conteudo do site hospedeiro, sem nenhum fundo colorido ou escuro visivel, em qualquer configuracao de tema.
+1. **Migracao SQL** -- nova coluna `widget_button_shape`
+2. **`src/pages/AdminSettings.tsx`** -- estado, save, UI de selecao, snippet de embed
+3. **`src/components/chat/WidgetPreview.tsx`** -- prop e condicional no FAB
+4. **`src/pages/ChatWidget.tsx`** -- leitura do param e condicional no FAB
+5. **`public/nps-chat-embed.js`** -- leitura do data-attribute e passagem via query param
