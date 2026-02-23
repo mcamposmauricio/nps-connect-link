@@ -13,6 +13,7 @@ interface UserPermission {
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
+  isMaster: boolean;
   isChatEnabled: boolean;
   loading: boolean;
   userDataLoading: boolean;
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMaster, setIsMaster] = useState(false);
   const [isChatEnabled, setIsChatEnabled] = useState(false);
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -71,7 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("role")
       .eq("user_id", currentUser.id);
 
-    const adminStatus = roles?.some((r) => r.role === "admin") ?? false;
+    const masterStatus = roles?.some((r) => r.role === "master") ?? false;
+    const adminStatus = masterStatus || (roles?.some((r) => r.role === "admin") ?? false);
+    setIsMaster(masterStatus);
     setIsAdmin(adminStatus);
 
     const { data: csm } = await supabase
@@ -132,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => loadUserData(currentUser), 0);
       } else {
         setIsAdmin(false);
+        setIsMaster(false);
         setIsChatEnabled(false);
         setPermissions([]);
         setTenantId(null);
@@ -143,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUserData]);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isChatEnabled, loading, userDataLoading, tenantId, permissions, hasPermission }}>
+    <AuthContext.Provider value={{ user, isAdmin, isMaster, isChatEnabled, loading, userDataLoading, tenantId, permissions, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

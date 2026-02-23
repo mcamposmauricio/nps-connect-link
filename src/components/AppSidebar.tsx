@@ -24,6 +24,7 @@ import {
   Inbox,
   Moon,
   Sun,
+  Shield,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "next-themes";
@@ -59,7 +60,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
-  const { user, isAdmin, hasPermission, userDataLoading } = useAuth();
+  const { user, isAdmin, isMaster, hasPermission, userDataLoading } = useAuth();
   const { state } = useSidebar();
   const { theme, setTheme } = useTheme();
   const collapsed = state === "collapsed";
@@ -162,6 +163,22 @@ export function AppSidebar() {
           </div>
         ) : (
           <>
+            {/* Backoffice Master */}
+            {isMaster && (
+              <SidebarGroup>
+                <SidebarGroupLabel className={groupLabelCls}>Backoffice</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton onClick={() => navigate("/backoffice")} isActive={isActive("/backoffice")} tooltip="Backoffice" className={cn(isActive("/backoffice") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                        <Shield className="h-4 w-4" /><span>Painel Master</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
             {/* Customer Success */}
             {showCS && (
               <SidebarGroup>

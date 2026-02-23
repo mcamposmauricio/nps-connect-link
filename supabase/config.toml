@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.process-chat-auto-rules]
 verify_jwt = false
+
+[functions.backoffice-admin]
+verify_jwt = false

@@ -2266,9 +2266,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_master: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "attendant"
+      app_role: "admin" | "attendant" | "master"
       timeline_event_type:
         | "meeting"
         | "email"
@@ -2407,7 +2408,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "attendant"],
+      app_role: ["admin", "attendant", "master"],
       timeline_event_type: [
         "meeting",
         "email",
