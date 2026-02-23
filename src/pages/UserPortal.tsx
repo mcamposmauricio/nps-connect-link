@@ -114,6 +114,35 @@ const UserPortal = () => {
     fetchPortalData();
   }, [token, fetchRooms]);
 
+  // Realtime subscription for proactive chats (new rooms created by attendants)
+  useEffect(() => {
+    if (!contact) return;
+
+    const filterField = contact.chat_visitor_id
+      ? `visitor_id=eq.${contact.chat_visitor_id}`
+      : `company_contact_id=eq.${contact.id}`;
+
+    const channel = supabase
+      .channel(`portal-new-rooms-${contact.id}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "chat_rooms",
+        filter: filterField,
+      }, async (payload) => {
+        const newRoom = payload.new as any;
+        await fetchRooms(contact.id);
+        // If not currently in a chat, auto-enter the new proactive chat
+        if (!activeRoomId) {
+          setActiveRoomId(newRoom.id);
+          setActiveVisitorId(contact.chat_visitor_id ?? newRoom.visitor_id);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [contact, activeRoomId, fetchRooms]);
+
   // Find active/waiting room
   const activeRoom = rooms.find((r) => r.status === "active" || r.status === "waiting") ?? null;
 
