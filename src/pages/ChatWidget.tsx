@@ -17,6 +17,7 @@ interface HistoryRoom {
   created_at: string;
   closed_at: string | null;
   csat_score: number | null;
+  last_message?: string | null;
 }
 
 interface ChatMsg {
@@ -119,9 +120,26 @@ const ChatWidget = () => {
       .select("id, status, created_at, closed_at, csat_score")
       .eq("visitor_id", vId)
       .order("created_at", { ascending: false });
-    setHistoryRooms(data ?? []);
+    
+    // Fetch last message for each room
+    const rooms = data ?? [];
+    const roomsWithPreview = await Promise.all(
+      rooms.map(async (room) => {
+        const { data: msgs } = await supabase
+          .from("chat_messages")
+          .select("content")
+          .eq("room_id", room.id)
+          .neq("sender_type", "system")
+          .eq("is_internal", false)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        return { ...room, last_message: msgs?.[0]?.content ?? null };
+      })
+    );
+    
+    setHistoryRooms(roomsWithPreview);
     setHistoryLoading(false);
-    return data ?? [];
+    return roomsWithPreview;
   }, []);
 
   useEffect(() => {
@@ -690,7 +708,10 @@ const ChatWidget = () => {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      {room.last_message && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{room.last_message.slice(0, 60)}</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground mt-1">
                         {formatDate(room.created_at)}
                         {room.closed_at && ` — ${formatDate(room.closed_at)}`}
                       </p>
@@ -717,36 +738,50 @@ const ChatWidget = () => {
         )}
 
         {phase === "waiting" && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
-            <div className={allBusy || outsideHours ? "" : "animate-pulse"}>
-              <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
+              <div className={allBusy || outsideHours ? "" : "animate-pulse"}>
+                <MessageSquare className="h-12 w-12 opacity-50" style={{ color: primaryColor }} />
+              </div>
+              {outsideHours && (widgetConfig?.show_outside_hours_banner ?? true) ? (
+                <div className="text-center space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 max-w-xs">
+                  <p className="text-sm font-medium text-blue-800">
+                    {widgetConfig?.outside_hours_title ?? "Estamos fora do horário de atendimento."}
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    {widgetConfig?.outside_hours_message ?? "Sua mensagem ficará registrada e responderemos assim que voltarmos."}
+                  </p>
+                </div>
+              ) : allBusy && (widgetConfig?.show_all_busy_banner ?? true) ? (
+                <div className="text-center space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 max-w-xs">
+                  <p className="text-sm font-medium text-amber-800">
+                    {widgetConfig?.all_busy_title ?? "Todos os atendentes estão ocupados no momento."}
+                  </p>
+                  <p className="text-xs text-amber-700">
+                    {widgetConfig?.all_busy_message ?? "Você está na fila e será atendido em breve. Por favor, aguarde."}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {widgetConfig?.waiting_message ?? "Aguardando atendimento..."}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Você será conectado em breve.</p>
+                </>
+              )}
             </div>
-            {outsideHours && (widgetConfig?.show_outside_hours_banner ?? true) ? (
-              <div className="text-center space-y-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 max-w-xs">
-                <p className="text-sm font-medium text-blue-800">
-                  {widgetConfig?.outside_hours_title ?? "Estamos fora do horário de atendimento."}
-                </p>
-                <p className="text-xs text-blue-700">
-                  {widgetConfig?.outside_hours_message ?? "Sua mensagem ficará registrada e responderemos assim que voltarmos."}
-                </p>
-              </div>
-            ) : allBusy && (widgetConfig?.show_all_busy_banner ?? true) ? (
-              <div className="text-center space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 max-w-xs">
-                <p className="text-sm font-medium text-amber-800">
-                  {widgetConfig?.all_busy_title ?? "Todos os atendentes estão ocupados no momento."}
-                </p>
-                <p className="text-xs text-amber-700">
-                  {widgetConfig?.all_busy_message ?? "Você está na fila e será atendido em breve. Por favor, aguarde."}
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground text-center">
-                  {widgetConfig?.waiting_message ?? "Aguardando atendimento..."}
-                </p>
-                <p className="text-xs text-muted-foreground">Você será conectado em breve.</p>
-              </>
-            )}
+            {/* Input during waiting phase */}
+            <div className="border-t p-3 flex gap-2">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Envie uma mensagem enquanto aguarda..."
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+              />
+              <Button size="icon" onClick={handleSend} disabled={!input.trim()} style={{ backgroundColor: primaryColor }}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
 
@@ -850,9 +885,21 @@ const ChatWidget = () => {
             value={csatComment}
             onChange={(e) => setCsatComment(e.target.value)}
           />
-          <Button className="w-full" onClick={handleSubmitCsat} disabled={csatScore === 0} style={{ backgroundColor: primaryColor }}>
-            Enviar Avaliação
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                if (isResolvedVisitor) handleBackToHistory();
+                else setPhase("closed");
+              }}
+            >
+              Pular
+            </Button>
+            <Button className="flex-1" onClick={handleSubmitCsat} disabled={csatScore === 0} style={{ backgroundColor: primaryColor }}>
+              Enviar Avaliação
+            </Button>
+          </div>
         </div>
       )}
 

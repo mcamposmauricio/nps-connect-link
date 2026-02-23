@@ -59,6 +59,12 @@ const AdminWorkspace = () => {
 
   // Polling moved to SidebarLayout for reliability (runs even without Workspace open)
 
+  // Request browser notification permission
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
   // Get the current user's attendant profile id and display name
   useEffect(() => {
     if (!user) return;

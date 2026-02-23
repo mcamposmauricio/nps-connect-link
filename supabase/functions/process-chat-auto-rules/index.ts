@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch active time-based rules grouped by tenant
+    // Fetch active time-based rules
     const { data: rules, error: rulesErr } = await supabase
       .from("chat_auto_rules")
       .select("id, rule_type, trigger_minutes, message_content, tenant_id")
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     let totalProcessed = 0;
 
     for (const [tenantId, tenantRules] of rulesByTenant) {
-      // Fetch active/waiting rooms for this tenant with last message info
+      // Fetch active/waiting rooms for this tenant
       const roomQuery = supabase
         .from("chat_rooms")
         .select("id, status, attendant_id")
@@ -56,24 +56,52 @@ Deno.serve(async (req) => {
       const { data: rooms, error: roomsErr } = await roomQuery;
       if (roomsErr || !rooms || rooms.length === 0) continue;
 
-      // For each room, get last message info in a single batch
       const roomIds = rooms.map((r) => r.id);
 
-      // Get last message per room (using a query per room is unavoidable without raw SQL, 
-      // but we batch the duplicate-check query)
+      // OPTIMIZATION: Fetch last non-system message for ALL rooms in one query
+      // We get the most recent messages per room_id and deduplicate in JS
+      const { data: allMessages } = await supabase
+        .from("chat_messages")
+        .select("id, room_id, created_at, sender_type, metadata")
+        .in("room_id", roomIds)
+        .neq("sender_type", "system")
+        .order("created_at", { ascending: false })
+        .limit(roomIds.length * 2); // enough to get at least 1 per room
+
+      // Build map: room_id -> last non-system message
+      const lastMsgByRoom = new Map<string, typeof allMessages extends (infer T)[] ? T : never>();
+      if (allMessages) {
+        for (const msg of allMessages) {
+          if (!lastMsgByRoom.has(msg.room_id)) {
+            lastMsgByRoom.set(msg.room_id, msg);
+          }
+        }
+      }
+
+      // OPTIMIZATION: Fetch all system messages after last real messages in batch
+      // Get system messages from the last hour for these rooms
+      const oneHourAgo = new Date(Date.now() - 3600_000).toISOString();
+      const { data: systemMessages } = await supabase
+        .from("chat_messages")
+        .select("id, room_id, created_at, metadata")
+        .in("room_id", roomIds)
+        .eq("sender_type", "system")
+        .gte("created_at", oneHourAgo);
+
+      // Build map: room_id -> system messages
+      const systemMsgsByRoom = new Map<string, typeof systemMessages>();
+      if (systemMessages) {
+        for (const msg of systemMessages) {
+          if (!systemMsgsByRoom.has(msg.room_id)) systemMsgsByRoom.set(msg.room_id, []);
+          systemMsgsByRoom.get(msg.room_id)!.push(msg);
+        }
+      }
+
+      // Process each room against each rule
       for (const room of rooms) {
-        // Get the last message in this room
-        const { data: lastMsgs } = await supabase
-          .from("chat_messages")
-          .select("id, created_at, sender_type, metadata")
-          .eq("room_id", room.id)
-          .neq("sender_type", "system")
-          .order("created_at", { ascending: false })
-          .limit(1);
+        const lastMsg = lastMsgByRoom.get(room.id);
+        if (!lastMsg) continue;
 
-        if (!lastMsgs || lastMsgs.length === 0) continue;
-
-        const lastMsg = lastMsgs[0];
         const lastMsgTime = new Date(lastMsg.created_at!).getTime();
         const now = Date.now();
         const elapsedMinutes = (now - lastMsgTime) / 60000;
@@ -83,38 +111,22 @@ Deno.serve(async (req) => {
 
           // Rule-specific eligibility
           if (rule.rule_type === "attendant_absence") {
-            // Only for rooms with an attendant, where last message is from visitor
             if (!room.attendant_id || room.status !== "active") continue;
             if (lastMsg.sender_type !== "visitor") continue;
           }
 
           if (rule.rule_type === "inactivity_warning") {
-            // For active rooms only, and only when the attendant spoke last (client didn't reply)
             if (room.status !== "active") continue;
             if (lastMsg.sender_type !== "attendant") continue;
           }
 
-          // Check for duplicate: has this auto_rule already been sent after the last real message?
-          const { data: duplicates } = await supabase
-            .from("chat_messages")
-            .select("id")
-            .eq("room_id", room.id)
-            .eq("sender_type", "system")
-            .gt("created_at", lastMsg.created_at!)
-            .limit(1);
-
-          // If there's any system message after the last real message, skip
-          // (more precise: check metadata for this specific rule type)
-          const { data: exactDuplicates } = await supabase
-            .from("chat_messages")
-            .select("id, metadata")
-            .eq("room_id", room.id)
-            .eq("sender_type", "system")
-            .gte("created_at", lastMsg.created_at!)
-            .order("created_at", { ascending: false });
-
-          const alreadySent = exactDuplicates?.some(
-            (m) => m.metadata && (m.metadata as any).auto_rule === rule.rule_type
+          // Check for duplicate using pre-fetched system messages
+          const roomSystemMsgs = systemMsgsByRoom.get(room.id) ?? [];
+          const alreadySent = roomSystemMsgs.some(
+            (m) =>
+              m.created_at! >= lastMsg.created_at! &&
+              m.metadata &&
+              (m.metadata as any).auto_rule === rule.rule_type
           );
 
           if (alreadySent) continue;

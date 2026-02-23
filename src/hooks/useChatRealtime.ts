@@ -368,6 +368,17 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
               audio.volume = 0.3;
               audio.play().catch(() => {});
             } catch {}
+
+            // Browser notification when tab is not focused
+            if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+              const room = rooms.find((r) => r.id === msg.room_id);
+              const visitorName = room?.visitor_name || msg.sender_name || "Visitante";
+              new Notification(`Nova mensagem de ${visitorName}`, {
+                body: msg.content.slice(0, 100),
+                icon: "/logo-icon-dark.svg",
+                tag: `chat-${msg.room_id}`,
+              });
+            }
           }
 
           // ── Atualização cirúrgica do estado — SEM fetchRooms, SEM loading ──

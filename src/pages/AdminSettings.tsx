@@ -80,6 +80,7 @@ const AdminSettings = () => {
 
   // Macros
   const [macros, setMacros] = useState<Macro[]>([]);
+  const [macroSearch, setMacroSearch] = useState("");
   const [macroDialog, setMacroDialog] = useState(false);
   const [editingMacro, setEditingMacro] = useState<Macro | null>(null);
   const [macroForm, setMacroForm] = useState({ title: "", content: "", shortcut: "", category: "" });
@@ -666,6 +667,16 @@ const AdminSettings = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {macros.length > 0 && (
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Buscar macros..."
+                      value={macroSearch}
+                      onChange={(e) => setMacroSearch(e.target.value)}
+                      className="max-w-xs"
+                    />
+                  </div>
+                )}
                 {macros.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">{t("chat.gerencial.no_data")}</p>
                 ) : (
@@ -673,15 +684,23 @@ const AdminSettings = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t("chat.settings.macros.title_label")}</TableHead>
+                        <TableHead>Conteúdo</TableHead>
                         <TableHead>{t("chat.settings.macros.shortcut")}</TableHead>
                         <TableHead>{t("chat.settings.macros.category")}</TableHead>
                         <TableHead className="w-[100px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {macros.map((m) => (
+                      {macros
+                        .filter((m) => {
+                          if (!macroSearch) return true;
+                          const q = macroSearch.toLowerCase();
+                          return m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q) || (m.shortcut?.toLowerCase().includes(q)) || (m.category?.toLowerCase().includes(q));
+                        })
+                        .map((m) => (
                         <TableRow key={m.id}>
                           <TableCell className="font-medium">{m.title}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{m.content.slice(0, 80)}</TableCell>
                           <TableCell className="font-mono text-sm">{m.shortcut ?? "—"}</TableCell>
                           <TableCell>{m.category ?? "—"}</TableCell>
                           <TableCell>
