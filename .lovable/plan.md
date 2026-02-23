@@ -1,51 +1,122 @@
 
+# Plano: API de Update no Embed Script + Correcao de Visibilidade Cross-Tenant
 
-# Fix: ownerUserId nao e passado ao iframe no fallback
+## Parte 1: API `window.NPSChat.update()` no Embed Script
 
-## Problema
+### Objetivo
+Permitir que a plataforma que embeda o widget envie dados do usuario (nome, email, telefone) e campos customizados via JavaScript, eliminando a necessidade do formulario de identificacao quando os dados ja estao disponiveis.
 
-O embed script (`nps-chat-embed.js`) so adiciona `ownerUserId` na URL do iframe quando `resolvedToken` existe (linha 207: `if (resolvedToken)`). No caso de fallback (contato nao encontrado, mas API key valida), `resolvedToken` e `null` e `resolvedOwnerUserId` e preenchido — porem nunca e enviado ao widget.
+### Como funciona
 
-Resultado: o ChatWidget recebe `paramOwnerUserId = null`, usa o UUID nulo `00000000-...`, e a trigger `set_tenant_id_from_owner` ignora-o, deixando `tenant_id = NULL`.
-
-## Solucao
-
-Adicionar um segundo bloco no `createChatWidget()` que passa `ownerUserId` mesmo quando nao ha `resolvedToken`.
-
-### Alteracao em `public/nps-chat-embed.js` (linha ~214)
-
-Apos o bloco `if (resolvedToken) { ... }`, adicionar:
-
+A plataforma chamara:
 ```javascript
-// Fallback: pass ownerUserId even without resolved token
-if (!resolvedToken && resolvedOwnerUserId) {
-  iframeSrc += "&ownerUserId=" + encodeURIComponent(resolvedOwnerUserId);
-}
+window.NPSChat.update({
+  name: "Joao Silva",
+  email: "joao@empresa.com",
+  phone: "11999999999",
+  company_id: "ABC123",
+  company_name: "Empresa X",
+  plano_contratado: "Premium",
+  client_start_at: "2024-01-15",
+  // qualquer campo customizado...
+});
 ```
 
-### Limpeza SQL
+### Alteracoes
 
-Corrigir o room recem-criado e seu visitor:
+#### A. `public/nps-chat-embed.js`
+
+1. Expor objeto global `window.NPSChat` com metodo `update(props)`
+2. O metodo `update`:
+   - Armazena as propriedades recebidas em uma variavel interna `visitorProps`
+   - Envia as propriedades ao iframe via `postMessage` com tipo `nps-chat-update`
+   - Se `name`, `email` ou `phone` forem fornecidos, serao usados para preencher/pular o formulario
+
+#### B. `src/pages/ChatWidget.tsx`
+
+1. Escutar mensagens `nps-chat-update` vindas do parent frame
+2. Ao receber:
+   - Preencher `formData` com `name`, `email`, `phone` (se fornecidos)
+   - Armazenar campos extras em um state `customProps` (tudo que nao for name/email/phone)
+   - Se `name` estiver preenchido e nao houver chat ativo, pular automaticamente para criacao do chat (auto-start)
+3. Na criacao do visitor (`handleStartChat`), salvar os `customProps` no campo `metadata` da tabela `chat_visitors`
+4. Na criacao do room, salvar `customProps` no campo `metadata` da tabela `chat_rooms`
+
+### Fluxo
+
+```
+Plataforma chama window.NPSChat.update({name, email, ...custom})
+  --> postMessage para iframe
+    --> ChatWidget recebe, preenche form, armazena custom props
+      --> Se name presente, auto-cria visitor com metadata
+        --> Cria room com metadata
+          --> Atendente ve os dados customizados no painel
+```
+
+### Campos reservados vs customizados
+
+- **Reservados** (usados para identificacao): `name`, `email`, `phone`
+- **Customizados** (salvos em metadata): todos os demais campos passados
+
+---
+
+## Parte 2: Correcao de Visibilidade Cross-Tenant de Usuarios
+
+### Problema
+
+A politica RLS `"Admins or self can view profiles"` na tabela `user_profiles` permite que qualquer usuario com role `admin` (de qualquer tenant) veja TODOS os perfis do sistema. O usuario admin da MARQ consegue ver atendentes da Suporte e vice-versa.
+
+### Causa
 
 ```sql
--- Fix visitor
-UPDATE chat_visitors SET
-  owner_user_id = '17755531-96a2-4a46-9c11-9bee2b71aaf0',
-  tenant_id = 'ff3876d4-5a07-44b9-be1b-b1899ce96df8'
-WHERE id = 'c1d0b785-87a2-4b52-b476-d3bc96729af5';
-
--- Fix room
-UPDATE chat_rooms SET
-  owner_user_id = '17755531-96a2-4a46-9c11-9bee2b71aaf0',
-  tenant_id = 'ff3876d4-5a07-44b9-be1b-b1899ce96df8'
-WHERE id = '140425f6-2650-4e62-b02f-6667b601bf44';
+-- Politica atual (sem filtro de tenant):
+USING (has_role(auth.uid(), 'admin') OR (auth.uid() = user_id))
 ```
+
+### Correcao
+
+Adicionar filtro de `tenant_id` para admins:
+
+```sql
+DROP POLICY "Admins or self can view profiles" ON user_profiles;
+
+CREATE POLICY "Admins can view tenant profiles"
+  ON user_profiles FOR SELECT
+  USING (
+    has_role(auth.uid(), 'admin'::app_role)
+    AND tenant_id = get_user_tenant_id(auth.uid())
+  );
+
+CREATE POLICY "Users can view own profile"
+  ON user_profiles FOR SELECT
+  USING (auth.uid() = user_id);
+```
+
+Tambem corrigir as politicas de INSERT e UPDATE de admin para incluir filtro de tenant:
+
+```sql
+DROP POLICY "Admins can insert any profile" ON user_profiles;
+CREATE POLICY "Admins can insert tenant profiles"
+  ON user_profiles FOR INSERT
+  WITH CHECK (
+    has_role(auth.uid(), 'admin'::app_role)
+    AND tenant_id = get_user_tenant_id(auth.uid())
+  );
+
+DROP POLICY "Admins can update any profile" ON user_profiles;
+CREATE POLICY "Admins can update tenant profiles"
+  ON user_profiles FOR UPDATE
+  USING (
+    has_role(auth.uid(), 'admin'::app_role)
+    AND tenant_id = get_user_tenant_id(auth.uid())
+  );
+```
+
+A politica `"Master can view all profiles"` permanece inalterada (masters devem ver tudo).
 
 ### Resultado
 
-- Widget embedado com API key MARQ criara rooms com `tenant_id` correto mesmo quando o `external_id` nao corresponde a nenhum contato cadastrado
-- O room problematico sera corrigido e visivel apenas no tenant MARQ
-
-### Nota importante
-
-O arquivo `nps-chat-embed.js` e servido pelo dominio `jornadacliente.com.br`. Apos o deploy, o usuario precisa garantir que o navegador nao esta usando uma versao cacheada do script (hard refresh ou limpar cache).
+- Admins verao apenas usuarios do seu proprio tenant
+- Masters continuam vendo tudo (backoffice)
+- Cada usuario pode ver seu proprio perfil independente de role
+- O painel de equipe da MARQ mostrara apenas membros da MARQ
