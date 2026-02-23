@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Building2, Users, Send, MessageSquare, Eye, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Building2, Users, Send, MessageSquare, Eye, AlertTriangle, Copy, UserCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 
@@ -40,6 +40,21 @@ interface ExistingProfile {
   tenant_name: string;
 }
 
+interface TenantAdmin {
+  id: string;
+  email: string;
+  display_name: string | null;
+  invite_token: string | null;
+  invite_status: string | null;
+  tenant_id: string | null;
+}
+
+interface InviteResult {
+  inviteUrl: string;
+  email: string;
+  userAlreadyExists: boolean;
+}
+
 export default function TenantManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -53,6 +68,10 @@ export default function TenantManagement() {
   // Duplicate email warning state
   const [duplicateWarning, setDuplicateWarning] = useState<ExistingProfile[] | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+
+  // Invite result dialog state
+  const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["backoffice-tenants"],
@@ -87,6 +106,35 @@ export default function TenantManagement() {
     enabled: tenants.length > 0,
   });
 
+  // Query tenant admins (first admin per tenant)
+  const { data: tenantAdmins = [] } = useQuery({
+    queryKey: ["backoffice-tenant-admins"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, email, display_name, invite_token, invite_status, tenant_id")
+        .not("tenant_id", "is", null);
+      if (error) throw error;
+      return (data || []) as TenantAdmin[];
+    },
+  });
+
+  const getAdminForTenant = (tenantId: string) => {
+    const admins = tenantAdmins.filter(a => a.tenant_id === tenantId);
+    const accepted = admins.find(a => a.invite_status === "accepted");
+    if (accepted) return { status: "accepted" as const, admin: accepted };
+    const pending = admins.find(a => a.invite_status === "pending");
+    if (pending) return { status: "pending" as const, admin: pending };
+    return { status: "none" as const, admin: null };
+  };
+
+  const copyInviteLink = (inviteToken: string) => {
+    const baseUrl = window.location.origin;
+    const fullUrl = `${baseUrl}/auth?invite=${inviteToken}`;
+    navigator.clipboard.writeText(fullUrl);
+    toast({ title: "Link copiado!" });
+  };
+
   const doSave = async () => {
     if (editingTenant) {
       const { error } = await supabase.from("tenants").update({
@@ -96,7 +144,6 @@ export default function TenantManagement() {
       }).eq("id", editingTenant.id);
       if (error) throw error;
     } else {
-      // Create tenant and get ID
       const { data: newTenant, error } = await supabase.from("tenants").insert({
         name: form.name,
         slug: form.slug || null,
@@ -104,7 +151,6 @@ export default function TenantManagement() {
       }).select("id").single();
       if (error) throw error;
 
-      // Provision first admin via edge function
       if (form.admin_email && form.admin_name) {
         const { data: provisionData, error: provisionError } = await supabase.functions.invoke("backoffice-admin", {
           body: {
@@ -126,21 +172,29 @@ export default function TenantManagement() {
     mutationFn: doSave,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["backoffice-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["backoffice-tenant-admins"] });
       setDialogOpen(false);
       setEditingTenant(null);
 
       const inviteUrl = data?.inviteUrl;
       const userExists = data?.userAlreadyExists;
+      const savedEmail = form.admin_email;
 
       setForm({ name: "", slug: "", logo_url: "", admin_email: "", admin_name: "" });
-      toast({
-        title: editingTenant ? "Tenant atualizado" : "Plataforma criada!",
-        description: !editingTenant && form.admin_email
-          ? userExists
-            ? `Convite criado para ${form.admin_email}. O usuário já possui conta e receberá um email.`
-            : `Convite criado para ${form.admin_email}. Link: ${inviteUrl}`
-          : undefined,
-      });
+
+      if (!editingTenant && savedEmail && inviteUrl) {
+        // Show persistent dialog with invite link
+        setInviteResult({
+          inviteUrl,
+          email: savedEmail,
+          userAlreadyExists: !!userExists,
+        });
+        setShowInviteDialog(true);
+      } else {
+        toast({
+          title: editingTenant ? "Tenant atualizado" : "Plataforma criada!",
+        });
+      }
     },
     onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
@@ -151,7 +205,6 @@ export default function TenantManagement() {
       return;
     }
 
-    // Check for duplicate email before saving
     try {
       const { data, error } = await supabase.functions.invoke("backoffice-admin", {
         body: { action: "check-email-exists", email: form.admin_email },
@@ -243,6 +296,7 @@ export default function TenantManagement() {
                   <TableHead>Slug</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Criado em</TableHead>
+                  <TableHead>Admin</TableHead>
                   <TableHead className="text-center"><Users className="h-4 w-4 inline" /></TableHead>
                   <TableHead className="text-center"><Building2 className="h-4 w-4 inline" /></TableHead>
                   <TableHead className="text-center"><Send className="h-4 w-4 inline" /></TableHead>
@@ -253,6 +307,7 @@ export default function TenantManagement() {
               <TableBody>
                 {filtered.map(t => {
                   const s = getStats(t.id);
+                  const adminInfo = getAdminForTenant(t.id);
                   return (
                     <TableRow key={t.id}>
                       <TableCell className="font-medium">
@@ -269,6 +324,36 @@ export default function TenantManagement() {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {t.created_at ? format(new Date(t.created_at), "dd/MM/yyyy") : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {adminInfo.status === "accepted" && adminInfo.admin && (
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="promoter" className="gap-1">
+                              <UserCheck className="h-3 w-3" />
+                              Ativo
+                            </Badge>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={adminInfo.admin.email}>
+                              {adminInfo.admin.email}
+                            </span>
+                          </div>
+                        )}
+                        {adminInfo.status === "pending" && adminInfo.admin && (
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="passive" className="gap-1">Pendente</Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              title="Copiar link de convite"
+                              onClick={() => adminInfo.admin?.invite_token && copyInviteLink(adminInfo.admin.invite_token)}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                        {adminInfo.status === "none" && (
+                          <span className="text-xs text-muted-foreground">Sem admin</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">{s?.users ?? "—"}</TableCell>
                       <TableCell className="text-center">{s?.contacts ?? "—"}</TableCell>
@@ -295,7 +380,7 @@ export default function TenantManagement() {
                   );
                 })}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum tenant encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum tenant encontrado</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -339,6 +424,58 @@ export default function TenantManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite success dialog with copyable link */}
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" />
+              Plataforma criada com sucesso!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {inviteResult?.userAlreadyExists
+                ? `O usuário ${inviteResult.email} já possui conta e receberá um email com o convite.`
+                : `Um convite foi criado para ${inviteResult?.email}. Compartilhe o link abaixo para que o administrador configure a plataforma.`
+              }
+            </p>
+            <div className="space-y-2">
+              <Label>Link de acesso</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={inviteResult?.inviteUrl ? `${window.location.origin}/auth?invite=${inviteResult.inviteUrl.split("invite=")[1] || inviteResult.inviteUrl}` : ""}
+                  className="text-xs font-mono"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => {
+                    const token = inviteResult?.inviteUrl?.split("invite=")[1] || inviteResult?.inviteUrl;
+                    if (token) {
+                      navigator.clipboard.writeText(`${window.location.origin}/auth?invite=${token}`);
+                      toast({ title: "Link copiado!" });
+                    }
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground bg-muted p-3 rounded-md">
+              O administrador deve acessar este link para criar sua senha e configurar a plataforma. O link é válido até ser utilizado.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => { setShowInviteDialog(false); setInviteResult(null); }}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
