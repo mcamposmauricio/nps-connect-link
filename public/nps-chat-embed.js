@@ -4,6 +4,7 @@
   var externalId = script.getAttribute("data-external-id") || "";
   var position = script.getAttribute("data-position") || "right";
   var primaryColor = script.getAttribute("data-primary-color") || "#7C3AED";
+  var buttonShape = script.getAttribute("data-button-shape") || "circle";
   var companyName = script.getAttribute("data-company-name") || "Suporte";
   var baseUrl = script.src.replace(/\/nps-chat-embed\.js.*$/, "");
   var supabaseUrl = "https://mfmkxpdufcbwydixbbbe.supabase.co";
@@ -195,7 +196,9 @@
       "&primaryColor=" +
       encodeURIComponent(primaryColor) +
       "&companyName=" +
-      encodeURIComponent(companyName);
+      encodeURIComponent(companyName) +
+      "&buttonShape=" +
+      encodeURIComponent(buttonShape);
 
     // Pass resolved visitor info to skip form
     if (resolvedToken) {

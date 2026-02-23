@@ -8,6 +8,7 @@ interface WidgetPreviewProps {
   position: "left" | "right";
   primaryColor: string;
   companyName: string;
+  buttonShape?: "circle" | "square";
   showEmailField?: boolean;
   showPhoneField?: boolean;
   formIntroText?: string;
@@ -74,6 +75,7 @@ const WidgetPreview = ({
   position,
   primaryColor,
   companyName,
+  buttonShape = "circle",
   showEmailField = true,
   showPhoneField = true,
   formIntroText = "Preencha seus dados para iniciar o atendimento.",
@@ -150,7 +152,7 @@ const WidgetPreview = ({
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
-            className="absolute bottom-4 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110"
+            className={`absolute bottom-4 ${buttonShape === "square" ? "rounded-lg" : "rounded-full"} shadow-lg flex items-center justify-center transition-transform hover:scale-110`}
             style={{
               ...(position === "right" ? { right: "16px" } : { left: "16px" }),
               width: "48px",
