@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useAttendants } from "@/hooks/useAttendants";
+import { useAuth } from "@/hooks/useAuth";
 import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
 import { format } from "date-fns";
-import { Download, Search, ChevronLeft, ChevronRight, Eye, CalendarIcon, Star, Loader2 } from "lucide-react";
+import { Download, Search, ChevronLeft, ChevronRight, Eye, CalendarIcon, Star, Loader2, RotateCcw, MoreHorizontal, Archive, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -34,6 +37,7 @@ function csatColor(score: number | null): string {
 
 const AdminChatHistory = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { attendants } = useAttendants();
   const [page, setPage] = useState(0);
   const [resolutionStatus, setResolutionStatus] = useState<string | null>(null);
@@ -45,6 +49,7 @@ const AdminChatHistory = () => {
   const [exporting, setExporting] = useState(false);
   const [tagId, setTagId] = useState<string | null>(null);
   const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // ReadOnly dialog
   const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
@@ -55,7 +60,7 @@ const AdminChatHistory = () => {
     });
   }, []);
 
-  const { rooms, loading, totalCount, totalPages, exportToCSV } = useChatHistory({
+  const { rooms, loading, totalCount, totalPages, exportToCSV, refetch } = useChatHistory({
     page,
     resolutionStatus,
     attendantId,
@@ -74,6 +79,8 @@ const AdminChatHistory = () => {
         return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">{t("chat.history.escalated")}</Badge>;
       case "pending":
         return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">{t("chat.history.pending_status")}</Badge>;
+      case "archived":
+        return <Badge className="bg-muted text-muted-foreground">Arquivado</Badge>;
       default:
         return <Badge variant="secondary">{status ?? "—"}</Badge>;
     }
@@ -81,6 +88,85 @@ const AdminChatHistory = () => {
 
   const handleFilterChange = () => {
     setPage(0);
+    setSelectedIds(new Set());
+  };
+
+  // Reopen a pending chat
+  const handleReopenChat = async (roomId: string, originalAttendantId: string | null) => {
+    // Get attendant name for system message
+    let attendantName = "Atendente";
+    if (user) {
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profile?.display_name) attendantName = profile.display_name;
+    }
+
+    // Reactivate room
+    const updateData: Record<string, any> = {
+      status: originalAttendantId ? "active" : "waiting",
+      closed_at: null,
+      resolution_status: null,
+    };
+
+    await supabase.from("chat_rooms").update(updateData).eq("id", roomId);
+
+    // Insert system message
+    await supabase.from("chat_messages").insert({
+      room_id: roomId,
+      sender_type: "system",
+      sender_name: "Sistema",
+      content: `[Sistema] Chat reaberto por ${attendantName}`,
+      is_internal: false,
+    });
+
+    toast.success("Chat reaberto com sucesso!");
+    refetch();
+  };
+
+  // Bulk actions
+  const handleBulkAction = async (action: "resolved" | "archived") => {
+    if (selectedIds.size === 0) return;
+
+    const ids = Array.from(selectedIds);
+    await supabase
+      .from("chat_rooms")
+      .update({ resolution_status: action })
+      .in("id", ids);
+
+    toast.success(`${ids.length} chat(s) ${action === "resolved" ? "marcado(s) como resolvido(s)" : "arquivado(s)"}`);
+    setSelectedIds(new Set());
+    refetch();
+  };
+
+  // Individual action
+  const handleIndividualAction = async (roomId: string, action: "resolved" | "archived") => {
+    await supabase
+      .from("chat_rooms")
+      .update({ resolution_status: action })
+      .eq("id", roomId);
+
+    toast.success(action === "resolved" ? "Marcado como resolvido" : "Arquivado");
+    refetch();
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rooms.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rooms.map((r) => r.id)));
+    }
   };
 
   // Full export
@@ -118,7 +204,6 @@ const AdminChatHistory = () => {
         }
       }
 
-      // Get visitor/attendant names
       const visitorIds = [...new Set(allRooms.map((r) => r.visitor_id))];
       const { data: visitors } = await supabase.from("chat_visitors").select("id, name").in("id", visitorIds);
       const visitorMap = new Map(visitors?.map((v) => [v.id, v.name]) ?? []);
@@ -186,6 +271,24 @@ const AdminChatHistory = () => {
           </div>
         </div>
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-2">
+            <span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span>
+            <Button size="sm" variant="outline" onClick={() => handleBulkAction("resolved")}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Marcar como Resolvido
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleBulkAction("archived")}>
+              <Archive className="h-4 w-4 mr-1" />
+              Arquivar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+              Limpar seleção
+            </Button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-[200px]">
@@ -209,6 +312,7 @@ const AdminChatHistory = () => {
               <SelectItem value="resolved">{t("chat.history.resolved")}</SelectItem>
               <SelectItem value="pending">{t("chat.history.pending_status")}</SelectItem>
               <SelectItem value="escalated">{t("chat.history.escalated")}</SelectItem>
+              <SelectItem value="archived">Arquivado</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -310,6 +414,12 @@ const AdminChatHistory = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={selectedIds.size === rooms.length && rooms.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-[40px]"></TableHead>
                       <TableHead>ID</TableHead>
                       <TableHead>{t("chat.history.client")}</TableHead>
@@ -320,6 +430,7 @@ const AdminChatHistory = () => {
                       <TableHead>{t("chat.history.tags")}</TableHead>
                       <TableHead>{t("chat.history.started_at")}</TableHead>
                       <TableHead>{t("chat.history.closed_at")}</TableHead>
+                      <TableHead className="w-[80px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -329,12 +440,17 @@ const AdminChatHistory = () => {
                         : null;
 
                       return (
-                        <TableRow
-                          key={room.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante" })}
-                        >
-                          <TableCell>
+                        <TableRow key={room.id} className="hover:bg-muted/50">
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(room.id)}
+                              onCheckedChange={() => toggleSelect(room.id)}
+                            />
+                          </TableCell>
+                          <TableCell
+                            className="cursor-pointer"
+                            onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante" })}
+                          >
                             <Eye className="h-4 w-4 text-muted-foreground" />
                           </TableCell>
                           <TableCell className="font-mono text-xs">{room.id.slice(0, 8)}</TableCell>
@@ -368,6 +484,35 @@ const AdminChatHistory = () => {
                             {room.closed_at
                               ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm")
                               : "—"}
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {room.resolution_status === "pending" && (
+                                  <DropdownMenuItem onClick={() => handleReopenChat(room.id, room.attendant_id)}>
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Reabrir
+                                  </DropdownMenuItem>
+                                )}
+                                {room.resolution_status !== "resolved" && (
+                                  <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "resolved")}>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Marcar como Resolvido
+                                  </DropdownMenuItem>
+                                )}
+                                {room.resolution_status !== "archived" && (
+                                  <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "archived")}>
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Arquivar
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );

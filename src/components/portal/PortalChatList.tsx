@@ -31,10 +31,11 @@ interface PortalChatListProps {
   activeRoom: PortalRoom | null;
   onNewChat: () => void;
   onResumeChat: (roomId: string) => void;
+  onReopenChat?: (roomId: string) => void;
   loading: boolean;
 }
 
-const PortalChatList = ({ rooms, activeRoom, onNewChat, onResumeChat, loading }: PortalChatListProps) => {
+const PortalChatList = ({ rooms, activeRoom, onNewChat, onResumeChat, onReopenChat, loading }: PortalChatListProps) => {
   const { t } = useLanguage();
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
   const [messages, setMessages] = useState<PortalMessage[]>([]);
@@ -142,6 +143,11 @@ const PortalChatList = ({ rooms, activeRoom, onNewChat, onResumeChat, loading }:
                     {(room.status === "active" || room.status === "waiting") ? (
                       <Button variant="default" size="sm" onClick={() => onResumeChat(room.id)}>
                         {t("chat.portal.resume_chat")}
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    ) : room.status === "closed" && room.resolution_status === "pending" ? (
+                      <Button variant="default" size="sm" onClick={() => onReopenChat?.(room.id)}>
+                        Retomar conversa
                         <ArrowRight className="h-4 w-4 ml-1" />
                       </Button>
                     ) : (

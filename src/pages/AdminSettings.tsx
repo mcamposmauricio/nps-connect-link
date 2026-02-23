@@ -126,6 +126,7 @@ const AdminSettings = () => {
         show_chat_history: s.show_chat_history ?? true,
         show_csat: s.show_csat ?? true,
         allow_file_attachments: s.allow_file_attachments ?? true,
+        allow_multiple_chats: s.allow_multiple_chats ?? false,
       };
       setSettings(loaded);
       savedSettingsRef.current = loaded;
@@ -194,6 +195,7 @@ const AdminSettings = () => {
       show_chat_history: settings.show_chat_history,
       show_csat: settings.show_csat,
       allow_file_attachments: settings.allow_file_attachments,
+      allow_multiple_chats: (settings as any).allow_multiple_chats ?? false,
     };
 
     if (settings.id) {
@@ -224,7 +226,7 @@ const AdminSettings = () => {
         const boolKeys = [
           "show_outside_hours_banner", "show_all_busy_banner", "show_email_field",
           "show_phone_field", "show_chat_history", "show_csat", "allow_file_attachments",
-          "auto_assignment", "require_approval"
+          "auto_assignment", "require_approval", "allow_multiple_chats"
         ] as const;
         const boolChanged = boolKeys.some(
           (k) => (newSettings as any)[k] !== (savedSettingsRef.current as any)[k]
@@ -569,7 +571,7 @@ const AdminSettings = () => {
                     <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 pb-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
                         <Label className="text-sm">Histórico de conversas</Label>
                         <Switch
@@ -589,6 +591,16 @@ const AdminSettings = () => {
                         <Switch
                           checked={settings.allow_file_attachments}
                           onCheckedChange={(v) => updateSettings({ ...settings, allow_file_attachments: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                        <div>
+                          <Label className="text-sm">Múltiplos chats simultâneos</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Permite que o visitante tenha mais de um chat ativo</p>
+                        </div>
+                        <Switch
+                          checked={(settings as any).allow_multiple_chats ?? false}
+                          onCheckedChange={(v) => updateSettings({ ...settings, allow_multiple_chats: v } as any)}
                         />
                       </div>
                     </div>

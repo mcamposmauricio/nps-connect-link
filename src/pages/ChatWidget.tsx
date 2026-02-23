@@ -82,6 +82,7 @@ const ChatWidget = () => {
     show_chat_history: boolean;
     show_csat: boolean;
     allow_file_attachments: boolean;
+    allow_multiple_chats: boolean;
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,7 +112,7 @@ const ChatWidget = () => {
     setHistoryLoading(true);
     const { data } = await supabase
       .from("chat_rooms")
-      .select("id, status, created_at, closed_at, csat_score")
+      .select("id, status, created_at, closed_at, csat_score, resolution_status")
       .eq("visitor_id", vId)
       .order("created_at", { ascending: false });
     
@@ -143,7 +144,7 @@ const ChatWidget = () => {
       if (ownerForConfig && ownerForConfig !== "00000000-0000-0000-0000-000000000000") {
         const { data: cfg } = await supabase
           .from("chat_settings")
-          .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_email_field, show_phone_field, form_intro_text, show_chat_history, show_csat, allow_file_attachments")
+          .select("show_outside_hours_banner, outside_hours_title, outside_hours_message, show_all_busy_banner, all_busy_title, all_busy_message, waiting_message, show_email_field, show_phone_field, form_intro_text, show_chat_history, show_csat, allow_file_attachments, allow_multiple_chats")
           .eq("user_id", ownerForConfig)
           .maybeSingle();
         if (cfg) setWidgetConfig(cfg as any);
@@ -368,22 +369,80 @@ const ChatWidget = () => {
     setLoading(true);
     setAllBusy(false);
 
+    // Check if multiple chats are allowed
+    if (!(widgetConfig?.allow_multiple_chats ?? false)) {
+      const { data: existingRooms } = await supabase
+        .from("chat_rooms")
+        .select("id")
+        .eq("visitor_id", visitorId)
+        .in("status", ["waiting", "active"])
+        .limit(1);
+
+      if (existingRooms && existingRooms.length > 0) {
+        toast.error("Você já possui um chat ativo. Finalize-o antes de iniciar outro.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const newRoom = await createLinkedRoom(visitorId);
     if (newRoom) {
       setRoomId(newRoom.id);
       setMessages([]);
       setCsatScore(0);
       setCsatComment("");
-      // Trigger already assigned the room (BEFORE INSERT) — check status
       if (newRoom.status === "active" && newRoom.attendant_id) {
         setPhase("chat");
       } else {
         setPhase("waiting");
-        // Call edge function to get real-time feedback on queue status
         await checkRoomAssignment(newRoom.id);
       }
       postMsg("chat-ready");
     }
+    setLoading(false);
+  };
+
+  // Reopen a pending chat (client side)
+  const handleReopenChat = async (reopenRoomId: string) => {
+    if (!visitorId) return;
+    setLoading(true);
+
+    // Check if multiple chats are allowed
+    if (!(widgetConfig?.allow_multiple_chats ?? false)) {
+      const { data: existingRooms } = await supabase
+        .from("chat_rooms")
+        .select("id")
+        .eq("visitor_id", visitorId)
+        .in("status", ["waiting", "active"])
+        .limit(1);
+
+      if (existingRooms && existingRooms.length > 0) {
+        toast.error("Você já possui um chat ativo. Finalize-o antes de reabrir outro.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Reopen the room
+    await supabase.from("chat_rooms").update({
+      status: "waiting",
+      closed_at: null,
+      resolution_status: null,
+    }).eq("id", reopenRoomId);
+
+    // System message
+    await supabase.from("chat_messages").insert({
+      room_id: reopenRoomId,
+      sender_type: "system",
+      sender_name: "Sistema",
+      content: "[Sistema] Chat reaberto pelo cliente",
+      is_internal: false,
+    });
+
+    setRoomId(reopenRoomId);
+    setMessages([]);
+    setPhase("waiting");
+    await checkRoomAssignment(reopenRoomId);
     setLoading(false);
   };
 
@@ -703,45 +762,61 @@ const ChatWidget = () => {
               ) : (
                 historyRooms.map((room) => {
                   const isActive = room.status === "waiting" || room.status === "active";
+                  const isPending = room.status === "closed" && (room as any).resolution_status === "pending";
                   return (
-                    <button
-                      key={room.id}
-                      onClick={() => {
-                        if (isActive) {
-                          setRoomId(room.id);
-                          setPhase(room.status === "active" ? "chat" : "waiting");
-                        } else {
-                          handleViewTranscript(room.id);
-                        }
-                      }}
-                      className="w-full text-left border rounded-lg p-3 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          {isActive ? (
-                            <Clock className="h-3.5 w-3.5" style={{ color: primaryColor }} />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                          <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
-                            {statusLabel(room.status)}
-                          </span>
-                        </div>
-                        {room.csat_score != null && (
-                          <div className="flex items-center gap-0.5">
-                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                            <span className="text-xs text-muted-foreground">{room.csat_score}/5</span>
+                    <div key={room.id} className="w-full text-left border rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                      <button
+                        className="w-full text-left"
+                        onClick={() => {
+                          if (isActive) {
+                            setRoomId(room.id);
+                            setPhase(room.status === "active" ? "chat" : "waiting");
+                          } else {
+                            handleViewTranscript(room.id);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            {isActive ? (
+                              <Clock className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
+                              {statusLabel(room.status)}
+                            </span>
+                            {isPending && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">Pendente</span>
+                            )}
                           </div>
+                          {room.csat_score != null && (
+                            <div className="flex items-center gap-0.5">
+                              <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                              <span className="text-xs text-muted-foreground">{room.csat_score}/5</span>
+                            </div>
+                          )}
+                        </div>
+                        {room.last_message && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{room.last_message.slice(0, 60)}</p>
                         )}
-                      </div>
-                      {room.last_message && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{room.last_message.slice(0, 60)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {formatDate(room.created_at)}
+                          {room.closed_at && ` — ${formatDate(room.closed_at)}`}
+                        </p>
+                      </button>
+                      {isPending && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full mt-2 text-xs gap-1"
+                          onClick={() => handleReopenChat(room.id)}
+                          disabled={loading}
+                        >
+                          Retomar conversa
+                        </Button>
                       )}
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {formatDate(room.created_at)}
-                        {room.closed_at && ` — ${formatDate(room.closed_at)}`}
-                      </p>
-                    </button>
+                    </div>
                   );
                 })
               )}

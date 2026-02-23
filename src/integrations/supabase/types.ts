@@ -1035,6 +1035,7 @@ export type Database = {
           all_busy_message: string | null
           all_busy_title: string | null
           allow_file_attachments: boolean
+          allow_multiple_chats: boolean
           auto_assignment: boolean | null
           business_hours: Json | null
           created_at: string | null
@@ -1064,6 +1065,7 @@ export type Database = {
           all_busy_message?: string | null
           all_busy_title?: string | null
           allow_file_attachments?: boolean
+          allow_multiple_chats?: boolean
           auto_assignment?: boolean | null
           business_hours?: Json | null
           created_at?: string | null
@@ -1093,6 +1095,7 @@ export type Database = {
           all_busy_message?: string | null
           all_busy_title?: string | null
           allow_file_attachments?: boolean
+          allow_multiple_chats?: boolean
           auto_assignment?: boolean | null
           business_hours?: Json | null
           created_at?: string | null

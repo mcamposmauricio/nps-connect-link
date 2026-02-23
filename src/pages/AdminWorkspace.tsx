@@ -12,13 +12,14 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { VisitorInfoPanel } from "@/components/chat/VisitorInfoPanel";
 import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
 import { ReassignDialog } from "@/components/chat/ReassignDialog";
+import ProactiveChatDialog from "@/components/chat/ProactiveChatDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
-import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft, Tag } from "lucide-react";
+import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft, Tag, Plus } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type MobileView = "list" | "chat" | "info";
@@ -54,6 +55,7 @@ const AdminWorkspace = () => {
   const [closingRoomId, setClosingRoomId] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const [reassignOpen, setReassignOpen] = useState(false);
+  const [proactiveChatOpen, setProactiveChatOpen] = useState(false);
   const [userAttendantId, setUserAttendantId] = useState<string | null>(null);
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
@@ -381,8 +383,16 @@ const AdminWorkspace = () => {
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left: Room list */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
-            <div className="h-full p-1.5 pl-3 pt-3 pb-3">
-              <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
+            <div className="h-full p-1.5 pl-3 pt-3 pb-3 flex flex-col">
+              <div className="mb-2 px-1">
+                <Button size="sm" className="w-full gap-1" onClick={() => setProactiveChatOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Novo Chat
+                </Button>
+              </div>
+              <div className="flex-1 min-h-0">
+                <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
+              </div>
             </div>
           </ResizablePanel>
 
@@ -486,6 +496,15 @@ const AdminWorkspace = () => {
 
       <CloseRoomDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen} onConfirm={handleConfirmClose} roomId={closingRoomId} />
       <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={selectedRoom?.attendant_id ?? null} onConfirm={handleReassign} />
+      {userAttendantId && (
+        <ProactiveChatDialog
+          open={proactiveChatOpen}
+          onOpenChange={setProactiveChatOpen}
+          userId={user?.id ?? ""}
+          attendantId={userAttendantId}
+          attendantName={userDisplayName ?? "Atendente"}
+        />
+      )}
     </>
   );
 };
