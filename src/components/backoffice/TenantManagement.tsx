@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Building2, Users, Send, MessageSquare, Eye } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 
 interface Tenant {
@@ -39,7 +40,7 @@ export default function TenantManagement() {
   const { setImpersonation } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [form, setForm] = useState({ name: "", slug: "", logo_url: "" });
+  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", admin_email: "", admin_name: "" });
   const [search, setSearch] = useState("");
 
   const { data: tenants = [], isLoading } = useQuery({
@@ -85,20 +86,38 @@ export default function TenantManagement() {
         }).eq("id", editingTenant.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("tenants").insert({
+        // Create tenant and get ID
+        const { data: newTenant, error } = await supabase.from("tenants").insert({
           name: form.name,
           slug: form.slug || null,
           logo_url: form.logo_url || null,
-        });
+        }).select("id").single();
         if (error) throw error;
+
+        // Provision first admin via edge function
+        if (form.admin_email && form.admin_name) {
+          const { data: provisionData, error: provisionError } = await supabase.functions.invoke("backoffice-admin", {
+            body: {
+              action: "provision-tenant-admin",
+              tenantId: newTenant.id,
+              email: form.admin_email,
+              displayName: form.admin_name,
+            },
+          });
+          if (provisionError) throw provisionError;
+          if (provisionData?.error) throw new Error(provisionData.error);
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["backoffice-tenants"] });
       setDialogOpen(false);
       setEditingTenant(null);
-      setForm({ name: "", slug: "", logo_url: "" });
-      toast({ title: editingTenant ? "Tenant atualizado" : "Tenant criado" });
+      setForm({ name: "", slug: "", logo_url: "", admin_email: "", admin_name: "" });
+      toast({
+        title: editingTenant ? "Tenant atualizado" : "Plataforma criada!",
+        description: !editingTenant && form.admin_email ? `Convite enviado para ${form.admin_email}` : undefined,
+      });
     },
     onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
@@ -113,13 +132,13 @@ export default function TenantManagement() {
 
   const openEdit = (t: Tenant) => {
     setEditingTenant(t);
-    setForm({ name: t.name, slug: t.slug || "", logo_url: t.logo_url || "" });
+    setForm({ name: t.name, slug: t.slug || "", logo_url: t.logo_url || "", admin_email: "", admin_name: "" });
     setDialogOpen(true);
   };
 
   const openNew = () => {
     setEditingTenant(null);
-    setForm({ name: "", slug: "", logo_url: "" });
+    setForm({ name: "", slug: "", logo_url: "", admin_email: "", admin_name: "" });
     setDialogOpen(true);
   };
 
@@ -148,7 +167,15 @@ export default function TenantManagement() {
                 <div><Label>Nome</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome da plataforma" /></div>
                 <div><Label>Slug</Label><Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="slug-unico" /></div>
                 <div><Label>Logo URL</Label><Input value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://..." /></div>
-                <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending} className="w-full">
+                {!editingTenant && (
+                  <>
+                    <Separator className="my-2" />
+                    <p className="text-sm font-medium text-muted-foreground">Primeiro Administrador</p>
+                    <div><Label>Nome do admin</Label><Input value={form.admin_name} onChange={e => setForm(f => ({ ...f, admin_name: e.target.value }))} placeholder="Nome completo" /></div>
+                    <div><Label>Email do admin</Label><Input type="email" value={form.admin_email} onChange={e => setForm(f => ({ ...f, admin_email: e.target.value }))} placeholder="admin@empresa.com" /></div>
+                  </>
+                )}
+                <Button onClick={() => saveMutation.mutate()} disabled={!form.name || (!editingTenant && (!form.admin_email || !form.admin_name)) || saveMutation.isPending} className="w-full">
                   {saveMutation.isPending ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
