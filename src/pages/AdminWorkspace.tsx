@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -56,6 +56,8 @@ const AdminWorkspace = () => {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [userAttendantId, setUserAttendantId] = useState<string | null>(null);
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+  const [typingUser, setTypingUser] = useState<string | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Polling moved to SidebarLayout for reliability (runs even without Workspace open)
 
@@ -97,6 +99,26 @@ const AdminWorkspace = () => {
   useEffect(() => {
     setSelectedRoomRef(selectedRoomId);
   }, [selectedRoomId, setSelectedRoomRef]);
+
+  // Typing indicator via Realtime Broadcast
+  useEffect(() => {
+    if (!selectedRoomId) { setTypingUser(null); return; }
+    setTypingUser(null);
+
+    const channel = supabase
+      .channel(`typing-${selectedRoomId}`)
+      .on("broadcast", { event: "typing" }, (payload) => {
+        const name = payload.payload?.name;
+        if (name && payload.payload?.user_id !== user?.id) {
+          setTypingUser(name);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setTypingUser(null), 3000);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedRoomId, user?.id]);
 
   // Filter rooms based on viewing context
   const filteredRooms = viewingUnassigned
@@ -338,10 +360,10 @@ const AdminWorkspace = () => {
                 </div>
               </div>
               <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} />
+                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} />
               </div>
               {selectedRoom.status !== "closed" && (
-                <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} /></>
+                <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>
               )}
             </Card>
           )}
@@ -431,10 +453,10 @@ const AdminWorkspace = () => {
                     </div>
                   </div>
                   <div className="flex-1 overflow-auto">
-                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} />
+                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} />
                   </div>
                   {selectedRoom.status !== "closed" && (
-                    <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} /></>
+                    <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>
                   )}
                 </Card>
               ) : (

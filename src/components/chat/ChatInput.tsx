@@ -25,9 +25,11 @@ interface ChatInputProps {
     isInternal?: boolean,
     metadata?: { file_url: string; file_name: string; file_type: string; file_size: number }
   ) => Promise<void>;
+  roomId?: string | null;
+  senderName?: string | null;
 }
 
-export function ChatInput({ onSend }: ChatInputProps) {
+export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const { t } = useLanguage();
   const [value, setValue] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -39,6 +41,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const [macrosOpen, setMacrosOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastTypingBroadcast = useRef<number>(0);
 
   useEffect(() => {
     supabase
@@ -138,6 +141,17 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
     setValue(v);
+
+    // Broadcast typing event (throttled to every 2s)
+    if (roomId && senderName && Date.now() - lastTypingBroadcast.current > 2000) {
+      lastTypingBroadcast.current = Date.now();
+      supabase.channel(`typing-${roomId}`).send({
+        type: "broadcast",
+        event: "typing",
+        payload: { name: senderName, user_id: undefined },
+      }).catch(() => {});
+    }
+
     if (v === "/" && macros.length > 0) {
       setMacrosOpen(true);
     } else if (!v.startsWith("/")) {
