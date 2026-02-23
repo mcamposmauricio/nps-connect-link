@@ -38,6 +38,7 @@ const ChatWidget = () => {
   const companyName = searchParams.get("companyName") ?? "Suporte";
   const position = searchParams.get("position") ?? "right";
   const primaryColor = searchParams.get("primaryColor") ?? "#7C3AED";
+  const buttonShape = searchParams.get("buttonShape") ?? "circle";
   const paramVisitorToken = searchParams.get("visitorToken");
   const paramVisitorName = searchParams.get("visitorName");
   const paramOwnerUserId = searchParams.get("ownerUserId");
@@ -685,7 +686,7 @@ const ChatWidget = () => {
       >
         <button
           onClick={() => setIsOpen(true)}
-          className="rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110"
+          className={`${buttonShape === "square" ? "rounded-lg" : "rounded-full"} shadow-lg flex items-center justify-center transition-transform hover:scale-110`}
           style={{
             width: "60px",
             height: "60px",

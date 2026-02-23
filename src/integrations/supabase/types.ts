@@ -1057,6 +1057,7 @@ export type Database = {
           user_id: string
           waiting_message: string | null
           welcome_message: string | null
+          widget_button_shape: string
           widget_company_name: string | null
           widget_position: string | null
           widget_primary_color: string | null
@@ -1087,6 +1088,7 @@ export type Database = {
           user_id: string
           waiting_message?: string | null
           welcome_message?: string | null
+          widget_button_shape?: string
           widget_company_name?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
@@ -1117,6 +1119,7 @@ export type Database = {
           user_id?: string
           waiting_message?: string | null
           welcome_message?: string | null
+          widget_button_shape?: string
           widget_company_name?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null

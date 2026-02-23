@@ -65,6 +65,7 @@ const AdminSettings = () => {
     widget_position: "right",
     widget_primary_color: "#7C3AED",
     widget_company_name: "",
+    widget_button_shape: "circle",
     // Widget display configs
     show_outside_hours_banner: true,
     outside_hours_title: "Estamos fora do horário de atendimento.",
@@ -113,6 +114,7 @@ const AdminSettings = () => {
         widget_position: s.widget_position ?? "right",
         widget_primary_color: s.widget_primary_color ?? "#7C3AED",
         widget_company_name: s.widget_company_name ?? "",
+        widget_button_shape: s.widget_button_shape ?? "circle",
         show_outside_hours_banner: s.show_outside_hours_banner ?? true,
         outside_hours_title: s.outside_hours_title ?? "Estamos fora do horário de atendimento.",
         outside_hours_message: s.outside_hours_message ?? "Sua mensagem ficará registrada e responderemos assim que voltarmos.",
@@ -182,6 +184,7 @@ const AdminSettings = () => {
       widget_position: settings.widget_position,
       widget_primary_color: settings.widget_primary_color,
       widget_company_name: settings.widget_company_name,
+      widget_button_shape: settings.widget_button_shape,
       show_outside_hours_banner: settings.show_outside_hours_banner,
       outside_hours_title: settings.outside_hours_title,
       outside_hours_message: settings.outside_hours_message,
@@ -407,6 +410,23 @@ const AdminSettings = () => {
                       </div>
                     </RadioGroup>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Formato do Botão</Label>
+                    <RadioGroup
+                      value={settings.widget_button_shape}
+                      onValueChange={(v) => setSettings({ ...settings, widget_button_shape: v })}
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="circle" id="shape-circle" />
+                        <Label htmlFor="shape-circle">Círculo</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="square" id="shape-square" />
+                        <Label htmlFor="shape-square">Quadrado</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                   <Button onClick={handleSaveGeneral} disabled={saving}>
                     <Save className="h-4 w-4 mr-2" />
                     {saving ? t("common.saving") : t("common.save")}
@@ -420,10 +440,11 @@ const AdminSettings = () => {
                   <CardTitle className="text-base">Preview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <WidgetPreview
+                   <WidgetPreview
                     position={settings.widget_position as "left" | "right"}
                     primaryColor={settings.widget_primary_color}
                     companyName={settings.widget_company_name || "Suporte"}
+                    buttonShape={settings.widget_button_shape as "circle" | "square"}
                     showEmailField={settings.show_email_field}
                     showPhoneField={settings.show_phone_field}
                     formIntroText={settings.form_intro_text}
@@ -634,14 +655,16 @@ const AdminSettings = () => {
   data-external-id="ID_DO_USUARIO_NO_SEU_SISTEMA"
   data-position="${settings.widget_position}"
   data-primary-color="${settings.widget_primary_color}"
-  data-company-name="${settings.widget_company_name || "Suporte"}">
+  data-company-name="${settings.widget_company_name || "Suporte"}"
+  data-button-shape="${settings.widget_button_shape}">
 </script>
 
 <!-- Visitante anônimo -->
 <script src="${window.location.origin}/nps-chat-embed.js"
   data-position="${settings.widget_position}"
   data-primary-color="${settings.widget_primary_color}"
-  data-company-name="${settings.widget_company_name || "Suporte"}">
+  data-company-name="${settings.widget_company_name || "Suporte"}"
+  data-button-shape="${settings.widget_button_shape}">
 </script>`}
                 </pre>
               </CardContent>
