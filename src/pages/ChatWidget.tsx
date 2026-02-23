@@ -44,6 +44,7 @@ const ChatWidget = () => {
   const paramOwnerUserId = searchParams.get("ownerUserId");
   const paramCompanyContactId = searchParams.get("companyContactId");
   const paramContactId = searchParams.get("contactId");
+  const paramApiKey = searchParams.get("apiKey");
 
   const isResolvedVisitor = !!paramVisitorToken && !!paramOwnerUserId;
 
@@ -530,7 +531,24 @@ const ChatWidget = () => {
     setLoading(true);
     setAllBusy(false);
 
-    const ownerUserId = paramOwnerUserId || "00000000-0000-0000-0000-000000000000";
+    // Resolve ownerUserId: prefer param, fallback to API key resolution
+    let ownerUserId = paramOwnerUserId;
+    if (!ownerUserId && paramApiKey) {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const res = await fetch(`${supabaseUrl}/functions/v1/resolve-chat-visitor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": supabaseAnonKey },
+          body: JSON.stringify({ api_key: paramApiKey }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user_id) ownerUserId = data.user_id;
+        }
+      } catch { /* fallback to dummy */ }
+    }
+    if (!ownerUserId) ownerUserId = "00000000-0000-0000-0000-000000000000";
 
     const hasCustomProps = Object.keys(customProps).length > 0;
 
