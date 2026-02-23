@@ -56,6 +56,32 @@ const AdminWorkspace = () => {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [userAttendantId, setUserAttendantId] = useState<string | null>(null);
 
+  // Polling for time-based auto rules (every 5 min, recursive setTimeout)
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        await supabase.functions.invoke("process-chat-auto-rules");
+      } catch {
+        // silent – edge function may not be deployed yet
+      }
+      if (!cancelled) {
+        timeoutId = setTimeout(poll, 300_000); // 5 minutes
+      }
+    };
+
+    // Start first poll after 10s (let workspace load first)
+    timeoutId = setTimeout(poll, 10_000);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
   // Get the current user's attendant profile id
   useEffect(() => {
     if (!user) return;

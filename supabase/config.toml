@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.assign-chat-room]
 verify_jwt = false
+
+[functions.process-chat-auto-rules]
+verify_jwt = false
