@@ -213,6 +213,11 @@
         "&contactId=" + encodeURIComponent(resolvedContactId || "");
     }
 
+    // Fallback: pass ownerUserId even without resolved token
+    if (!resolvedToken && resolvedOwnerUserId) {
+      iframeSrc += "&ownerUserId=" + encodeURIComponent(resolvedOwnerUserId);
+    }
+
     iframe.src = iframeSrc;
     // Start small (FAB size only) to avoid blocking clicks on the host page
     iframe.style.cssText =
