@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is master
+    // Verify caller is authenticated
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -30,13 +30,60 @@ Deno.serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: masterCheck } = await adminClient.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
 
+    const { action, ...params } = await req.json();
+
+    // accept-invite does NOT require master role — validated by invite_token
+    if (action === "accept-invite") {
+      const { inviteToken, userId, displayName } = params;
+      if (!inviteToken || !userId) throw new Error("inviteToken and userId required");
+
+      const { data: profile, error: profileErr } = await adminClient
+        .from("user_profiles")
+        .select("id, email, tenant_id, specialty, invite_status")
+        .eq("invite_token", inviteToken)
+        .eq("invite_status", "pending")
+        .maybeSingle();
+      if (profileErr || !profile) throw new Error("Invalid or expired invite");
+
+      // Update profile
+      const { error: updateErr } = await adminClient.from("user_profiles").update({
+        user_id: userId,
+        invite_status: "accepted",
+        display_name: displayName,
+        last_sign_in_at: new Date().toISOString(),
+      }).eq("id", profile.id);
+      if (updateErr) throw updateErr;
+
+      // Create admin role if tenant admin (no specialty)
+      if (profile.tenant_id && (!profile.specialty || profile.specialty.length === 0)) {
+        const { error: roleErr } = await adminClient.from("user_roles").upsert(
+          { user_id: userId, role: "admin" },
+          { onConflict: "user_id,role" }
+        );
+        if (roleErr) console.error("Role creation error:", roleErr);
+      }
+
+      // Create CSM if has specialty
+      if (profile.specialty && profile.specialty.length > 0) {
+        await adminClient.from("csms").insert({
+          user_id: userId,
+          name: displayName || profile.email.split("@")[0],
+          email: profile.email,
+          specialty: profile.specialty,
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, tenantId: profile.tenant_id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions require master role
+    const { data: masterCheck } = await adminClient.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
     if (!masterCheck) {
       return new Response(JSON.stringify({ error: "Forbidden: master role required" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const { action, ...params } = await req.json();
 
     switch (action) {
       case "list-auth-users": {
@@ -73,15 +120,11 @@ Deno.serve(async (req) => {
         const { tenantId, email, displayName } = params;
         if (!tenantId || !email || !displayName) throw new Error("tenantId, email and displayName required");
 
-        // Generate invite token
         const inviteToken = crypto.randomUUID();
 
-        // Check if user already exists in auth
         const { data: allUsers } = await adminClient.auth.admin.listUsers();
         const existingAuthUser = allUsers?.users?.find((u: any) => u.email === email);
 
-        // Create user_profile with invite_status='pending' and user_id=NULL
-        // The user_id will be set when the invite is accepted
         const { error: profileErr } = await adminClient.from("user_profiles").insert({
           user_id: null,
           email,
@@ -93,9 +136,6 @@ Deno.serve(async (req) => {
         });
         if (profileErr) throw profileErr;
 
-        // Do NOT create user_roles here — role will be created when invite is accepted
-
-        // If user already exists in auth, send them a notification via password reset
         if (existingAuthUser) {
           try {
             await adminClient.auth.resetPasswordForEmail(email, {
@@ -120,14 +160,12 @@ Deno.serve(async (req) => {
         const { email } = params;
         if (!email) throw new Error("Email required");
 
-        // Check user_profiles for this email
         const { data: profiles } = await adminClient
           .from("user_profiles")
           .select("id, email, display_name, tenant_id, invite_status")
           .eq("email", email)
           .eq("invite_status", "accepted");
 
-        // Get tenant names for existing profiles
         const results = [];
         if (profiles && profiles.length > 0) {
           for (const p of profiles) {
@@ -153,14 +191,12 @@ Deno.serve(async (req) => {
       }
 
       case "cleanup-orphan-auth-users": {
-        const dryRun = params.dry_run !== false; // default true
+        const dryRun = params.dry_run !== false;
 
-        // Get all auth users
         const { data: authData, error: authErr } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
         if (authErr) throw authErr;
         const authUsers = authData?.users || [];
 
-        // Get all user_ids from profiles and roles
         const { data: profileUserIds } = await adminClient
           .from("user_profiles")
           .select("user_id")
@@ -172,11 +208,8 @@ Deno.serve(async (req) => {
         const knownUserIds = new Set<string>();
         profileUserIds?.forEach((p: any) => { if (p.user_id) knownUserIds.add(p.user_id); });
         roleUserIds?.forEach((r: any) => { if (r.user_id) knownUserIds.add(r.user_id); });
-
-        // Never delete the calling master user
         knownUserIds.add(user.id);
 
-        // Find orphans
         const orphans = authUsers.filter((u: any) => !knownUserIds.has(u.id));
 
         if (dryRun) {
@@ -193,7 +226,6 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Execute cleanup
         const deleted: string[] = [];
         const errors: string[] = [];
         for (const orphan of orphans) {

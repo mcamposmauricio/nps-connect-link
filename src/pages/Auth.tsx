@@ -116,40 +116,17 @@ const Auth = () => {
         }
       }
 
-      // Update the invite profile with the user_id
-      const { error: updateError } = await supabase
-        .from("user_profiles")
-        .update({
-          user_id: userId,
-          invite_status: "accepted",
-          display_name: displayName || inviteProfile.display_name,
-          last_sign_in_at: new Date().toISOString(),
-        })
-        .eq("id", inviteProfile.id)
-        .eq("invite_status", "pending");
-      if (updateError) console.error("Profile update error:", updateError);
-
-      // Create admin role for tenant admin invites
-      // Check if this profile has a tenant_id but no specialty (admin provisioning)
-      if (inviteProfile.tenant_id && (!inviteProfile.specialty || inviteProfile.specialty.length === 0)) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: "admin" as any });
-        // Ignore duplicate role error
-        if (roleError && !roleError.message?.includes("duplicate")) {
-          console.error("Role creation error:", roleError);
-        }
-      }
-
-      // CSM creation for attendant invites (has specialty)
-      if (inviteProfile.specialty && inviteProfile.specialty.length > 0) {
-        await supabase.from("csms").insert({
-          user_id: userId,
-          name: displayName || inviteProfile.display_name || inviteProfile.email.split("@")[0],
-          email: inviteProfile.email,
-          specialty: inviteProfile.specialty,
-        });
-      }
+      // Call edge function to accept invite (bypasses RLS for role creation)
+      const { data: acceptData, error: acceptError } = await supabase.functions.invoke("backoffice-admin", {
+        body: {
+          action: "accept-invite",
+          inviteToken: inviteProfile.invite_token,
+          userId,
+          displayName: displayName || inviteProfile.display_name,
+        },
+      });
+      if (acceptError) throw new Error(acceptError.message || "Failed to accept invite");
+      if (acceptData?.error) throw new Error(acceptData.error);
 
       if (isExistingUser) {
         toast({ title: "Convite aceito!", description: "Você agora tem acesso à nova plataforma." });
@@ -171,27 +148,16 @@ const Auth = () => {
     if (!inviteProfile || !authUser) return;
     setLoading(true);
     try {
-      const { error: updateError } = await supabase
-        .from("user_profiles")
-        .update({
-          user_id: authUser.id,
-          invite_status: "accepted",
-          display_name: authUser.user_metadata?.display_name || inviteProfile.display_name,
-          last_sign_in_at: new Date().toISOString(),
-        })
-        .eq("id", inviteProfile.id)
-        .eq("invite_status", "pending");
-      if (updateError) throw updateError;
-
-      // Create admin role for tenant admin invites
-      if (inviteProfile.tenant_id && (!inviteProfile.specialty || inviteProfile.specialty.length === 0)) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: authUser.id, role: "admin" as any });
-        if (roleError && !roleError.message?.includes("duplicate")) {
-          console.error("Role creation error:", roleError);
-        }
-      }
+      const { data: acceptData, error: acceptError } = await supabase.functions.invoke("backoffice-admin", {
+        body: {
+          action: "accept-invite",
+          inviteToken: inviteProfile.invite_token,
+          userId: authUser.id,
+          displayName: authUser.user_metadata?.display_name || inviteProfile.display_name,
+        },
+      });
+      if (acceptError) throw new Error(acceptError.message || "Failed to accept invite");
+      if (acceptData?.error) throw new Error(acceptData.error);
 
       toast({ title: "Convite aceito!", description: "Você agora tem acesso à nova plataforma." });
       window.location.href = "/nps/dashboard";
