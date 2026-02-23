@@ -27,6 +27,7 @@ interface ChatMessageListProps {
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  typingUser?: string | null;
 }
 
 function getDayLabel(dateStr: string): string {
@@ -67,7 +68,7 @@ function renderTextWithLinks(text: string, isOwn: boolean) {
   );
 }
 
-export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore }: ChatMessageListProps) {
+export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore, typingUser }: ChatMessageListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -210,6 +211,18 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
           </div>
         );
       })}
+      {typingUser && (
+        <div className="flex items-center gap-2 px-1 py-1">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground italic">
+            <span>{typingUser} digitando</span>
+            <span className="flex gap-0.5">
+              <span className="w-1 h-1 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+            </span>
+          </div>
+        </div>
+      )}
       <div ref={sentinelRef} />
     </div>
   );

@@ -30,16 +30,7 @@ interface ChatMsg {
   metadata?: { file_url?: string; file_name?: string; file_type?: string; file_size?: number } | null;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-
-function isImage(type: string) { return type.startsWith("image/"); }
-function formatFileSize(bytes?: number) {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { MAX_FILE_SIZE, isImage, formatFileSize, uploadChatFile, type FileMetadata } from "@/utils/chatUtils";
 
 const ChatWidget = () => {
   const [searchParams] = useSearchParams();
@@ -74,6 +65,9 @@ const ChatWidget = () => {
   const [uploading, setUploading] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [typingUser, setTypingUser] = useState<string | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTypingBroadcast = useRef<number>(0);
   const [widgetConfig, setWidgetConfig] = useState<{
     show_outside_hours_banner: boolean;
     outside_hours_title: string;
@@ -267,13 +261,39 @@ const ChatWidget = () => {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` }, (payload) => {
         const msg = payload.new as any;
         if (!msg.is_internal) {
-          setMessages((prev) => [...prev, msg]);
+          setMessages((prev) => {
+            // Remove any optimistic version of this message to prevent duplicates
+            const withoutOptimistic = prev.filter((m) => !m.id.startsWith("optimistic-"));
+            // Also check if the real message already exists
+            if (withoutOptimistic.some((m) => m.id === msg.id)) return withoutOptimistic;
+            return [...withoutOptimistic, msg];
+          });
         }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [roomId, fetchMessages]);
+
+  // Typing indicator broadcast
+  useEffect(() => {
+    if (!roomId) { setTypingUser(null); return; }
+    setTypingUser(null);
+
+    const channel = supabase
+      .channel(`typing-${roomId}`)
+      .on("broadcast", { event: "typing" }, (payload) => {
+        const name = payload.payload?.name;
+        if (name) {
+          setTypingUser(name);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setTypingUser(null), 3000);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [roomId]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -432,28 +452,12 @@ const ChatWidget = () => {
   };
 
   const uploadFile = async (file: File) => {
-    const ext = file.name.split(".").pop() || "bin";
-    const path = `${crypto.randomUUID()}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("chat-attachments")
-      .upload(path, file, { contentType: file.type });
-
-    if (error) {
+    const result = await uploadChatFile(file);
+    if (!result) {
       toast.error("Erro ao enviar arquivo");
       return null;
     }
-
-    const { data: urlData } = supabase.storage
-      .from("chat-attachments")
-      .getPublicUrl(path);
-
-    return {
-      file_url: urlData.publicUrl,
-      file_name: file.name,
-      file_type: file.type,
-      file_size: file.size,
-    };
+    return result;
   };
 
   const handleSend = async () => {
@@ -471,17 +475,39 @@ const ChatWidget = () => {
     }
 
     const content = input.trim() || metadata?.file_name || "";
+    const senderName = formData.name || paramVisitorName || "Visitante";
     setInput("");
     setPendingFile(null);
 
-    await supabase.from("chat_messages").insert({
+    // Optimistic: add message immediately with pending state
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMsg: ChatMsg = {
+      id: optimisticId,
+      content,
+      sender_type: "visitor",
+      sender_name: senderName,
+      created_at: new Date().toISOString(),
+      message_type: metadata ? "file" : undefined,
+      metadata: metadata ?? undefined,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    const { error } = await supabase.from("chat_messages").insert({
       room_id: roomId,
       sender_type: "visitor",
       sender_id: visitorToken,
-      sender_name: formData.name || paramVisitorName || "Visitante",
+      sender_name: senderName,
       content,
       ...(metadata ? { message_type: "file", metadata } : {}),
     });
+
+    if (error) {
+      // Remove optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      toast.error("Erro ao enviar mensagem");
+    }
+    // On success, the realtime subscription will add the real message;
+    // remove optimistic to avoid duplicates
   };
 
   const handleFileSelect = (file: File) => {
@@ -862,6 +888,17 @@ const ChatWidget = () => {
                 ));
               })}
 
+              {typingUser && phase === "chat" && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground italic px-1">
+                  <span>{typingUser} digitando</span>
+                  <span className="flex gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </span>
+                </div>
+              )}
+
               {phase === "viewTranscript" && messages.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem nesta conversa.</p>
               )}
@@ -948,7 +985,13 @@ const ChatWidget = () => {
           )}
           <Input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              if (roomId && Date.now() - lastTypingBroadcast.current > 2000) {
+                lastTypingBroadcast.current = Date.now();
+                supabase.channel(`typing-${roomId}`).send({ type: "broadcast", event: "typing", payload: { name: formData.name || paramVisitorName || "Visitante" } }).catch(() => {});
+              }
+            }}
             placeholder="Digite sua mensagem..."
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             disabled={uploading}

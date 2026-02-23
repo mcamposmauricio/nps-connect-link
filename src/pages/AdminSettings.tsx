@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,9 @@ const AdminSettings = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const savedSettingsRef = useRef<typeof settings | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // General settings
   const [settings, setSettings] = useState({
@@ -100,7 +103,7 @@ const AdminSettings = () => {
 
     if (settingsData) {
       const s = settingsData as any;
-      setSettings({
+      const loaded = {
         id: settingsData.id,
         welcome_message: settingsData.welcome_message ?? "",
         offline_message: settingsData.offline_message ?? "",
@@ -123,7 +126,10 @@ const AdminSettings = () => {
         show_chat_history: s.show_chat_history ?? true,
         show_csat: s.show_csat ?? true,
         allow_file_attachments: s.allow_file_attachments ?? true,
-      });
+      };
+      setSettings(loaded);
+      savedSettingsRef.current = loaded;
+      setHasUnsavedChanges(false);
     }
 
     // Macros
@@ -197,8 +203,43 @@ const AdminSettings = () => {
     }
 
     toast({ title: t("chat.settings.saved") });
+    savedSettingsRef.current = { ...settings };
+    setHasUnsavedChanges(false);
     setSaving(false);
   };
+
+  // Track unsaved changes
+  const updateSettings = useCallback((newSettings: typeof settings) => {
+    setSettings(newSettings);
+    if (savedSettingsRef.current) {
+      const changed = JSON.stringify(newSettings) !== JSON.stringify(savedSettingsRef.current);
+      setHasUnsavedChanges(changed);
+    }
+
+    // Auto-save boolean switches with debounce
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      // Only auto-save if the change was a boolean toggle (compare booleans only)
+      if (savedSettingsRef.current) {
+        const boolKeys = [
+          "show_outside_hours_banner", "show_all_busy_banner", "show_email_field",
+          "show_phone_field", "show_chat_history", "show_csat", "allow_file_attachments",
+          "auto_assignment", "require_approval"
+        ] as const;
+        const boolChanged = boolKeys.some(
+          (k) => (newSettings as any)[k] !== (savedSettingsRef.current as any)[k]
+        );
+        const textChanged = Object.keys(newSettings).some((k) => {
+          if (boolKeys.includes(k as any) || k === "id") return false;
+          return (newSettings as any)[k] !== (savedSettingsRef.current as any)[k];
+        });
+        // If only booleans changed (no text edits), auto-save
+        if (boolChanged && !textChanged) {
+          handleSaveGeneral();
+        }
+      }
+    }, 1500);
+  }, []);
 
   // Macro CRUD
   const openMacroDialog = (macro?: Macro) => {
@@ -292,9 +333,10 @@ const AdminSettings = () => {
 
         <Tabs defaultValue={tab ?? "widget"}>
           <TabsList className="flex-wrap">
-            <TabsTrigger value="widget" className="flex items-center gap-2">
+            <TabsTrigger value="widget" className="flex items-center gap-2 relative">
               <Settings2 className="h-4 w-4" />
               Widget e Instalação
+              {hasUnsavedChanges && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-destructive" />}
             </TabsTrigger>
             <TabsTrigger value="team" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -413,7 +455,7 @@ const AdminSettings = () => {
                       <Label className="text-sm">Exibir aviso quando fora do horário</Label>
                       <Switch
                         checked={settings.show_outside_hours_banner}
-                        onCheckedChange={(v) => setSettings({ ...settings, show_outside_hours_banner: v })}
+                        onCheckedChange={(v) => updateSettings({ ...settings, show_outside_hours_banner: v })}
                       />
                     </div>
                     <div className={`space-y-3 transition-opacity ${settings.show_outside_hours_banner ? "" : "opacity-40 pointer-events-none"}`}>
@@ -421,7 +463,7 @@ const AdminSettings = () => {
                         <Label className="text-xs">Título</Label>
                         <Input
                           value={settings.outside_hours_title}
-                          onChange={(e) => setSettings({ ...settings, outside_hours_title: e.target.value })}
+                          onChange={(e) => updateSettings({ ...settings, outside_hours_title: e.target.value })}
                           disabled={!settings.show_outside_hours_banner}
                         />
                       </div>
@@ -429,7 +471,7 @@ const AdminSettings = () => {
                         <Label className="text-xs">Mensagem</Label>
                         <Textarea
                           value={settings.outside_hours_message}
-                          onChange={(e) => setSettings({ ...settings, outside_hours_message: e.target.value })}
+                          onChange={(e) => updateSettings({ ...settings, outside_hours_message: e.target.value })}
                           disabled={!settings.show_outside_hours_banner}
                           rows={2}
                         />
@@ -451,7 +493,7 @@ const AdminSettings = () => {
                       <Label className="text-sm">Exibir aviso quando todos estão ocupados</Label>
                       <Switch
                         checked={settings.show_all_busy_banner}
-                        onCheckedChange={(v) => setSettings({ ...settings, show_all_busy_banner: v })}
+                        onCheckedChange={(v) => updateSettings({ ...settings, show_all_busy_banner: v })}
                       />
                     </div>
                     <div className={`space-y-3 transition-opacity ${settings.show_all_busy_banner ? "" : "opacity-40 pointer-events-none"}`}>
@@ -459,7 +501,7 @@ const AdminSettings = () => {
                         <Label className="text-xs">Título</Label>
                         <Input
                           value={settings.all_busy_title}
-                          onChange={(e) => setSettings({ ...settings, all_busy_title: e.target.value })}
+                          onChange={(e) => updateSettings({ ...settings, all_busy_title: e.target.value })}
                           disabled={!settings.show_all_busy_banner}
                         />
                       </div>
@@ -467,7 +509,7 @@ const AdminSettings = () => {
                         <Label className="text-xs">Mensagem</Label>
                         <Textarea
                           value={settings.all_busy_message}
-                          onChange={(e) => setSettings({ ...settings, all_busy_message: e.target.value })}
+                          onChange={(e) => updateSettings({ ...settings, all_busy_message: e.target.value })}
                           disabled={!settings.show_all_busy_banner}
                           rows={2}
                         />
@@ -489,14 +531,14 @@ const AdminSettings = () => {
                       <Label className="text-xs">Texto introdutório</Label>
                       <Input
                         value={settings.form_intro_text}
-                        onChange={(e) => setSettings({ ...settings, form_intro_text: e.target.value })}
+                        onChange={(e) => updateSettings({ ...settings, form_intro_text: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Texto na tela de aguardo</Label>
                       <Input
                         value={settings.waiting_message}
-                        onChange={(e) => setSettings({ ...settings, waiting_message: e.target.value })}
+                        onChange={(e) => updateSettings({ ...settings, waiting_message: e.target.value })}
                       />
                     </div>
                     <div className="flex gap-6">
@@ -504,14 +546,14 @@ const AdminSettings = () => {
                         <Label className="text-sm">Exibir campo Email</Label>
                         <Switch
                           checked={settings.show_email_field}
-                          onCheckedChange={(v) => setSettings({ ...settings, show_email_field: v })}
+                          onCheckedChange={(v) => updateSettings({ ...settings, show_email_field: v })}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <Label className="text-sm">Exibir campo Telefone</Label>
                         <Switch
                           checked={settings.show_phone_field}
-                          onCheckedChange={(v) => setSettings({ ...settings, show_phone_field: v })}
+                          onCheckedChange={(v) => updateSettings({ ...settings, show_phone_field: v })}
                         />
                       </div>
                     </div>
@@ -532,31 +574,38 @@ const AdminSettings = () => {
                         <Label className="text-sm">Histórico de conversas</Label>
                         <Switch
                           checked={settings.show_chat_history}
-                          onCheckedChange={(v) => setSettings({ ...settings, show_chat_history: v })}
+                          onCheckedChange={(v) => updateSettings({ ...settings, show_chat_history: v })}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
                         <Label className="text-sm">CSAT ao encerrar</Label>
                         <Switch
                           checked={settings.show_csat}
-                          onCheckedChange={(v) => setSettings({ ...settings, show_csat: v })}
+                          onCheckedChange={(v) => updateSettings({ ...settings, show_csat: v })}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
                         <Label className="text-sm">Envio de arquivos</Label>
                         <Switch
                           checked={settings.allow_file_attachments}
-                          onCheckedChange={(v) => setSettings({ ...settings, allow_file_attachments: v })}
+                          onCheckedChange={(v) => updateSettings({ ...settings, allow_file_attachments: v })}
                         />
                       </div>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
 
-                <Button onClick={handleSaveGeneral} disabled={saving} className="mt-4">
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? t("common.saving") : t("common.save")}
-                </Button>
+                <div className="flex items-center gap-3 mt-4">
+                  <Button onClick={handleSaveGeneral} disabled={saving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? t("common.saving") : t("common.save")}
+                  </Button>
+                  {hasUnsavedChanges && (
+                    <span className="text-xs text-destructive flex items-center gap-1">
+                      • Alterações não salvas
+                    </span>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -624,7 +673,7 @@ const AdminSettings = () => {
                   <Label>{t("chat.settings.auto_assignment")}</Label>
                   <Switch
                     checked={settings.auto_assignment}
-                    onCheckedChange={(v) => setSettings({ ...settings, auto_assignment: v })}
+                    onCheckedChange={(v) => updateSettings({ ...settings, auto_assignment: v })}
                   />
                 </div>
                 <div className="space-y-2">
