@@ -750,13 +750,61 @@ export default {
   "chat.settings.hours.start": "Start",
   "chat.settings.hours.end": "End",
   "chat.settings.hours.active": "Active",
-  "chat.settings.rules.title": "Auto Rules",
-  "chat.settings.rules.description": "Configure automatic chat behaviors",
+  "chat.settings.rules.title": "Automatic Messages",
+  "chat.settings.rules.description": "Configure the messages automatically sent by chat in each situation",
   "chat.settings.rules.minutes": "Minutes",
   "chat.settings.rules.welcome": "Welcome",
   "chat.settings.rules.offline": "Offline",
   "chat.settings.rules.inactivity": "Inactivity",
   "chat.settings.rules.auto_close": "Auto Close",
+  "chat.settings.rules.savingRule": "Saving...",
+  "chat.settings.rules.savedRule": "Message saved successfully",
+
+  // Auto Message Types
+  "chat.autoMsg.sessionGroup": "Session Messages",
+  "chat.autoMsg.timeGroup": "Time-based Messages",
+  "chat.autoMsg.specialGroup": "Special Messages",
+  "chat.autoMsg.minutesLabel": "Time (minutes)",
+
+  "chat.autoMsg.welcome_message.title": "Welcome",
+  "chat.autoMsg.welcome_message.description": "Automatically sent when a visitor starts a new conversation",
+  "chat.autoMsg.welcome_message.default": "Welcome! An agent will be with you shortly.",
+
+  "chat.autoMsg.queue_position.title": "Queue Position",
+  "chat.autoMsg.queue_position.description": "Notifies the visitor about their queue position when all agents are busy",
+  "chat.autoMsg.queue_position.default": "You are at position {{position}} in the queue. Please wait, you will be attended soon.",
+
+  "chat.autoMsg.attendant_assigned.title": "Agent Assigned",
+  "chat.autoMsg.attendant_assigned.description": "Sent to the visitor when an agent is assigned to the conversation",
+  "chat.autoMsg.attendant_assigned.default": "Agent {{name}} has been assigned to your conversation.",
+
+  "chat.autoMsg.transfer_notice.title": "Transfer Notice",
+  "chat.autoMsg.transfer_notice.description": "Notifies the visitor when the conversation is transferred to another agent or team",
+  "chat.autoMsg.transfer_notice.default": "Your conversation has been transferred to another agent. You will be assisted shortly.",
+
+  "chat.autoMsg.inactivity_warning.title": "Inactivity Warning",
+  "chat.autoMsg.inactivity_warning.description": "Sent to the visitor after X minutes without any response in the conversation",
+  "chat.autoMsg.inactivity_warning.default": "We noticed there has been no recent interaction. Do you still need help?",
+
+  "chat.autoMsg.auto_close.title": "Auto Close",
+  "chat.autoMsg.auto_close.description": "Automatically closes the conversation after X minutes of total inactivity",
+  "chat.autoMsg.auto_close.default": "This conversation has been automatically closed due to inactivity. If you need help, please start a new conversation.",
+
+  "chat.autoMsg.attendant_absence.title": "Agent Absence",
+  "chat.autoMsg.attendant_absence.description": "Sent if the assigned agent does not respond within X minutes",
+  "chat.autoMsg.attendant_absence.default": "Your agent is taking longer than expected to respond. We are redirecting your conversation.",
+
+  "chat.autoMsg.offline_message.title": "Offline",
+  "chat.autoMsg.offline_message.description": "Displayed when the visitor opens chat outside of configured business hours",
+  "chat.autoMsg.offline_message.default": "We are currently outside business hours. Leave a message and we'll respond as soon as possible.",
+
+  "chat.autoMsg.post_service_csat.title": "Post-Service (CSAT)",
+  "chat.autoMsg.post_service_csat.description": "Requests a service rating after the conversation is closed",
+  "chat.autoMsg.post_service_csat.default": "Your conversation has ended. How would you rate the support you received?",
+
+  "chat.autoMsg.return_online.title": "Back Online",
+  "chat.autoMsg.return_online.description": "Sent to visitors who left a message outside business hours when service resumes",
+  "chat.autoMsg.return_online.default": "We're back! Your conversation will be resumed shortly.",
   "chat.portal.title": "User Portal",
   "chat.portal.chats": "Your Conversations",
   "chat.portal.no_chats": "No conversations found",

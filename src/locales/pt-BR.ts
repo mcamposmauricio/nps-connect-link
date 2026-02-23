@@ -750,13 +750,61 @@ export default {
   "chat.settings.hours.start": "Início",
   "chat.settings.hours.end": "Fim",
   "chat.settings.hours.active": "Ativo",
-  "chat.settings.rules.title": "Regras Automáticas",
-  "chat.settings.rules.description": "Configure comportamentos automáticos do chat",
+  "chat.settings.rules.title": "Mensagens Automáticas",
+  "chat.settings.rules.description": "Configure as mensagens enviadas automaticamente pelo chat em cada situação",
   "chat.settings.rules.minutes": "Minutos",
   "chat.settings.rules.welcome": "Boas-vindas",
   "chat.settings.rules.offline": "Offline",
   "chat.settings.rules.inactivity": "Inatividade",
   "chat.settings.rules.auto_close": "Auto Fechar",
+  "chat.settings.rules.savingRule": "Salvando...",
+  "chat.settings.rules.savedRule": "Mensagem salva com sucesso",
+
+  // Auto Message Types
+  "chat.autoMsg.sessionGroup": "Mensagens de Sessão",
+  "chat.autoMsg.timeGroup": "Mensagens de Tempo",
+  "chat.autoMsg.specialGroup": "Mensagens Especiais",
+  "chat.autoMsg.minutesLabel": "Tempo (minutos)",
+
+  "chat.autoMsg.welcome_message.title": "Boas-vindas",
+  "chat.autoMsg.welcome_message.description": "Enviada automaticamente quando o visitante inicia uma nova conversa",
+  "chat.autoMsg.welcome_message.default": "Bem-vindo! Em instantes um atendente irá te atender.",
+
+  "chat.autoMsg.queue_position.title": "Fila de Espera",
+  "chat.autoMsg.queue_position.description": "Notifica o visitante sobre sua posição na fila quando todos os atendentes estão ocupados",
+  "chat.autoMsg.queue_position.default": "Você está na posição {{position}} da fila. Aguarde, em breve será atendido.",
+
+  "chat.autoMsg.attendant_assigned.title": "Atendente Atribuído",
+  "chat.autoMsg.attendant_assigned.description": "Enviada ao visitante quando um atendente é atribuído à conversa",
+  "chat.autoMsg.attendant_assigned.default": "O atendente {{name}} foi atribuído ao seu atendimento.",
+
+  "chat.autoMsg.transfer_notice.title": "Aviso de Transferência",
+  "chat.autoMsg.transfer_notice.description": "Notifica o visitante quando a conversa é transferida para outro atendente ou time",
+  "chat.autoMsg.transfer_notice.default": "Sua conversa foi transferida para outro atendente. Em instantes você será atendido.",
+
+  "chat.autoMsg.inactivity_warning.title": "Aviso de Inatividade",
+  "chat.autoMsg.inactivity_warning.description": "Enviada ao visitante após X minutos sem nenhuma resposta na conversa",
+  "chat.autoMsg.inactivity_warning.default": "Notamos que não houve interação recente. Ainda precisa de ajuda?",
+
+  "chat.autoMsg.auto_close.title": "Fechamento Automático",
+  "chat.autoMsg.auto_close.description": "Encerra a conversa automaticamente após X minutos de inatividade total",
+  "chat.autoMsg.auto_close.default": "Esta conversa foi encerrada automaticamente por inatividade. Caso precise, inicie uma nova conversa.",
+
+  "chat.autoMsg.attendant_absence.title": "Ausência do Atendente",
+  "chat.autoMsg.attendant_absence.description": "Enviada se o atendente atribuído não responde dentro de X minutos",
+  "chat.autoMsg.attendant_absence.default": "Seu atendente está demorando para responder. Estamos redirecionando seu atendimento.",
+
+  "chat.autoMsg.offline_message.title": "Offline",
+  "chat.autoMsg.offline_message.description": "Exibida quando o visitante abre o chat fora do horário de atendimento configurado",
+  "chat.autoMsg.offline_message.default": "Estamos fora do horário de atendimento. Deixe sua mensagem e responderemos assim que possível.",
+
+  "chat.autoMsg.post_service_csat.title": "Pós-Atendimento (CSAT)",
+  "chat.autoMsg.post_service_csat.description": "Solicita avaliação do atendimento após o encerramento da conversa",
+  "chat.autoMsg.post_service_csat.default": "Seu atendimento foi encerrado. Como você avalia a qualidade do suporte recebido?",
+
+  "chat.autoMsg.return_online.title": "Retorno ao Horário",
+  "chat.autoMsg.return_online.description": "Enviada aos visitantes que deixaram mensagem fora do horário quando o atendimento é retomado",
+  "chat.autoMsg.return_online.default": "Estamos de volta! Seu atendimento será retomado em instantes.",
   "chat.portal.title": "Portal do Usuário",
   "chat.portal.chats": "Seus Atendimentos",
   "chat.portal.no_chats": "Nenhum atendimento encontrado",
