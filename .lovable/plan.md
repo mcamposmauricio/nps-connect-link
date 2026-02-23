@@ -1,101 +1,82 @@
 
-# Fix: Widget Nao Recebe Chat Proativo -- Visitantes Duplicados
 
-## Causa Raiz
+# Exibir Link de Acesso do Admin no Painel Master
 
-Existem **duas fontes que criam visitantes** para o mesmo contato, e elas nao se sincronizam:
+## Resumo
 
-1. **`resolve-chat-visitor`** (edge function): Busca visitante por `company_contact_id`, cria um novo se nao existe, mas **nao atualiza** `company_contacts.chat_visitor_id`
-2. **`ProactiveChatDialog`** (frontend): Busca visitante por `company_contacts.chat_visitor_id`, cria um novo se nao existe
+Apos criar uma plataforma com admin, o link de convite aparece apenas em um toast que desaparece rapidamente. A proposta e:
 
-Resultado: visitantes duplicados com IDs diferentes para o mesmo contato. O widget se inscreve no Realtime com o `visitor_id` de um, mas o chat proativo cria a sala com o `visitor_id` de outro. O filtro `visitor_id=eq.X` nao bate, e o widget nunca recebe a notificacao.
-
-O banco ja tem **dezenas de visitantes duplicados** confirmando o problema.
+1. Exibir um dialog de confirmacao apos criar o tenant com o link copiavel
+2. Adicionar uma coluna na tabela de tenants para mostrar o status do admin (pendente/aceito) com opcao de copiar o link ou reenviar
 
 ## Alteracoes
 
-### 1. `supabase/functions/resolve-chat-visitor/index.ts`
+### 1. `src/components/backoffice/TenantManagement.tsx`
 
-Ao criar um novo visitante (linha 104-114), atualizar tambem `company_contacts.chat_visitor_id` para manter o vinculo bidirecional:
+**A) Dialog de sucesso apos criacao com link copiavel**
 
+Adicionar um novo estado e dialog que aparece apos a criacao bem-sucedida do tenant:
+
+- Estado `inviteResult` com `{ inviteUrl, email, userAlreadyExists }`
+- Dialog com:
+  - Mensagem de sucesso
+  - Link completo (`https://nps-connect-link.lovable.app/auth?invite=TOKEN`) exibido em um campo de texto readonly
+  - Botao "Copiar link" que copia para a area de transferencia
+  - Nota informando que o admin deve acessar esse link para configurar a plataforma
+
+No `onSuccess` da `saveMutation`, em vez de mostrar apenas o toast, popular o estado e abrir o dialog.
+
+**B) Coluna "Admin" na tabela de tenants**
+
+- Adicionar uma query para buscar convites pendentes (`user_profiles` com `invite_status = 'pending'` por tenant)
+- Na tabela, adicionar uma coluna "Admin" que mostra:
+  - Se existe convite pendente: badge "Pendente" + botao para copiar o link
+  - Se admin ja aceitou: badge "Ativo" com o email
+  - Se nao tem admin: texto "Sem admin"
+
+**C) Botao para copiar link de convites pendentes existentes**
+
+Para tenants que ja foram criados mas o admin ainda nao aceitou o convite, exibir um icone de copia ao lado do badge "Pendente" que monta o link `{published_url}/auth?invite={invite_token}` e copia para a clipboard.
+
+### 2. Detalhes tecnicos
+
+**Busca de invites pendentes:**
 ```typescript
-// Apos criar o novo visitor (linha 114), adicionar:
-await supabase
-  .from("company_contacts")
-  .update({ chat_visitor_id: newVisitor.id })
-  .eq("id", companyContact.id);
+const { data: pendingInvites } = useQuery({
+  queryKey: ["backoffice-pending-invites"],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("id, email, display_name, invite_token, invite_status, tenant_id")
+      .eq("invite_status", "pending")
+      .not("tenant_id", "is", null);
+    return data || [];
+  },
+});
 ```
 
-### 2. `src/components/chat/ProactiveChatDialog.tsx`
-
-Alterar a logica de busca do visitante existente (linhas 68-101) para tambem procurar por `company_contact_id` na tabela `chat_visitors`, nao apenas por `chat_visitor_id` do contato. Isso garante que, se `resolve-chat-visitor` ja criou um visitante, ele sera reutilizado:
-
+**Montagem do link completo:**
 ```typescript
-// Antes de criar um novo visitor, tentar buscar por company_contact_id
-if (!visitorId) {
-  const { data: byContact } = await supabase
-    .from("chat_visitors")
-    .select("id")
-    .eq("company_contact_id", contact.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (byContact) {
-    visitorId = byContact.id;
-    // Sincronizar o link no contato
-    await supabase
-      .from("company_contacts")
-      .update({ chat_visitor_id: visitorId })
-      .eq("id", contact.id);
-  }
-}
+const baseUrl = window.location.origin; // funciona tanto em preview quanto em producao
+const fullInviteUrl = `${baseUrl}/auth?invite=${inviteToken}`;
 ```
 
-### 3. Limpeza de dados: Migracao SQL
-
-Limpar visitantes duplicados no banco, mantendo apenas o mais recente por `company_contact_id` e atualizando `company_contacts.chat_visitor_id`:
-
-```sql
--- Atualizar company_contacts.chat_visitor_id para o visitante mais recente
-WITH latest_visitors AS (
-  SELECT DISTINCT ON (company_contact_id) id, company_contact_id
-  FROM chat_visitors
-  WHERE company_contact_id IS NOT NULL
-  ORDER BY company_contact_id, created_at DESC
-)
-UPDATE company_contacts cc
-SET chat_visitor_id = lv.id
-FROM latest_visitors lv
-WHERE cc.id = lv.company_contact_id;
-
--- Deletar visitantes duplicados (manter apenas o mais recente por company_contact_id)
-DELETE FROM chat_visitors
-WHERE company_contact_id IS NOT NULL
-  AND id NOT IN (
-    SELECT DISTINCT ON (company_contact_id) id
-    FROM chat_visitors
-    WHERE company_contact_id IS NOT NULL
-    ORDER BY company_contact_id, created_at DESC
-  );
+**Copia para clipboard:**
+```typescript
+navigator.clipboard.writeText(fullInviteUrl);
+toast({ title: "Link copiado!" });
 ```
 
-## Fluxo Corrigido
+**Dialog de sucesso pos-criacao:**
+- Usa `Dialog` com campo readonly mostrando o link
+- Botao com icone `Copy` do lucide-react
+- Fecha ao clicar "Fechar" e limpa o estado
 
-```text
-1. Usuario abre pagina externa com widget
-2. resolve-chat-visitor encontra/cria visitor (id=AAA)
-   -> Atualiza company_contacts.chat_visitor_id = AAA
-3. Widget se inscreve em Realtime: visitor_id=eq.AAA
+**Nova coluna na tabela:**
+- Entre "Criado em" e as colunas de stats
+- Mostra email do admin + status (Pendente com link / Ativo / Sem admin)
 
-4. Atendente abre ProactiveChatDialog
-5. Busca contact.chat_visitor_id -> encontra AAA (ja sincronizado)
-   OU busca chat_visitors por company_contact_id -> encontra AAA
-6. Cria sala com visitor_id = AAA
-7. Widget recebe INSERT via Realtime -> abre o chat automaticamente
-```
+### Arquivos modificados
 
-## Arquivos Modificados
+1. `src/components/backoffice/TenantManagement.tsx` -- dialog de sucesso, query de invites, coluna na tabela
 
-1. `supabase/functions/resolve-chat-visitor/index.ts` -- atualizar `chat_visitor_id` ao criar visitor
-2. `src/components/chat/ProactiveChatDialog.tsx` -- busca fallback por `company_contact_id`
-3. Migracao SQL -- limpeza de duplicatas e sincronizacao
