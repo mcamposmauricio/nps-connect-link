@@ -79,6 +79,8 @@ interface Company {
   health_score: number | null;
   service_priority: string | null;
   last_nps_score: number | null;
+  mrr: number | null;
+  custom_fields: any;
 }
 
 const Contacts = () => {

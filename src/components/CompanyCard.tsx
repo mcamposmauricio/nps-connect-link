@@ -1,9 +1,10 @@
-import { Building2, Users, Star, MapPin, ChevronRight, Trash2, Copy } from "lucide-react";
+import { Building2, Users, Star, MapPin, ChevronRight, Trash2, Copy, Heart, TrendingUp, DollarSign } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { CustomFieldsInline } from "@/components/CustomFieldsDisplay";
 
 interface CompanyContact {
   id: string;
@@ -26,6 +27,10 @@ interface Company {
   state: string | null;
   contacts_count: number;
   primary_contact: CompanyContact | null;
+  health_score?: number | null;
+  mrr?: number | null;
+  last_nps_score?: number | null;
+  custom_fields?: any;
 }
 
 interface CompanyCardProps {
@@ -113,7 +118,50 @@ export function CompanyCard({ company, onClick, onDelete, canDelete = true }: Co
           <Users className="h-3 w-3 mr-1" />
           {company.contacts_count} {company.contacts_count === 1 ? t("companies.contact") : t("companies.contacts")}
         </Badge>
+        {company.health_score != null && (
+          <Badge
+            variant="secondary"
+            className={`text-xs ${
+              company.health_score >= 70
+                ? "bg-primary/15 text-primary"
+                : company.health_score >= 40
+                ? "bg-warning/15 text-warning"
+                : "bg-destructive/15 text-destructive"
+            }`}
+          >
+            <Heart className="h-3 w-3 mr-1" />
+            {company.health_score}%
+          </Badge>
+        )}
+        {company.last_nps_score != null && (
+          <Badge
+            variant="secondary"
+            className={`text-xs ${
+              company.last_nps_score >= 9
+                ? "bg-primary/15 text-primary"
+                : company.last_nps_score >= 7
+                ? "bg-warning/15 text-warning"
+                : "bg-destructive/15 text-destructive"
+            }`}
+          >
+            <TrendingUp className="h-3 w-3 mr-1" />
+            NPS {company.last_nps_score}
+          </Badge>
+        )}
       </div>
+
+      {(company.mrr != null && company.mrr > 0) && (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+          <DollarSign className="h-3 w-3" />
+          MRR: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(company.mrr)}
+        </div>
+      )}
+
+      {company.custom_fields && (
+        <div className="mb-2">
+          <CustomFieldsInline fields={company.custom_fields} target="company" maxFields={2} />
+        </div>
+      )}
 
       {(company.city || company.state) && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">

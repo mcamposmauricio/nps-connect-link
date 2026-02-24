@@ -223,7 +223,7 @@ export function PersonDetailsSheet({ person, onClose }: PersonDetailsSheetProps)
             )}
 
             {/* Custom Fields */}
-            <CustomFieldsDisplay fields={(person as any).custom_fields} />
+            <CustomFieldsDisplay fields={(person as any).custom_fields} target="contact" />
             {/* Chat Metrics */}
             <Card>
               <CardHeader className="pb-2">
