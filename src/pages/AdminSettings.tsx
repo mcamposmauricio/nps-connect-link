@@ -24,6 +24,7 @@ import AttendantsTab from "@/components/chat/AttendantsTab";
 import TeamsTab from "@/components/chat/TeamsTab";
 import CategoriesTab from "@/components/chat/CategoriesTab";
 import CustomFieldDefinitionsTab from "@/components/chat/CustomFieldDefinitionsTab";
+import ChatWidgetDocsTab from "@/components/chat/ChatWidgetDocsTab";
 
 interface Macro {
   id: string;
@@ -673,6 +674,9 @@ const AdminSettings = () => {
 
             {/* Custom Field Definitions */}
             <CustomFieldDefinitionsTab />
+
+            {/* Developer Documentation */}
+            <ChatWidgetDocsTab />
 
             {/* API Keys section */}
             <ChatApiKeysTab />
