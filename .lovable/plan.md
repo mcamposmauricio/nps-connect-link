@@ -1,93 +1,140 @@
 
 
-# Implementacao: `external_id` na tabela `contacts` + Refatoracao Completa
+# Melhorias Completas nos Guias de Implementacao e Prompt de Vibecoding
 
-## Resumo
+## Contexto
 
-Adicionar `external_id` na tabela de empresas (`contacts`), tornar `email` opcional para empresas criadas via widget, refatorar o fluxo de criacao/vinculacao de empresas no widget, e atualizar UI e documentacao.
+O componente `ChatWidgetDocsTab.tsx` tem 3 passos hoje: (1) Instalar Widget, (2) Identificar Usuario, (3) Prompt Vibecoding. O conteudo e funcional mas basico. As melhorias abaixo tornam os guias muito mais completos, especialmente o prompt de vibecoding que precisa ser um documento auto-suficiente para uma IA implementar a integracao sem perguntas.
 
-## 1. Migracao SQL
+## Melhorias Planejadas
 
-Adicionar coluna `external_id` na tabela `contacts` com indice unico por tenant, e tornar `email` nullable (empresas criadas pelo widget nao tem email real):
+### 1. Prompt de Vibecoding (Passo 3) -- Reescrever Completamente
 
-```sql
-ALTER TABLE public.contacts ADD COLUMN external_id text;
+O prompt atual e superficial. O novo prompt sera um documento completo com:
 
-CREATE UNIQUE INDEX idx_contacts_external_id_tenant 
-  ON public.contacts (tenant_id, external_id) 
-  WHERE external_id IS NOT NULL;
+- **Secao de contexto**: explicar o que e o widget, como funciona, o que o `update()` faz
+- **Instrucoes de instalacao**: dois modos (anonimo vs identificado) com explicacao de quando usar cada um
+- **Fluxo de identificacao**: explicar que `name` + `email` disparam auto-start e pulam formulario
+- **Referencia de `company_id`**: explicar que `company_id` e o identificador unico da empresa (`external_id`) -- se existir, vincula; se nao, cria
+- **Tabela completa de campos**: reservados + diretos da empresa + customizados do tenant, com tipo, obrigatoriedade e descricao
+- **Exemplos de codigo por framework**: snippets para React (useEffect), Vue (onMounted), e JavaScript puro
+- **Regras de merge**: explicar que campos customizados sao mesclados (JSONB merge), nao substituidos
+- **Comportamento do auto-start**: detalhar as condicoes (name + email presentes, sem visitor existente)
+- **Notas sobre `company_name` vs `company_id`**: explicar prioridades e fallbacks
 
-ALTER TABLE public.contacts ALTER COLUMN email DROP NOT NULL;
+### 2. Snippet de Update (Passo 2) -- Melhorar
+
+- Adicionar campos diretos da empresa no snippet (`mrr`, `contract_value`, `company_sector`, `company_document`)
+- Separar visualmente os blocos: identificacao, empresa, campos diretos, campos customizados
+- Adicionar comentarios explicativos em cada bloco
+
+### 3. Guia de Instalacao (Passo 1) -- Melhorar
+
+- Adicionar nota explicativa sobre quando usar anonimo vs identificado
+- Adicionar tabela com os `data-*` attributes do script e o que cada um faz
+- Adicionar nota sobre `data-api-key` e `data-external-id`
+
+### 4. Referencia Completa (Collapsible) -- Melhorar
+
+- Adicionar secao explicando o fluxo completo: script carrega -> resolve visitor -> cria iframe -> `update()` envia dados
+- Melhorar descricoes dos campos reservados com mais contexto
+- Adicionar exemplos de valores para cada campo no payload
+
+### 5. Full Doc (Copiar Tudo) -- Incluir tudo
+
+- O `buildFullDoc()` precisa incluir todas as melhorias acima
+- Incluir a referencia de campos customizados com exemplos
+- Incluir as notas sobre auto-start e merge
+
+## Detalhes Tecnicos
+
+### Arquivo unico a modificar
+`src/components/chat/ChatWidgetDocsTab.tsx`
+
+### Funcoes a alterar
+
+1. **`buildVibecodingPrompt()`** (linhas 140-198): reescrever completamente para gerar um documento Markdown auto-suficiente com ~80-100 linhas, incluindo:
+   - Contexto do produto
+   - Instrucoes de instalacao (2 modos)
+   - Codigo de identificacao com exemplos por framework (React, Vue, JS puro)
+   - Tabela completa de campos (reservados + diretos + customizados do tenant)
+   - Regras de comportamento (auto-start, merge de custom_fields, fallbacks)
+   - Secao de troubleshooting basico
+
+2. **`buildUpdateSnippet()`** (linhas 112-137): adicionar campos diretos da empresa e separar em blocos com comentarios
+
+3. **`buildFullDoc()`** (linhas 230-252): expandir para incluir todas as secoes novas
+
+4. **`buildPayloadJson()`** (linhas 201-227): manter mas melhorar com comentarios inline
+
+5. **Constante `RESERVED_FIELDS`** (linhas 45-55): melhorar descricoes para serem mais explicativas
+
+### UI: Passo 1 (Instalacao)
+- Adicionar mini-tabela abaixo dos code blocks explicando os `data-*` attributes:
+  - `data-api-key`: Chave de API para identificacao automatica
+  - `data-external-id`: ID do usuario no sistema do cliente
+  - `data-position`: Posicao do botao (left/right)
+  - `data-primary-color`: Cor principal do widget
+  - `data-company-name`: Nome exibido no cabecalho
+  - `data-button-shape`: Formato do botao (circle/square)
+
+### UI: Passo 3 (Vibecoding)
+- Manter o layout visual atual (border amber, badge "Novo")
+- O pre/code com o prompt tera `max-h-96` (mais alto) para mostrar mais conteudo
+- Adicionar um botao secundario "Copiar para Cursor/Lovable" ao lado do "Copiar" existente (mesmo comportamento, label diferente para clareza)
+
+### Conteudo do novo prompt de vibecoding (estrutura)
+
+```
+# Integracao: Widget de Chat ao Vivo
+
+## Sobre
+[Widget embeddable que permite chat em tempo real entre visitantes e atendentes]
+
+## Instalacao
+### Modo Anonimo (visitante sem identificacao)
+[script tag sem api-key]
+
+### Modo Identificado (usuario autenticado)
+[script tag com api-key e external-id]
+
+## Identificacao do Usuario via JavaScript
+[Explicar window.NPSChat.update()]
+[Exemplo React com useEffect]
+[Exemplo JavaScript puro]
+
+## Campos do Payload
+
+### Campos de Identificacao (obrigatorios para auto-start)
+| Campo | Tipo | Descricao |
+| name | string | Nome do visitante |
+| email | string | Email do visitante |
+
+### Campos Opcionais do Visitante
+| phone | string | Telefone |
+
+### Campos da Empresa
+| company_id | string | ID externo unico da empresa (external_id) |
+| company_name | string | Nome da empresa |
+| mrr | number | MRR da empresa |
+| contract_value | number | Valor do contrato |
+| company_sector | string | Setor |
+| company_document | string | CNPJ |
+
+### Campos Customizados (configurados pelo admin)
+[Tabela dinamica gerada a partir dos chat_custom_field_definitions]
+
+## Comportamento
+- Se name + email presentes: formulario e pulado (auto-start)
+- company_id vincula a empresa existente ou cria nova
+- Campos customizados sao mesclados (merge), nao sobrescritos
+- update() pode ser chamado multiplas vezes
+- Funciona sem update() (modo visitante anonimo)
+
+## Exemplo Completo
+[Payload JSON completo]
 ```
 
-## 2. Refatorar `upsertCompany` em `ChatWidget.tsx` (linhas 548-634)
-
-Logica atual busca empresa indiretamente via `company_contacts.external_id` e cria email fake. Nova logica:
-
-1. Se `company_id` existe: buscar `contacts WHERE external_id = company_id AND user_id = ownerUserId AND is_company = true`
-2. Se encontrou: usar empresa existente
-3. Se nao encontrou: criar empresa com `external_id = company_id`, `email = null`, e ja incluir campos diretos (mrr, contract_value, etc.) na criacao
-4. Buscar/criar `company_contact` vinculado
-5. Atualizar campos diretos e custom_fields na empresa
-
-Isso elimina emails fake e evita duplicatas.
-
-## 3. Atualizar `CompanyForm.tsx`
-
-- Adicionar campo `external_id` na interface `CompanyFormData`
-- Adicionar input "ID Externo" no formulario, logo apos o campo CNPJ
-- Inicializar com `initialData?.external_id || ""`
-- Campo opcional, com placeholder explicativo ("Ex: EMP-123, usado para integracao via widget")
-
-## 4. Atualizar `Contacts.tsx`
-
-- Incluir `external_id` no `handleAddCompany` (insert)
-- Incluir `external_id` no `handleEditCompany` (update)
-- Incluir `external_id` no `initialData` passado ao `CompanyForm` na edicao
-
-## 5. Atualizar `CompanyDetailsSheet.tsx`
-
-- Exibir `external_id` no card de "Integracao" (linhas 364-386), logo abaixo do "System ID"
-- Formato: label "ID Externo" + code + botao copiar (mesmo padrao do System ID)
-- Mostrar apenas se `external_id` nao for null
-
-## 6. Atualizar `BulkImportDialog.tsx`
-
-- Adicionar `"external_id"` ao array `COMPANY_FIXED_COLUMNS` (linha 23)
-- Mapear no record de insert: `external_id: row.data.external_id?.trim() || null`
-
-## 7. Atualizar `ChatWidgetDocsTab.tsx`
-
-- Atualizar a descricao do campo `company_id` na tabela de campos reservados para: "ID externo da empresa -- vincula diretamente ao cadastro da empresa por external_id"
-- No prompt de vibecoding, incluir nota sobre o `company_id` ser o identificador unico da empresa
-
-## 8. Atualizar `resolve-chat-visitor` edge function
-
-Ao criar visitor, se `companyContact.company_id` aponta para uma empresa que nao tem `external_id`, preencher com o `external_id` do `company_contact` (retrocompatibilidade).
-
-## Arquivos afetados
-
-| Arquivo | Acao |
-|---------|------|
-| Migracao SQL | `external_id` + indice unico + email nullable |
-| `src/pages/ChatWidget.tsx` | Refatorar `upsertCompany` |
-| `src/components/CompanyForm.tsx` | Adicionar campo `external_id` |
-| `src/pages/Contacts.tsx` | Incluir `external_id` no insert/update |
-| `src/components/CompanyDetailsSheet.tsx` | Exibir `external_id` |
-| `src/components/BulkImportDialog.tsx` | `external_id` no CSV |
-| `src/components/chat/ChatWidgetDocsTab.tsx` | Atualizar descricao |
-| `supabase/functions/resolve-chat-visitor/index.ts` | Propagar `external_id` |
-
-## Detalhes tecnicos
-
-### Impacto na RLS
-Nenhuma nova politica necessaria. A tabela `contacts` ja tem RLS por `tenant_id`. O indice unico garante unicidade apenas dentro do mesmo tenant.
-
-### Impacto em dados existentes
-- Empresas existentes terao `external_id = null` (sem quebra)
-- Empresas com email fake continuam funcionando
-- O formulario do admin mantera `email` como campo visivel (nao obrigatorio no banco, mas o front pode validar se quiser)
-
-### Email nullable
-O `email` sera `NOT NULL` removido apenas no banco. O formulario do admin (`CompanyForm`) continuara mostrando o campo normalmente -- a validacao de obrigatoriedade fica no front-end para empresas criadas manualmente. Apenas empresas criadas automaticamente pelo widget poderao ter email null.
+### Nenhuma mudanca no banco ou backend
+Apenas alteracoes no componente de documentacao (front-end).
 
