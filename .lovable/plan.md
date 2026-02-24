@@ -1,118 +1,110 @@
 
 
-# Plano: Exibir Campos Customizados e Dados Completos em Todas as Telas
+# Plano: Tela de Documentacao do Payload para o Cliente (Chat Widget)
 
-## Problema Atual
+## Problema
 
-Os campos customizados configurados pelo tenant (via `chat_custom_field_definitions`) e armazenados em `contacts.custom_fields` aparecem de forma inconsistente:
+Quando o admin configura campos customizados (ex: `mrr`, `plano_contratado`, `link_master`), o cliente que integra o widget nao tem como saber:
+- Quais keys enviar no `window.NPSChat.update()`
+- Qual o tipo esperado de cada campo (decimal, url, boolean, etc.)
+- Quais campos sao obrigatorios para identificacao automatica
+- Qual o formato correto do payload
 
-- O componente `CustomFieldsDisplay` mostra apenas as **chaves brutas** (ex: "mrr") ao inves dos labels configurados (ex: "Valor do MRR")
-- O `CompanyCSDetailsSheet` (CS Dashboard) nao exibe campos customizados, setor, CNPJ nem prioridade
-- O `CompanyCard` na listagem de empresas nao mostra Health Score, MRR nem NPS
-- O `VisitorInfoPanel` le campos customizados do metadata do visitor mas nao le os `custom_fields` da empresa vinculada
-- O `PersonDetailsSheet` mostra campos customizados sem formatacao por tipo
+Atualmente o admin precisaria comunicar isso manualmente por email/documento, o que e fragil e propenso a erros.
 
-## Arquivos Afetados
+## Solucao
 
-### 1. `src/components/CustomFieldsDisplay.tsx` -- Refatoracao Principal
+Criar uma secao de **"Documentacao para Desenvolvedores"** dentro da aba "Widget e Instalacao" do AdminSettings, que gera automaticamente a documentacao com base nos campos customizados cadastrados pelo tenant. Similar ao padrao ja existente no `ExternalApiTab`.
 
-Transformar de componente "burro" (exibe key/value) para componente "inteligente" que:
-- Busca as definicoes de campos do tenant (`chat_custom_field_definitions`)
-- Usa o `label` cadastrado ao inves da key bruta
-- Formata valores por tipo (decimal como moeda, url como link clicavel, boolean como badge, date como data formatada)
-- Aceita prop `target` ("company" ou "contact") para filtrar definicoes relevantes
-- Campos sem definicao cadastrada continuam aparecendo com a key original como fallback
+## O que sera criado
 
-### 2. `src/components/CompanyDetailsSheet.tsx` -- Overview da Empresa
+### Novo componente: `src/components/chat/ChatWidgetDocsTab.tsx`
 
-Substituir o uso atual de `<CustomFieldsDisplay fields={company.custom_fields} />` pelo componente refatorado com `target="company"`. Resultado: campos customizados aparecem com labels e formatacao correta.
+Uma secao de documentacao que inclui:
 
-### 3. `src/components/PersonDetailsSheet.tsx` -- Detalhes do Contato
+**1. Referencia da API `window.NPSChat.update()`**
+- Explicacao do metodo
+- Campos reservados de identificacao (name, email, phone) -- sempre disponiveis
+- Campos reservados de empresa (company_id, company_name) -- sempre disponiveis
 
-Substituir o uso atual de `<CustomFieldsDisplay fields={person.custom_fields} />` pelo componente refatorado com `target="contact"`.
+**2. Tabela dinamica de campos customizados do tenant**
+- Busca `chat_custom_field_definitions` do tenant atual
+- Exibe: Key, Label, Tipo, Destino (Empresa/Contato), Obrigatorio
+- Se nao ha campos cadastrados, mostra mensagem orientando o admin a configurar primeiro
 
-### 4. `src/components/cs/CompanyCSDetailsSheet.tsx` -- Sheet do CS Dashboard
+**3. Payload de exemplo gerado automaticamente**
+- Gera um JSON de exemplo usando os campos reais do tenant
+- Valores de exemplo por tipo:
+  - text: "Exemplo"
+  - decimal: 1500.00
+  - integer: 10
+  - url: "https://exemplo.com"
+  - boolean: true
+  - date: "2026-01-15"
+- Botao de copiar o payload
 
-Adicionar na aba Overview:
-- CNPJ (`company_document`)
-- Setor (`company_sector`)
-- Prioridade (`service_priority`) quando diferente de "normal"
-- Secao de campos customizados (`custom_fields`) com o componente refatorado
-- Buscar `custom_fields` do banco (atualmente o SELECT nao inclui essa coluna)
+**4. Snippet JavaScript completo**
+- Codigo pronto para copiar com os campos do tenant preenchidos como placeholder
+- Exemplo:
+```javascript
+window.NPSChat.update({
+  // Identificacao (pula formulario se name + email presentes)
+  name: "Nome do usuario",
+  email: "email@empresa.com",
+  phone: "(11) 99999-9999",
 
-### 5. `src/components/CompanyCard.tsx` -- Card na Listagem de Empresas
+  // Empresa
+  company_id: "ID_DA_EMPRESA",
+  company_name: "Nome da Empresa",
 
-Adicionar indicadores visuais compactos:
-- Badge de Health Score (colorido: verde/amarelo/vermelho)
-- MRR formatado quando presente
-- Badge NPS (Promotor/Neutro/Detrator) quando presente
-- Exibir ate 2 campos customizados mais relevantes (os primeiros por `display_order`)
-
-A interface `Company` no card precisa ser expandida para incluir `health_score`, `mrr`, `last_nps_score` e `custom_fields`.
-
-### 6. `src/components/chat/VisitorInfoPanel.tsx` -- Painel do Atendente
-
-Na aba "Empresa", apos os dados financeiros ja exibidos, adicionar secao de campos customizados da empresa (`company.custom_fields`), usando as mesmas definicoes de campo (`fieldDefs`) ja carregadas, filtrando por `target = "company"`.
-
-Atualmente so exibe campos do `visitorMetadata` na aba "Contato". O plano e:
-- Aba "Contato": campos customizados do metadata do visitor (dados recebidos via API, ja funciona)
-- Aba "Empresa": campos customizados de `contacts.custom_fields` (dados persistidos da empresa, **novo**)
-
-Para isso, buscar `custom_fields` da empresa no SELECT existente (atualmente nao esta incluido).
-
-### 7. `src/pages/Contacts.tsx` -- Listagem de Empresas
-
-Expandir a interface `Company` para passar `health_score`, `mrr`, `last_nps_score` e `custom_fields` ao `CompanyCard` (os dados ja sao buscados do banco com `select("*")`).
-
----
-
-## Detalhes Tecnicos
-
-### Refatoracao do `CustomFieldsDisplay`
-
-```text
-Props:
-  - fields: Record<string, any>  -- os custom_fields do registro
-  - target?: "company" | "contact"  -- filtra definicoes por target
-
-Comportamento:
-  1. Busca chat_custom_field_definitions do tenant (com cache via react-query)
-  2. Para cada entry em fields:
-     a. Se existe definicao com key correspondente e target correto: usa label + formatacao
-     b. Se nao existe definicao: exibe key original como fallback
-  3. Ordena por display_order das definicoes
+  // Campos customizados configurados
+  mrr: 5000.00,           // Valor do MRR (decimal)
+  plano: "Enterprise",    // Plano Contratado (text)
+  link_master: "https://app.com/admin"  // Link Admin (url)
+});
 ```
 
-### Expansao do SELECT no CompanyCSDetailsSheet
+**5. Tabela de campos reservados**
+- Campos que sempre funcionam independente da configuracao:
 
-```text
-Atual:  .select("id, name, trade_name, health_score, mrr, ...")
-Novo:   Adicionar company_sector, company_document, service_priority, custom_fields
-```
+| Key | Tipo | Descricao |
+|-----|------|-----------|
+| name | string | Nome do visitante (obrigatorio para auto-start) |
+| email | string | Email do visitante (obrigatorio para auto-start) |
+| phone | string | Telefone do visitante |
+| company_id | string | ID externo da empresa (para vincular ao cadastro) |
+| company_name | string | Nome da empresa (cria empresa se nao existir) |
+| mrr | number | MRR -- atualiza coluna direta |
+| contract_value | number | Valor do contrato -- atualiza coluna direta |
+| company_sector | string | Setor -- atualiza coluna direta |
+| company_document | string | CNPJ -- atualiza coluna direta |
 
-### Expansao do SELECT no VisitorInfoPanel
+### Integracao no AdminSettings
 
-```text
-Atual:  .select("id, name, trade_name, health_score, mrr, contract_value, ...")
-Novo:   Adicionar custom_fields
-```
+Posicionar o novo componente na aba "Widget e Instalacao", logo apos o `CustomFieldDefinitionsTab` e antes do `ChatApiKeysTab`. Ordem final:
+1. Configuracao do Widget (aparencia)
+2. Codigo de Embed
+3. Campos Customizados (definicoes do admin)
+4. **Documentacao para Desenvolvedores** (NOVO -- referencia do payload)
+5. Chaves de API
 
-### Expansao da interface Company no CompanyCard
+### Comportamento dinamico
 
-```text
-Adicionar: health_score, mrr, last_nps_score, custom_fields
-```
+- Se o tenant tem 0 campos customizados cadastrados: a secao de "Campos Customizados Configurados" mostra um alerta orientando a cadastrar campos primeiro, mas ainda exibe os campos reservados
+- Se o tenant tem campos: gera a tabela e os snippets automaticamente
+- Botao "Copiar payload" e "Copiar snippet" para facilitar o compartilhamento com o desenvolvedor do cliente
 
----
+## Arquivos a criar/modificar
 
-## Resumo de Mudancas por Arquivo
+| Arquivo | Acao |
+|---------|------|
+| `src/components/chat/ChatWidgetDocsTab.tsx` | Criar -- componente de documentacao dinamica |
+| `src/pages/AdminSettings.tsx` | Modificar -- adicionar o componente na aba widget |
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `CustomFieldsDisplay.tsx` | Refatorar para usar definicoes do tenant com labels e formatacao por tipo |
-| `CompanyDetailsSheet.tsx` | Passar `target="company"` ao CustomFieldsDisplay |
-| `PersonDetailsSheet.tsx` | Passar `target="contact"` ao CustomFieldsDisplay |
-| `CompanyCSDetailsSheet.tsx` | Adicionar CNPJ, setor, prioridade, custom_fields na overview |
-| `CompanyCard.tsx` | Adicionar Health Score, MRR, NPS badge e custom fields no card |
-| `VisitorInfoPanel.tsx` | Adicionar custom_fields da empresa na aba Empresa |
-| `Contacts.tsx` | Expandir interface Company para passar novos campos ao CompanyCard |
+## Detalhes tecnicos
+
+- Buscar campos via `supabase.from("chat_custom_field_definitions").select("*").order("display_order")`
+- RLS ja garante que so retorna campos do tenant do usuario logado
+- Reutilizar o padrao visual do `ExternalApiTab` (Card com pre/code, CopyButton, Table com Badge)
+- Nenhuma mudanca no banco de dados necessaria
+
