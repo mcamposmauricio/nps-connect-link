@@ -1,147 +1,118 @@
 
 
-# Plano: Testes Detalhados da Implementacao de Campos Customizados e Upsert de Empresa
+# Plano: Exibir Campos Customizados e Dados Completos em Todas as Telas
 
-## Resumo
+## Problema Atual
 
-Criar uma suite de testes automatizados cobrindo 4 areas da implementacao:
-1. Edge function `resolve-chat-visitor` (teste Deno)
-2. Tabela `chat_custom_field_definitions` e RLS (teste via query SQL)
-3. Logica de upsert de empresa no `ChatWidget` (teste unitario React)
-4. Componente `CustomFieldDefinitionsTab` e `VisitorInfoPanel` (testes de renderizacao)
+Os campos customizados configurados pelo tenant (via `chat_custom_field_definitions`) e armazenados em `contacts.custom_fields` aparecem de forma inconsistente:
 
----
+- O componente `CustomFieldsDisplay` mostra apenas as **chaves brutas** (ex: "mrr") ao inves dos labels configurados (ex: "Valor do MRR")
+- O `CompanyCSDetailsSheet` (CS Dashboard) nao exibe campos customizados, setor, CNPJ nem prioridade
+- O `CompanyCard` na listagem de empresas nao mostra Health Score, MRR nem NPS
+- O `VisitorInfoPanel` le campos customizados do metadata do visitor mas nao le os `custom_fields` da empresa vinculada
+- O `PersonDetailsSheet` mostra campos customizados sem formatacao por tipo
 
-## Parte 1: Setup do ambiente de testes
+## Arquivos Afetados
 
-O projeto nao possui nenhuma configuracao de testes. Sera necessario:
+### 1. `src/components/CustomFieldsDisplay.tsx` -- Refatoracao Principal
 
-1. Instalar dependencias: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`
-2. Criar `vitest.config.ts` com aliases e environment jsdom
-3. Criar `src/test/setup.ts` com mocks de `matchMedia`
-4. Atualizar `tsconfig.app.json` com `vitest/globals`
+Transformar de componente "burro" (exibe key/value) para componente "inteligente" que:
+- Busca as definicoes de campos do tenant (`chat_custom_field_definitions`)
+- Usa o `label` cadastrado ao inves da key bruta
+- Formata valores por tipo (decimal como moeda, url como link clicavel, boolean como badge, date como data formatada)
+- Aceita prop `target` ("company" ou "contact") para filtrar definicoes relevantes
+- Campos sem definicao cadastrada continuam aparecendo com a key original como fallback
 
----
+### 2. `src/components/CompanyDetailsSheet.tsx` -- Overview da Empresa
 
-## Parte 2: Teste da Edge Function `resolve-chat-visitor`
+Substituir o uso atual de `<CustomFieldsDisplay fields={company.custom_fields} />` pelo componente refatorado com `target="company"`. Resultado: campos customizados aparecem com labels e formatacao correta.
 
-### Arquivo: `supabase/functions/resolve-chat-visitor/index.test.ts`
+### 3. `src/components/PersonDetailsSheet.tsx` -- Detalhes do Contato
 
-Cenarios:
-- **Sem api_key**: retorna 400
-- **API key invalida**: retorna 401
-- **API key valida sem external_id**: retorna `user_id` (owner resolution only)
-- **API key valida com external_id existente**: retorna `visitor_token`, `company_contact_id`, `contact_id`
-- **API key valida com external_id inexistente**: retorna `contact_not_found` com `user_id`
+Substituir o uso atual de `<CustomFieldsDisplay fields={person.custom_fields} />` pelo componente refatorado com `target="contact"`.
 
----
+### 4. `src/components/cs/CompanyCSDetailsSheet.tsx` -- Sheet do CS Dashboard
 
-## Parte 3: Testes unitarios do ChatWidget
+Adicionar na aba Overview:
+- CNPJ (`company_document`)
+- Setor (`company_sector`)
+- Prioridade (`service_priority`) quando diferente de "normal"
+- Secao de campos customizados (`custom_fields`) com o componente refatorado
+- Buscar `custom_fields` do banco (atualmente o SELECT nao inclui essa coluna)
 
-### Arquivo: `src/pages/__tests__/ChatWidget.test.tsx`
+### 5. `src/components/CompanyCard.tsx` -- Card na Listagem de Empresas
 
-**3a. Separacao de campos reservados vs customizados**
+Adicionar indicadores visuais compactos:
+- Badge de Health Score (colorido: verde/amarelo/vermelho)
+- MRR formatado quando presente
+- Badge NPS (Promotor/Neutro/Detrator) quando presente
+- Exibir ate 2 campos customizados mais relevantes (os primeiros por `display_order`)
 
-Testar que a constante `COMPANY_DIRECT_FIELDS` mapeia corretamente:
-- `mrr` -> `mrr`
-- `contract_value` -> `contract_value`
-- `company_sector` -> `company_sector`
-- `company_name` -> `trade_name`
+A interface `Company` no card precisa ser expandida para incluir `health_score`, `mrr`, `last_nps_score` e `custom_fields`.
 
-E que campos reservados de contato (`name`, `email`, `phone`) e empresa (`company_id`, `company_name`, `user_id`) sao filtrados no loop de upsert.
+### 6. `src/components/chat/VisitorInfoPanel.tsx` -- Painel do Atendente
 
-**3b. Auto-start via postMessage**
+Na aba "Empresa", apos os dados financeiros ja exibidos, adicionar secao de campos customizados da empresa (`company.custom_fields`), usando as mesmas definicoes de campo (`fieldDefs`) ja carregadas, filtrando por `target = "company"`.
 
-Testar que quando `nps-chat-update` com `name` e recebido:
-- `formData.name` e preenchido
-- `autoStartTriggered.current` vira true
-- O useEffect dispara `handleStartChat`
+Atualmente so exibe campos do `visitorMetadata` na aba "Contato". O plano e:
+- Aba "Contato": campos customizados do metadata do visitor (dados recebidos via API, ja funciona)
+- Aba "Empresa": campos customizados de `contacts.custom_fields` (dados persistidos da empresa, **novo**)
 
-**3c. Upsert de empresa (logica isolada)**
+Para isso, buscar `custom_fields` da empresa no SELECT existente (atualmente nao esta incluido).
 
-Extrair e testar a funcao `upsertCompany`:
-- Cenario 1: `company_id` existente -> encontra company_contact, retorna IDs
-- Cenario 2: `company_id` inexistente + `company_name` -> cria empresa + company_contact
-- Cenario 3: Sem `company_id` nem `company_name` -> retorna null/null
-- Cenario 4: Campos diretos (mrr, contract_value) sao atualizados via UPDATE na contacts
-- Cenario 5: Campos customizados sao mergeados no `custom_fields` JSONB
+### 7. `src/pages/Contacts.tsx` -- Listagem de Empresas
+
+Expandir a interface `Company` para passar `health_score`, `mrr`, `last_nps_score` e `custom_fields` ao `CompanyCard` (os dados ja sao buscados do banco com `select("*")`).
 
 ---
 
-## Parte 4: Testes do componente `CustomFieldDefinitionsTab`
+## Detalhes Tecnicos
 
-### Arquivo: `src/components/chat/__tests__/CustomFieldDefinitionsTab.test.tsx`
+### Refatoracao do `CustomFieldsDisplay`
 
-Cenarios:
-- Renderiza mensagem vazia quando nao ha campos
-- Renderiza tabela com campos existentes (key, label, tipo, destino)
-- Botao "Adicionar Campo" abre dialog com campos corretos
-- Limite de 20 campos: botao desabilitado quando atingido
-- Key e sanitizada (lowercase, espacos -> underscore)
-- Selecao de "Mapeia para" so aparece quando destino = "Empresa"
+```text
+Props:
+  - fields: Record<string, any>  -- os custom_fields do registro
+  - target?: "company" | "contact"  -- filtra definicoes por target
 
----
+Comportamento:
+  1. Busca chat_custom_field_definitions do tenant (com cache via react-query)
+  2. Para cada entry em fields:
+     a. Se existe definicao com key correspondente e target correto: usa label + formatacao
+     b. Se nao existe definicao: exibe key original como fallback
+  3. Ordena por display_order das definicoes
+```
 
-## Parte 5: Testes do `VisitorInfoPanel`
+### Expansao do SELECT no CompanyCSDetailsSheet
 
-### Arquivo: `src/components/chat/__tests__/VisitorInfoPanel.test.tsx`
+```text
+Atual:  .select("id, name, trade_name, health_score, mrr, ...")
+Novo:   Adicionar company_sector, company_document, service_priority, custom_fields
+```
 
-Cenarios:
-- Busca definicoes de campos customizados do tenant
-- Renderiza secao "Dados Customizados" quando existem dados no metadata
-- Formatacao correta por tipo:
-  - decimal: `R$ 5.000,50`
-  - url: link clicavel
-  - boolean: badge Sim/Nao
-  - date: data formatada
-  - integer: numero formatado
-  - text: texto simples
-- Nao renderiza secao quando metadata esta vazio
-- Nao renderiza campos cujas definicoes estao inativas
+### Expansao do SELECT no VisitorInfoPanel
 
----
+```text
+Atual:  .select("id, name, trade_name, health_score, mrr, contract_value, ...")
+Novo:   Adicionar custom_fields
+```
 
-## Parte 6: Teste E2E da Edge Function (Deno test)
+### Expansao da interface Company no CompanyCard
 
-### Arquivo: `supabase/functions/resolve-chat-visitor/index.test.ts`
-
-```typescript
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
-
-const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY")!;
-
-Deno.test("retorna 400 sem api_key", async () => {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/resolve-chat-visitor`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
-    body: JSON.stringify({}),
-  });
-  assertEquals(res.status, 400);
-  const body = await res.json();
-  assertEquals(body.error, "api_key is required");
-});
-
-Deno.test("retorna 401 com api_key invalida", async () => {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/resolve-chat-visitor`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
-    body: JSON.stringify({ api_key: "invalid_key_12345" }),
-  });
-  assertEquals(res.status, 401);
-  await res.text();
-});
+```text
+Adicionar: health_score, mrr, last_nps_score, custom_fields
 ```
 
 ---
 
-## Arquivos a criar/modificar
+## Resumo de Mudancas por Arquivo
 
-1. **`vitest.config.ts`** -- Configuracao do Vitest
-2. **`src/test/setup.ts`** -- Setup com mocks
-3. **`tsconfig.app.json`** -- Adicionar `vitest/globals`
-4. **`supabase/functions/resolve-chat-visitor/index.test.ts`** -- Testes da edge function
-5. **`src/components/chat/__tests__/CustomFieldDefinitionsTab.test.tsx`** -- Testes do admin
-6. **`src/components/chat/__tests__/VisitorInfoPanel.test.tsx`** -- Testes do painel
-7. **`src/pages/__tests__/ChatWidget.test.tsx`** -- Testes do widget (auto-start, upsert)
-
+| Arquivo | Mudanca |
+|---------|---------|
+| `CustomFieldsDisplay.tsx` | Refatorar para usar definicoes do tenant com labels e formatacao por tipo |
+| `CompanyDetailsSheet.tsx` | Passar `target="company"` ao CustomFieldsDisplay |
+| `PersonDetailsSheet.tsx` | Passar `target="contact"` ao CustomFieldsDisplay |
+| `CompanyCSDetailsSheet.tsx` | Adicionar CNPJ, setor, prioridade, custom_fields na overview |
+| `CompanyCard.tsx` | Adicionar Health Score, MRR, NPS badge e custom fields no card |
+| `VisitorInfoPanel.tsx` | Adicionar custom_fields da empresa na aba Empresa |
+| `Contacts.tsx` | Expandir interface Company para passar novos campos ao CompanyCard |
