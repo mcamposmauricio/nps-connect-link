@@ -46,7 +46,7 @@ const RESERVED_FIELDS = [
   { key: "name", type: "string", desc: "Nome do visitante (obrigatório para auto-start)", required: true },
   { key: "email", type: "string", desc: "Email do visitante (obrigatório para auto-start)", required: true },
   { key: "phone", type: "string", desc: "Telefone do visitante", required: false },
-  { key: "company_id", type: "string", desc: "ID externo da empresa (para vincular ao cadastro)", required: false },
+  { key: "company_id", type: "string", desc: "ID externo da empresa — vincula diretamente ao cadastro da empresa por external_id", required: false },
   { key: "company_name", type: "string", desc: "Nome da empresa (cria empresa se não existir)", required: false },
   { key: "mrr", type: "number", desc: "MRR — atualiza coluna direta na empresa", required: false },
   { key: "contract_value", type: "number", desc: "Valor do contrato — atualiza coluna direta", required: false },

@@ -22,6 +22,7 @@ interface BulkImportDialogProps {
 const COMPANY_FIXED_COLUMNS = [
   "nome", "email", "telefone", "cnpj", "nome_fantasia", "setor",
   "rua", "numero", "complemento", "bairro", "cidade", "estado", "cep",
+  "external_id",
 ];
 
 const CONTACT_FIXED_COLUMNS = [
@@ -250,11 +251,12 @@ export function BulkImportDialog({ open, onOpenChange, type, onSuccess }: BulkIm
           return {
             user_id: user.id,
             name: row.data.nome?.trim(),
-            email: row.data.email?.trim(),
+            email: row.data.email?.trim() || null,
             phone: row.data.telefone?.trim() || null,
             company_document: row.data.cnpj?.trim() || null,
             trade_name: row.data.nome_fantasia?.trim() || null,
             company_sector: row.data.setor?.trim() || null,
+            external_id: row.data.external_id?.trim() || null,
             street: row.data.rua?.trim() || null,
             street_number: row.data.numero?.trim() || null,
             complement: row.data.complemento?.trim() || null,

@@ -1455,7 +1455,8 @@ export type Database = {
           cs_status: string | null
           csm_id: string | null
           custom_fields: Json | null
-          email: string
+          email: string | null
+          external_id: string | null
           health_score: number | null
           id: string
           is_company: boolean
@@ -1488,7 +1489,8 @@ export type Database = {
           cs_status?: string | null
           csm_id?: string | null
           custom_fields?: Json | null
-          email: string
+          email?: string | null
+          external_id?: string | null
           health_score?: number | null
           id?: string
           is_company?: boolean
@@ -1521,7 +1523,8 @@ export type Database = {
           cs_status?: string | null
           csm_id?: string | null
           custom_fields?: Json | null
-          email?: string
+          email?: string | null
+          external_id?: string | null
           health_score?: number | null
           id?: string
           is_company?: boolean
