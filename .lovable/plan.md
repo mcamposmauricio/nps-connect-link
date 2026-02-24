@@ -1,146 +1,93 @@
 
-# Plano: Documentacao Completa e Intuitiva do Widget + Prompt para Vibecoding
 
-## Problema Atual
+# Implementacao: `external_id` na tabela `contacts` + Refatoracao Completa
 
-A secao de documentacao (`ChatWidgetDocsTab`) existe mas e basica demais:
-- Nao tem o codigo de embed completo (script tag) -- o cliente precisa rolar para cima para ver
-- Falta um guia passo-a-passo claro ("1, 2, 3")
-- Nao tem um prompt pronto para vibecoding (copiar e colar no Cursor/Lovable/etc.)
-- O design e uma unica Card sem hierarquia visual -- tudo parece igual
-- Nao ha separacao clara entre "o que o admin faz" e "o que enviar ao desenvolvedor"
+## Resumo
 
-## Solucao
+Adicionar `external_id` na tabela de empresas (`contacts`), tornar `email` opcional para empresas criadas via widget, refatorar o fluxo de criacao/vinculacao de empresas no widget, e atualizar UI e documentacao.
 
-Reescrever completamente o `ChatWidgetDocsTab.tsx` com UX profissional orientada a acao, organizada em steps numerados com copy-paste em cada bloco, e adicionar um prompt pronto para ferramentas de vibecoding.
+## 1. Migracao SQL
 
-## Novo Design -- Estrutura Visual
+Adicionar coluna `external_id` na tabela `contacts` com indice unico por tenant, e tornar `email` nullable (empresas criadas pelo widget nao tem email real):
 
-### Secao 1: Guia Rapido (3 steps numerados)
+```sql
+ALTER TABLE public.contacts ADD COLUMN external_id text;
 
-Cards numerados com icones, cada um com botao "Copiar":
+CREATE UNIQUE INDEX idx_contacts_external_id_tenant 
+  ON public.contacts (tenant_id, external_id) 
+  WHERE external_id IS NOT NULL;
 
-```text
-+---------------------------------------------------+
-| 1. Instale o Widget                               |
-| Cole este script no HTML do seu site, antes de     |
-| </body>:                                          |
-|                                                    |
-| [bloco de codigo com script tag completo]  [Copiar]|
-+---------------------------------------------------+
-| 2. Identifique o Usuario (opcional)                |
-| Quando o usuario logar na sua plataforma, envie    |
-| os dados dele para pular o formulario:             |
-|                                                    |
-| [bloco de codigo window.NPSChat.update()]  [Copiar]|
-+---------------------------------------------------+
-| 3. Prompt para Vibecoding (IA)                     |
-| Copie este prompt e cole na sua ferramenta de IA   |
-| (Cursor, Lovable, etc.) para implementar           |
-| automaticamente:                                   |
-|                                                    |
-| [bloco com prompt completo]                [Copiar]|
-+---------------------------------------------------+
+ALTER TABLE public.contacts ALTER COLUMN email DROP NOT NULL;
 ```
 
-### Secao 2: Referencia Completa (Collapsible)
+## 2. Refatorar `upsertCompany` em `ChatWidget.tsx` (linhas 548-634)
 
-Dentro de um Collapsible "Ver referencia completa da API":
-- Tabela de campos reservados (name, email, phone, company_id, etc.)
-- Tabela de campos customizados do tenant (dinamica)
-- Payload JSON de exemplo (dinamico)
+Logica atual busca empresa indiretamente via `company_contacts.external_id` e cria email fake. Nova logica:
 
-## Detalhes do Prompt para Vibecoding
+1. Se `company_id` existe: buscar `contacts WHERE external_id = company_id AND user_id = ownerUserId AND is_company = true`
+2. Se encontrou: usar empresa existente
+3. Se nao encontrou: criar empresa com `external_id = company_id`, `email = null`, e ja incluir campos diretos (mrr, contract_value, etc.) na criacao
+4. Buscar/criar `company_contact` vinculado
+5. Atualizar campos diretos e custom_fields na empresa
 
-O prompt gerado sera algo como:
+Isso elimina emails fake e evita duplicatas.
 
-```text
-Preciso integrar um widget de chat na minha aplicacao web.
+## 3. Atualizar `CompanyForm.tsx`
 
-## Script de Embed
-Adicione o seguinte script antes do </body> em todas as paginas:
+- Adicionar campo `external_id` na interface `CompanyFormData`
+- Adicionar input "ID Externo" no formulario, logo apos o campo CNPJ
+- Inicializar com `initialData?.external_id || ""`
+- Campo opcional, com placeholder explicativo ("Ex: EMP-123, usado para integracao via widget")
 
-<script src="https://[DOMINIO]/nps-chat-embed.js"
-  data-position="right"
-  data-primary-color="#7C3AED"
-  data-company-name="Suporte"
-  data-button-shape="circle">
-</script>
+## 4. Atualizar `Contacts.tsx`
 
-## Identificacao do Usuario
-Quando o usuario logar, chame:
+- Incluir `external_id` no `handleAddCompany` (insert)
+- Incluir `external_id` no `handleEditCompany` (update)
+- Incluir `external_id` no `initialData` passado ao `CompanyForm` na edicao
 
-window.NPSChat.update({
-  name: usuario.nome,
-  email: usuario.email,
-  phone: usuario.telefone,
-  company_id: usuario.empresa_id,
-  company_name: usuario.empresa_nome,
-  [campos customizados do tenant aqui]
-});
+## 5. Atualizar `CompanyDetailsSheet.tsx`
 
-## Campos Aceitos
-- name (string, obrigatorio para auto-start)
-- email (string, obrigatorio para auto-start)
-- phone (string, opcional)
-- company_id (string, opcional - vincula ao cadastro)
-- company_name (string, opcional - cria empresa)
-- mrr (number, opcional)
-- contract_value (number, opcional)
-[+ campos customizados do tenant]
+- Exibir `external_id` no card de "Integracao" (linhas 364-386), logo abaixo do "System ID"
+- Formato: label "ID Externo" + code + botao copiar (mesmo padrao do System ID)
+- Mostrar apenas se `external_id` nao for null
 
-## Comportamento
-- Se name + email forem enviados, o formulario de identificacao e pulado
-- Campos de empresa atualizam automaticamente o cadastro
-- O widget funciona mesmo sem chamar update() (modo anonimo)
-```
+## 6. Atualizar `BulkImportDialog.tsx`
 
-## Mudancas no Design/UX
+- Adicionar `"external_id"` ao array `COMPANY_FIXED_COLUMNS` (linha 23)
+- Mapear no record de insert: `external_id: row.data.external_id?.trim() || null`
 
-1. **Steps numerados** com circulo colorido + titulo + descricao + bloco de codigo + botao copiar
-2. **Botao "Copiar tudo"** proeminente no topo para copiar a documentacao inteira de uma vez
-3. **Collapsible** para referencia detalhada (tabelas de campos) -- nao polui a view principal
-4. **Visual de "step cards"** com borda left colorida e numeracao
-5. **Prompt de vibecoding** com icone de sparkles/wand e destaque visual diferenciado
-6. **Embed code integrado** no Step 1 (elimina necessidade de rolar ate o card separado acima)
+## 7. Atualizar `ChatWidgetDocsTab.tsx`
 
-## Arquivos a Modificar
+- Atualizar a descricao do campo `company_id` na tabela de campos reservados para: "ID externo da empresa -- vincula diretamente ao cadastro da empresa por external_id"
+- No prompt de vibecoding, incluir nota sobre o `company_id` ser o identificador unico da empresa
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/components/chat/ChatWidgetDocsTab.tsx` | Reescrita completa com steps, prompt vibecoding, UX melhorada |
-| `src/pages/AdminSettings.tsx` | Remover o Card de "Embed Code" separado (agora integrado no DocsTab) |
+## 8. Atualizar `resolve-chat-visitor` edge function
 
-## Detalhes Tecnicos
+Ao criar visitor, se `companyContact.company_id` aponta para uma empresa que nao tem `external_id`, preencher com o `external_id` do `company_contact` (retrocompatibilidade).
 
-### Props do ChatWidgetDocsTab
+## Arquivos afetados
 
-O componente precisara receber as settings do widget para gerar o codigo de embed correto:
+| Arquivo | Acao |
+|---------|------|
+| Migracao SQL | `external_id` + indice unico + email nullable |
+| `src/pages/ChatWidget.tsx` | Refatorar `upsertCompany` |
+| `src/components/CompanyForm.tsx` | Adicionar campo `external_id` |
+| `src/pages/Contacts.tsx` | Incluir `external_id` no insert/update |
+| `src/components/CompanyDetailsSheet.tsx` | Exibir `external_id` |
+| `src/components/BulkImportDialog.tsx` | `external_id` no CSV |
+| `src/components/chat/ChatWidgetDocsTab.tsx` | Atualizar descricao |
+| `supabase/functions/resolve-chat-visitor/index.ts` | Propagar `external_id` |
 
-```text
-interface ChatWidgetDocsTabProps {
-  widgetPosition: string;
-  widgetPrimaryColor: string;
-  widgetCompanyName: string;
-  widgetButtonShape: string;
-}
-```
+## Detalhes tecnicos
 
-### Geracao do Prompt de Vibecoding
+### Impacto na RLS
+Nenhuma nova politica necessaria. A tabela `contacts` ja tem RLS por `tenant_id`. O indice unico garante unicidade apenas dentro do mesmo tenant.
 
-Funcao `buildVibecodingPrompt()` que gera um prompt markdown completo contendo:
-- Script de embed com as configs reais do tenant
-- Codigo `window.NPSChat.update()` com todos os campos (reservados + customizados)
-- Descricao de cada campo com tipo esperado
-- Notas sobre comportamento (auto-start, upsert de empresa)
+### Impacto em dados existentes
+- Empresas existentes terao `external_id = null` (sem quebra)
+- Empresas com email fake continuam funcionando
+- O formulario do admin mantera `email` como campo visivel (nao obrigatorio no banco, mas o front pode validar se quiser)
 
-### Integracao no AdminSettings
+### Email nullable
+O `email` sera `NOT NULL` removido apenas no banco. O formulario do admin (`CompanyForm`) continuara mostrando o campo normalmente -- a validacao de obrigatoriedade fica no front-end para empresas criadas manualmente. Apenas empresas criadas automaticamente pelo widget poderao ter email null.
 
-A ordem final na aba "Widget e Instalacao" ficara:
-1. Config do Widget + Preview (grid 2 colunas)
-2. Comportamento e Mensagens (Collapsible)
-3. Campos Customizados (CustomFieldDefinitionsTab)
-4. **Documentacao e Integracao** (ChatWidgetDocsTab reescrito -- inclui embed + docs + vibecoding)
-5. Chaves de API (ChatApiKeysTab)
-
-O Card separado de "Codigo de Embed" (linhas 647-673) sera removido pois o conteudo esta agora integrado no Step 1 da documentacao.
