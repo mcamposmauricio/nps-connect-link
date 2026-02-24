@@ -21,11 +21,13 @@ import {
   Route as RouteIcon,
   Clock,
   MessageSquare,
+  Hash,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR, enUS } from "date-fns/locale";
 import { TimelineComponent } from "./TimelineComponent";
 import { NPSTrailCard } from "./NPSTrailCard";
+import { CustomFieldsDisplay } from "@/components/CustomFieldsDisplay";
 
 interface CSCompany {
   id: string;
@@ -42,6 +44,10 @@ interface CSCompany {
   renewal_date: string | null;
   last_nps_score: number | null;
   last_nps_date: string | null;
+  company_sector?: string | null;
+  company_document?: string | null;
+  service_priority?: string | null;
+  custom_fields?: Record<string, any> | null;
 }
 
 interface CompanyCSDetailsSheetProps {
@@ -200,6 +206,18 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
                     <span>{company.phone}</span>
                   </div>
                 )}
+                {company.company_document && (
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <span>CNPJ: {company.company_document}</span>
+                  </div>
+                )}
+                {company.company_sector && (
+                  <Badge variant="secondary" className="text-xs">{company.company_sector}</Badge>
+                )}
+                {company.service_priority && company.service_priority !== "normal" && (
+                  <Badge variant="outline" className="text-xs capitalize">{company.service_priority}</Badge>
+                )}
                 {(company.city || company.state) && (
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -210,6 +228,9 @@ export function CompanyCSDetailsSheet({ company, onClose }: CompanyCSDetailsShee
                 )}
               </CardContent>
             </Card>
+
+            {/* Custom Fields */}
+            <CustomFieldsDisplay fields={company.custom_fields} target="company" />
 
             {/* Financial Info */}
             <Card>

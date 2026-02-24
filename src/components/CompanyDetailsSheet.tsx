@@ -424,8 +424,8 @@ export function CompanyDetailsSheet({
                 </CardContent>
               </Card>
 
-              {/* Custom Fields */}
-              <CustomFieldsDisplay fields={(company as any).custom_fields} />
+            {/* Custom Fields */}
+            <CustomFieldsDisplay fields={(company as any).custom_fields} target="company" />
               {/* Financial Info */}
               <Card>
                 <CardHeader className="pb-2">

@@ -49,6 +49,7 @@ interface Company {
   state: string | null;
   company_sector: string | null;
   company_document: string | null;
+  custom_fields: Record<string, any> | null;
 }
 
 interface TimelineEvent {
@@ -139,7 +140,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
         (async () => {
           const { data } = await supabase
             .from("contacts")
-            .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document")
+            .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document, custom_fields")
             .eq("id", cId)
             .maybeSingle();
           setCompany(data as Company | null);
@@ -389,6 +390,30 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                   <p className="text-xs text-muted-foreground">📍 {[company.city, company.state].filter(Boolean).join(", ")}</p>
                 )}
                 {company.company_sector && <p className="text-xs text-muted-foreground">🏢 {company.company_sector}</p>}
+                {company.company_document && <p className="text-xs text-muted-foreground">📋 CNPJ: {company.company_document}</p>}
+
+                {/* Company Custom Fields */}
+                {company.custom_fields && Object.keys(company.custom_fields).length > 0 && (
+                  <div className="pt-2 border-t border-border space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Campos Customizados</p>
+                    <div className="space-y-1.5">
+                      {fieldDefs
+                        .filter((fd) => fd.target === "company" && company.custom_fields?.[fd.key] !== undefined && company.custom_fields?.[fd.key] !== null)
+                        .map((fd) => (
+                          <CustomFieldRow key={fd.id} fieldDef={fd} value={company.custom_fields![fd.key]} />
+                        ))}
+                      {/* Fallback for fields without definitions */}
+                      {Object.entries(company.custom_fields)
+                        .filter(([key, val]) => val != null && !fieldDefs.some((fd) => fd.key === key && fd.target === "company"))
+                        .map(([key, val]) => (
+                          <div key={key} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{key}</span>
+                            <span className="font-medium text-right max-w-[60%] truncate">{String(val)}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground py-4 text-center">Sem empresa vinculada</p>
