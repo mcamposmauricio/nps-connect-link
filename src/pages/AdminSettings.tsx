@@ -644,39 +644,16 @@ const AdminSettings = () => {
               </CardContent>
             </Card>
 
-            {/* Embed Code */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{t("chat.settings.widget_code")}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <pre className="bg-muted p-4 rounded-md text-sm overflow-auto">
-{`<!-- Com usuário identificado -->
-<script src="${window.location.origin}/nps-chat-embed.js"
-  data-api-key="SUA_CHAT_API_KEY"
-  data-external-id="ID_DO_USUARIO_NO_SEU_SISTEMA"
-  data-position="${settings.widget_position}"
-  data-primary-color="${settings.widget_primary_color}"
-  data-company-name="${settings.widget_company_name || "Suporte"}"
-  data-button-shape="${settings.widget_button_shape}">
-</script>
-
-<!-- Visitante anônimo -->
-<script src="${window.location.origin}/nps-chat-embed.js"
-  data-position="${settings.widget_position}"
-  data-primary-color="${settings.widget_primary_color}"
-  data-company-name="${settings.widget_company_name || "Suporte"}"
-  data-button-shape="${settings.widget_button_shape}">
-</script>`}
-                </pre>
-              </CardContent>
-            </Card>
-
             {/* Custom Field Definitions */}
             <CustomFieldDefinitionsTab />
 
             {/* Developer Documentation */}
-            <ChatWidgetDocsTab />
+            <ChatWidgetDocsTab
+              widgetPosition={settings.widget_position}
+              widgetPrimaryColor={settings.widget_primary_color}
+              widgetCompanyName={settings.widget_company_name}
+              widgetButtonShape={settings.widget_button_shape}
+            />
 
             {/* API Keys section */}
             <ChatApiKeysTab />
