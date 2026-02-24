@@ -553,56 +553,94 @@ const ChatWidget = () => {
     let contactId: string | null = null;
     let companyContactId: string | null = null;
 
-    // Try to find existing company_contact by external_id
+    // 1. Try to find existing company directly by external_id on contacts table
     if (companyId) {
-      const { data: existing } = await supabase
-        .from("company_contacts")
-        .select("id, company_id")
+      const { data: existingCompany } = await supabase
+        .from("contacts")
+        .select("id")
         .eq("external_id", String(companyId))
-        .limit(1)
+        .eq("user_id", ownerUserId)
+        .eq("is_company", true)
         .maybeSingle();
 
-      if (existing) {
-        companyContactId = existing.id;
-        contactId = existing.company_id;
+      if (existingCompany) {
+        contactId = existingCompany.id;
       }
     }
 
-    // If not found and we have a company name, create company + company_contact
-    if (!contactId && companyName) {
+    // 2. If not found, create company (with external_id, no fake email)
+    if (!contactId && (companyId || companyName)) {
+      // Collect direct fields for creation
+      const directFields: Record<string, any> = {};
+      for (const [key, val] of Object.entries(props)) {
+        if (RESERVED_CONTACT_KEYS.includes(key) || RESERVED_COMPANY_KEYS.includes(key)) continue;
+        if (COMPANY_DIRECT_FIELDS[key]) {
+          directFields[COMPANY_DIRECT_FIELDS[key]] = val;
+        }
+      }
+
       const { data: newCompany } = await supabase
         .from("contacts")
         .insert({
-          name: companyName,
-          trade_name: companyName,
-          email: `company-${Date.now()}@placeholder.local`,
+          name: companyName || `Empresa ${companyId}`,
+          trade_name: companyName || null,
+          external_id: companyId ? String(companyId) : null,
           is_company: true,
           user_id: ownerUserId,
-        })
+          ...directFields,
+        } as any)
         .select("id")
         .single();
 
-      if (newCompany) {
-        contactId = newCompany.id;
+      if (newCompany) contactId = newCompany.id;
+    }
 
+    // 3. Find or create company_contact
+    if (contactId) {
+      const contactEmail = formData.email || null;
+      const contactExtId = companyId ? String(companyId) : null;
+
+      // Try to find by external_id first, then by email
+      let existingCC = null;
+      if (contactExtId) {
+        const { data } = await supabase
+          .from("company_contacts")
+          .select("id")
+          .eq("company_id", contactId)
+          .eq("external_id", contactExtId)
+          .maybeSingle();
+        existingCC = data;
+      }
+      if (!existingCC && contactEmail) {
+        const { data } = await supabase
+          .from("company_contacts")
+          .select("id")
+          .eq("company_id", contactId)
+          .eq("email", contactEmail)
+          .maybeSingle();
+        existingCC = data;
+      }
+
+      if (existingCC) {
+        companyContactId = existingCC.id;
+      } else {
         const { data: newCC } = await supabase
           .from("company_contacts")
           .insert({
-            company_id: newCompany.id,
+            company_id: contactId,
             name: formData.name || "Contato",
-            email: formData.email || `contact-${Date.now()}@placeholder.local`,
+            email: contactEmail || `contact-${Date.now()}@placeholder.local`,
             phone: formData.phone || null,
-            external_id: companyId ? String(companyId) : null,
+            external_id: contactExtId,
             user_id: ownerUserId,
           })
           .select("id")
           .single();
-
         if (newCC) companyContactId = newCC.id;
       }
     }
 
-    // Update company fields
+    // 4. Update company fields (direct + custom)
     if (contactId) {
       const directUpdate: Record<string, any> = {};
       const customUpdate: Record<string, any> = {};

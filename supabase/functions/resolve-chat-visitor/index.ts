@@ -127,6 +127,31 @@ Deno.serve(async (req) => {
         .from("company_contacts")
         .update({ chat_visitor_id: newVisitor.id })
         .eq("id", companyContact.id);
+
+      // Propagate external_id to company if missing
+      if (companyContact.company_id) {
+        const { data: company } = await supabase
+          .from("contacts")
+          .select("external_id")
+          .eq("id", companyContact.company_id)
+          .maybeSingle();
+
+        if (company && !company.external_id) {
+          // Try to use the company_contact's external_id
+          const { data: ccWithExtId } = await supabase
+            .from("company_contacts")
+            .select("external_id")
+            .eq("id", companyContact.id)
+            .maybeSingle();
+
+          if (ccWithExtId?.external_id) {
+            await supabase
+              .from("contacts")
+              .update({ external_id: ccWithExtId.external_id })
+              .eq("id", companyContact.company_id);
+          }
+        }
+      }
     }
 
     if (createError || !newVisitor) {

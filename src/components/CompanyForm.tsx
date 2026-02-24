@@ -18,6 +18,7 @@ interface CompanyFormData {
   phone: string;
   company_document: string;
   company_sector: string;
+  external_id: string;
   street: string;
   street_number: string;
   complement: string;
@@ -49,6 +50,7 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
     phone: initialData?.phone || "",
     company_document: initialData?.company_document || "",
     company_sector: initialData?.company_sector || "",
+    external_id: initialData?.external_id || "",
     street: initialData?.street || "",
     street_number: initialData?.street_number || "",
     complement: initialData?.complement || "",
@@ -171,14 +173,25 @@ export function CompanyForm({ initialData, onSubmit, onCancel, submitLabel }: Co
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="company_sector">{t("contacts.sector")}</Label>
-        <Input
-          id="company_sector"
-          value={formData.company_sector}
-          onChange={(e) => updateField("company_sector", e.target.value)}
-          placeholder={t("contacts.sectorPlaceholder")}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="company_sector">{t("contacts.sector")}</Label>
+          <Input
+            id="company_sector"
+            value={formData.company_sector}
+            onChange={(e) => updateField("company_sector", e.target.value)}
+            placeholder={t("contacts.sectorPlaceholder")}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="external_id">ID Externo</Label>
+          <Input
+            id="external_id"
+            value={formData.external_id}
+            onChange={(e) => updateField("external_id", e.target.value)}
+            placeholder="Ex: EMP-123 (integração via widget)"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

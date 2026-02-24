@@ -382,6 +382,24 @@ export function CompanyDetailsSheet({
                       </Button>
                     </div>
                   </div>
+                  {(company as any).external_id && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">ID Externo</span>
+                      <div className="flex items-center gap-1">
+                        <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                          {(company as any).external_id}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => copyToClipboard((company as any).external_id)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
