@@ -142,6 +142,13 @@ const ChatWidget = () => {
     return () => window.removeEventListener("message", handler);
   }, [isEmbed, visitorId]);
 
+  // Auto-start chat when name+email provided via update() API
+  useEffect(() => {
+    if (autoStartTriggered.current && formData.name && phase === "form" && !visitorId && !loading) {
+      handleStartChat();
+    }
+  }, [formData.name, phase, visitorId]);
+
   const fetchHistory = useCallback(async (vId: string) => {
     setHistoryLoading(true);
     const { data } = await supabase
@@ -526,6 +533,107 @@ const ChatWidget = () => {
     setPhase("history");
   };
 
+  // Company upsert: maps payload fields to contacts table columns
+  const COMPANY_DIRECT_FIELDS: Record<string, string> = {
+    mrr: "mrr",
+    contract_value: "contract_value",
+    company_sector: "company_sector",
+    company_document: "company_document",
+    company_name: "trade_name",
+  };
+
+  const RESERVED_CONTACT_KEYS = ["name", "email", "phone"];
+  const RESERVED_COMPANY_KEYS = ["company_id", "company_name", "user_id"];
+
+  const upsertCompany = async (ownerUserId: string, props: Record<string, any>) => {
+    const companyId = props.company_id;
+    const companyName = props.company_name;
+    if (!companyId && !companyName) return { contactId: null, companyContactId: null };
+
+    let contactId: string | null = null;
+    let companyContactId: string | null = null;
+
+    // Try to find existing company_contact by external_id
+    if (companyId) {
+      const { data: existing } = await supabase
+        .from("company_contacts")
+        .select("id, company_id")
+        .eq("external_id", String(companyId))
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        companyContactId = existing.id;
+        contactId = existing.company_id;
+      }
+    }
+
+    // If not found and we have a company name, create company + company_contact
+    if (!contactId && companyName) {
+      const { data: newCompany } = await supabase
+        .from("contacts")
+        .insert({
+          name: companyName,
+          trade_name: companyName,
+          email: `company-${Date.now()}@placeholder.local`,
+          is_company: true,
+          user_id: ownerUserId,
+        })
+        .select("id")
+        .single();
+
+      if (newCompany) {
+        contactId = newCompany.id;
+
+        const { data: newCC } = await supabase
+          .from("company_contacts")
+          .insert({
+            company_id: newCompany.id,
+            name: formData.name || "Contato",
+            email: formData.email || `contact-${Date.now()}@placeholder.local`,
+            phone: formData.phone || null,
+            external_id: companyId ? String(companyId) : null,
+            user_id: ownerUserId,
+          })
+          .select("id")
+          .single();
+
+        if (newCC) companyContactId = newCC.id;
+      }
+    }
+
+    // Update company fields
+    if (contactId) {
+      const directUpdate: Record<string, any> = {};
+      const customUpdate: Record<string, any> = {};
+
+      for (const [key, val] of Object.entries(props)) {
+        if (RESERVED_CONTACT_KEYS.includes(key) || RESERVED_COMPANY_KEYS.includes(key)) continue;
+        if (COMPANY_DIRECT_FIELDS[key]) {
+          directUpdate[COMPANY_DIRECT_FIELDS[key]] = val;
+        } else {
+          customUpdate[key] = val;
+        }
+      }
+
+      if (Object.keys(directUpdate).length > 0) {
+        await supabase.from("contacts").update(directUpdate).eq("id", contactId);
+      }
+
+      if (Object.keys(customUpdate).length > 0) {
+        const { data: current } = await supabase
+          .from("contacts")
+          .select("custom_fields")
+          .eq("id", contactId)
+          .single();
+        const merged = { ...((current?.custom_fields as Record<string, any>) ?? {}), ...customUpdate };
+        await supabase.from("contacts").update({ custom_fields: merged }).eq("id", contactId);
+      }
+    }
+
+    return { contactId, companyContactId };
+  };
+
   const handleStartChat = async () => {
     if (!formData.name.trim()) return;
     setLoading(true);
@@ -552,6 +660,19 @@ const ChatWidget = () => {
 
     const hasCustomProps = Object.keys(customProps).length > 0;
 
+    // Upsert company data if company_id or company_name present
+    let upsertContactId: string | null = null;
+    let upsertCompanyContactId: string | null = null;
+    if (customProps.company_id || customProps.company_name) {
+      const result = await upsertCompany(ownerUserId, customProps);
+      upsertContactId = result.contactId;
+      upsertCompanyContactId = result.companyContactId;
+    }
+
+    // Use upserted IDs or fallback to URL params
+    const finalCompanyContactId = upsertCompanyContactId || paramCompanyContactId || null;
+    const finalContactId = upsertContactId || paramContactId || null;
+
     const { data: visitor, error: vError } = await supabase
       .from("chat_visitors")
       .insert({
@@ -559,6 +680,8 @@ const ChatWidget = () => {
         email: formData.email || null,
         phone: formData.phone || null,
         owner_user_id: ownerUserId,
+        ...(finalCompanyContactId ? { company_contact_id: finalCompanyContactId } : {}),
+        ...(finalContactId ? { contact_id: finalContactId } : {}),
         ...(hasCustomProps ? { metadata: customProps } : {}),
       })
       .select("id, visitor_token")
@@ -579,6 +702,8 @@ const ChatWidget = () => {
         visitor_id: visitor.id,
         owner_user_id: ownerUserId,
         status: "waiting",
+        ...(finalCompanyContactId ? { company_contact_id: finalCompanyContactId } : {}),
+        ...(finalContactId ? { contact_id: finalContactId } : {}),
         ...(hasCustomProps ? { metadata: customProps } : {}),
       })
       .select("id, status, attendant_id")
@@ -586,12 +711,10 @@ const ChatWidget = () => {
 
     if (room) {
       setRoomId(room.id);
-      // Trigger may have already assigned it
       if (room.status === "active" && room.attendant_id) {
         setPhase("chat");
       } else {
         setPhase("waiting");
-        // Anonymous visitors won't have contact_id → all_busy will be false, just shows waiting
       }
       postMsg("chat-ready");
     }

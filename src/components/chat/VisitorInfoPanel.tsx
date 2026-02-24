@@ -61,6 +61,16 @@ interface TimelineEvent {
   metadata: Record<string, unknown>;
 }
 
+interface FieldDef {
+  id: string;
+  key: string;
+  label: string;
+  field_type: string;
+  target: string;
+  maps_to: string | null;
+  is_active: boolean;
+}
+
 interface VisitorInfoPanelProps {
   roomId: string;
   visitorId: string;
@@ -93,6 +103,8 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   const [company, setCompany] = useState<Company | null>(null);
   const [companyContact, setCompanyContact] = useState<CompanyContact | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
+  const [visitorMetadata, setVisitorMetadata] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -102,12 +114,21 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
 
     const { data: visitorData } = await supabase
       .from("chat_visitors")
-      .select("id, name, email, phone, role, department, created_at, contact_id, company_contact_id")
+      .select("id, name, email, phone, role, department, created_at, contact_id, company_contact_id, metadata")
       .eq("id", visitorId)
       .maybeSingle();
 
-    const v = visitorData as Visitor | null;
+    const v = visitorData as (Visitor & { metadata?: Record<string, any> }) | null;
     setVisitor(v);
+    setVisitorMetadata((v?.metadata as Record<string, any>) ?? {});
+
+    // Fetch custom field definitions for this tenant
+    const { data: defs } = await supabase
+      .from("chat_custom_field_definitions" as any)
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+    setFieldDefs((defs as any as FieldDef[]) ?? []);
 
     const cId = propContactId || v?.contact_id;
     const ccId = propCompanyContactId || v?.company_contact_id;
@@ -269,6 +290,20 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                 </p>
               )}
             </div>
+
+            {/* Custom Fields from metadata */}
+            {fieldDefs.length > 0 && Object.keys(visitorMetadata).length > 0 && (
+              <div className="pt-2 border-t border-border space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dados Customizados</p>
+                <div className="space-y-1.5">
+                  {fieldDefs
+                    .filter((fd) => visitorMetadata[fd.key] !== undefined && visitorMetadata[fd.key] !== null)
+                    .map((fd) => (
+                      <CustomFieldRow key={fd.id} fieldDef={fd} value={visitorMetadata[fd.key]} />
+                    ))}
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="company" className="px-4 pb-4 space-y-3 mt-0">
@@ -391,6 +426,40 @@ function MetricCard({ label, value }: { label: React.ReactNode; value: string })
     <div className="rounded-md border bg-muted/50 p-2 text-center">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function CustomFieldRow({ fieldDef, value }: { fieldDef: FieldDef; value: any }) {
+  const formatValue = () => {
+    switch (fieldDef.field_type) {
+      case "decimal":
+        return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+      case "integer":
+        return Number(value).toLocaleString("pt-BR");
+      case "date":
+        return new Date(value).toLocaleDateString("pt-BR");
+      case "url":
+        return (
+          <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+            {String(value).replace(/^https?:\/\//, "").slice(0, 30)}
+          </a>
+        );
+      case "boolean":
+        return (
+          <Badge variant={value ? "default" : "secondary"} className="text-[10px]">
+            {value ? "Sim" : "Não"}
+          </Badge>
+        );
+      default:
+        return String(value);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{fieldDef.label}</span>
+      <span className="font-medium text-right max-w-[60%] truncate">{formatValue()}</span>
     </div>
   );
 }

@@ -696,6 +696,48 @@ export type Database = {
           },
         ]
       }
+      chat_custom_field_definitions: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          field_type: string
+          id: string
+          is_active: boolean | null
+          key: string
+          label: string
+          maps_to: string | null
+          target: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          key: string
+          label: string
+          maps_to?: string | null
+          target?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          key?: string
+          label?: string
+          maps_to?: string | null
+          target?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_custom_fields: {
         Row: {
           created_at: string | null
