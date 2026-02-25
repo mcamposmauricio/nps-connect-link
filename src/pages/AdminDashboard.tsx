@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Clock, Star, Users, TrendingUp, Timer, Filter, Eye, ChevronDown, ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown } from "lucide-react";
+import { MessageSquare, Clock, Star, Users, TrendingUp, Timer, Filter, Eye, ChevronDown, ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown, AlertTriangle, Zap, TrendingDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { useAttendantQueues } from "@/hooks/useChatRealtime";
 import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/ui/page-header";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
 
 const AdminDashboard = () => {
   const { t } = useLanguage();
@@ -25,8 +26,13 @@ const AdminDashboard = () => {
 
   const [filters, setFilters] = useState<DashboardFilters>({ period: "today" });
   const [attendantOptions, setAttendantOptions] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const { stats, loading } = useDashboardStats(filters);
   const { attendants, unassignedRooms, loading: queuesLoading } = useAttendantQueues();
+
+  // Teams data for grouping
+  const [teams, setTeams] = useState<{ id: string; name: string; memberIds: string[] }[]>([]);
 
   // Previous period stats for delta
   const [prevStats, setPrevStats] = useState<{ totalChats: number; avgCsat: number | null; resolutionRate: number | null } | null>(null);
@@ -51,17 +57,32 @@ const AdminDashboard = () => {
   }, [stats]);
 
   useEffect(() => {
-    const fetchAttendants = async () => {
-      const { data } = await supabase
-        .from("attendant_profiles")
-        .select("id, display_name, user_id");
-      if (data) {
-        setAttendantOptions(data.map((a) => ({ id: a.id, name: a.display_name })));
-        const mine = data.find((a) => a.user_id === user?.id);
+    const fetchAttendantsAndMeta = async () => {
+      const [attRes, catRes, tagRes, teamRes, memberRes] = await Promise.all([
+        supabase.from("attendant_profiles").select("id, display_name, user_id"),
+        supabase.from("chat_service_categories").select("id, name").order("name"),
+        supabase.from("chat_tags").select("id, name").order("name"),
+        supabase.from("chat_teams").select("id, name").order("name"),
+        supabase.from("chat_team_members").select("team_id, attendant_id"),
+      ]);
+      if (attRes.data) {
+        setAttendantOptions(attRes.data.map((a) => ({ id: a.id, name: a.display_name })));
+        const mine = attRes.data.find((a) => a.user_id === user?.id);
         if (mine) setCurrentAttendantId(mine.id);
       }
+      setCategories(catRes.data ?? []);
+      setTags(tagRes.data ?? []);
+
+      // Build teams with member lists
+      const teamData = teamRes.data ?? [];
+      const memberData = memberRes.data ?? [];
+      setTeams(teamData.map((team) => ({
+        id: team.id,
+        name: team.name,
+        memberIds: memberData.filter((m) => m.team_id === team.id).map((m) => m.attendant_id),
+      })));
     };
-    fetchAttendants();
+    fetchAttendantsAndMeta();
   }, [user?.id]);
 
   // Fetch previous period stats for delta calculation
@@ -177,6 +198,10 @@ const AdminDashboard = () => {
     { title: t("chat.dashboard.closed_today"), value: stats.chatsToday, icon: TrendingUp, color: "text-purple-500", delta: getDelta(stats.totalChats, prevStats?.totalChats) },
     { title: t("chat.gerencial.resolution_rate"), value: stats.resolutionRate != null ? `${stats.resolutionRate}%` : "—", icon: TrendingUp, color: "text-emerald-500", delta: prevStats && stats.resolutionRate != null && prevStats.resolutionRate != null ? getDelta(stats.resolutionRate, prevStats.resolutionRate) : null },
     { title: t("chat.gerencial.avg_resolution"), value: stats.avgResolutionMinutes != null ? `${stats.avgResolutionMinutes}min` : "—", icon: Timer, color: "text-indigo-500", delta: null as number | null },
+    { title: t("chat.gerencial.avg_first_response"), value: stats.avgFirstResponseMinutes != null ? `${stats.avgFirstResponseMinutes}min` : "—", icon: Zap, color: "text-orange-500", delta: null as number | null },
+    { title: t("chat.gerencial.unresolved_chats"), value: stats.unresolvedChats, icon: AlertTriangle, color: "text-red-500", delta: null as number | null },
+    { title: t("chat.dashboard.avg_wait_time"), value: stats.avgWaitMinutes != null ? `${stats.avgWaitMinutes}min` : "—", icon: Clock, color: "text-cyan-500", delta: null as number | null },
+    { title: t("chat.dashboard.abandonment_rate"), value: stats.abandonmentRate != null ? `${stats.abandonmentRate}%` : "—", icon: TrendingDown, color: "text-rose-500", delta: null as number | null },
   ];
 
   const statusColor = (status: string) => {
@@ -188,6 +213,17 @@ const AdminDashboard = () => {
         return "bg-amber-100 text-amber-700";
       default:
         return "bg-muted text-muted-foreground";
+    }
+  };
+
+  const skillBadge = (level: string | null) => {
+    switch (level?.toLowerCase()) {
+      case "senior":
+        return <Badge className="text-[9px] bg-purple-100 text-purple-700 border-purple-200">Senior</Badge>;
+      case "pleno":
+        return <Badge className="text-[9px] bg-blue-100 text-blue-700 border-blue-200">Pleno</Badge>;
+      default:
+        return <Badge className="text-[9px] bg-gray-100 text-gray-600 border-gray-200">Junior</Badge>;
     }
   };
 
@@ -218,11 +254,132 @@ const AdminDashboard = () => {
     return Math.round((active / max) * 100);
   };
 
-  const capacityColor = (pct: number) => {
-    if (pct < 60) return "bg-green-500";
-    if (pct < 80) return "bg-yellow-500";
-    return "bg-red-500";
+  // Group attendants by team
+  const getTeamGroups = () => {
+    const assignedAttendantIds = new Set<string>();
+    const groups: { teamName: string; teamId: string | null; members: typeof attendants; summary: { online: number; activeTotal: number; avgCapacity: number } }[] = [];
+
+    teams.forEach((team) => {
+      const members = attendants.filter((a) => team.memberIds.includes(a.id));
+      if (members.length === 0) return;
+      members.forEach((m) => assignedAttendantIds.add(m.id));
+
+      const online = members.filter((m) => m.status === "online" || m.status === "available").length;
+      const activeTotal = members.reduce((s, m) => s + m.active_count, 0);
+      const totalCap = members.reduce((s, m) => s + m.max_conversations, 0);
+      const avgCapacity = totalCap > 0 ? Math.round((activeTotal / totalCap) * 100) : 0;
+
+      groups.push({ teamName: team.name, teamId: team.id, members, summary: { online, activeTotal, avgCapacity } });
+    });
+
+    // Unassigned to teams
+    const unassigned = attendants.filter((a) => !assignedAttendantIds.has(a.id));
+    if (unassigned.length > 0) {
+      const online = unassigned.filter((m) => m.status === "online" || m.status === "available").length;
+      const activeTotal = unassigned.reduce((s, m) => s + m.active_count, 0);
+      const totalCap = unassigned.reduce((s, m) => s + m.max_conversations, 0);
+      const avgCapacity = totalCap > 0 ? Math.round((activeTotal / totalCap) * 100) : 0;
+      groups.push({ teamName: t("chat.dashboard.no_team"), teamId: null, members: unassigned, summary: { online, activeTotal, avgCapacity } });
+    }
+
+    return groups;
   };
+
+  const resolutionColor = (status: string) => {
+    switch (status) {
+      case "resolved": return "bg-green-100 text-green-800";
+      case "pending": return "bg-orange-100 text-orange-800";
+      case "escalated": return "bg-red-100 text-red-800";
+      default: return "bg-muted text-muted-foreground";
+    }
+  };
+
+  const PIE_COLORS = ["hsl(142,71%,45%)", "hsl(33,90%,55%)", "hsl(0,84%,60%)", "hsl(220,70%,55%)"];
+
+  const renderAttendantRow = (att: typeof attendants[0]) => {
+    const pct = capacityPercent(att.active_count, att.max_conversations);
+    const isExpanded = expandedAttendant === att.id;
+
+    return (
+      <Collapsible key={att.id} open={isExpanded} onOpenChange={() => handleExpandAttendant(att.id)} asChild>
+        <>
+          <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => handleExpandAttendant(att.id)}>
+            <TableCell className="font-medium">
+              <div className="flex items-center gap-1.5">
+                <CollapsibleTrigger asChild>
+                  <span className="shrink-0">
+                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRightIcon className="h-3 w-3" />}
+                  </span>
+                </CollapsibleTrigger>
+                <span className={`h-2 w-2 rounded-full shrink-0 ${att.status === "online" ? "bg-green-500" : att.status === "busy" ? "bg-amber-500" : "bg-gray-400"}`} />
+                {att.display_name}
+                {att.user_id === user?.id && (
+                  <span className="text-xs text-muted-foreground ml-1">(você)</span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell>{skillBadge((att as any).skill_level)}</TableCell>
+            <TableCell>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(att.status)}`}>
+                {att.status}
+              </span>
+            </TableCell>
+            <TableCell className="text-center">{att.waiting_count}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Progress
+                    value={pct}
+                    className="h-2"
+                    style={{
+                      ['--progress-color' as string]: pct < 60 ? 'hsl(142 71% 45%)' : pct < 80 ? 'hsl(48 96% 53%)' : 'hsl(0 84% 60%)',
+                    }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {att.active_count}/{att.max_conversations}
+                </span>
+              </div>
+            </TableCell>
+          </TableRow>
+          <CollapsibleContent asChild>
+            <TableRow>
+              <TableCell colSpan={5} className="p-0">
+                <div className="bg-muted/30 p-3 space-y-1">
+                  {(attendantRooms[att.id] ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma conversa ativa</p>
+                  ) : (
+                    (attendantRooms[att.id] ?? []).map((room) => (
+                      <div
+                        key={room.id}
+                        className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); handleRoomClick(room.id, att.id, room.visitor_name); }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm">{room.visitor_name}</span>
+                          <Badge variant={room.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                            {room.status}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{timeAgo(room.created_at)}</span>
+                        </div>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
+                          <Eye className="h-3 w-3" />
+                          Ver
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          </CollapsibleContent>
+        </>
+      </Collapsible>
+    );
+  };
+
+  const teamGroups = getTeamGroups();
 
   return (
     <>
@@ -278,6 +435,30 @@ const AdminDashboard = () => {
                   <SelectItem value="urgent">Urgente</SelectItem>
                 </SelectContent>
               </Select>
+
+              {categories.length > 0 && (
+                <Select value={filters.categoryId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v === "all" ? null : v }))}>
+                  <SelectTrigger className="w-[180px]"><SelectValue placeholder={t("chat.gerencial.filter_by_category")} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {tags.length > 0 && (
+                <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}>
+                  <SelectTrigger className="w-[150px]"><SelectValue placeholder="Tag" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Tags</SelectItem>
+                    {tags.map((tag) => (
+                      <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -287,7 +468,7 @@ const AdminDashboard = () => {
           <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
             Métricas do Período
           </p>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {metricCards.map((card) => (
               <Card key={card.title} className="rounded-lg border bg-card shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -305,153 +486,214 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        {/* Charts */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="rounded-lg border bg-card shadow-sm">
+            <CardHeader><CardTitle>{t("chat.gerencial.conversations_per_day")}</CardTitle></CardHeader>
+            <CardContent>
+              {stats.chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={stats.chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} />
+                    <RechartsTooltip />
+                    <Area type="monotone" dataKey="total" fill="hsl(var(--primary) / 0.15)" stroke="hsl(var(--primary))" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground py-12 text-center">{t("chat.gerencial.no_data")}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border bg-card shadow-sm">
+            <CardHeader><CardTitle>{t("chat.gerencial.csat_evolution")}</CardTitle></CardHeader>
+            <CardContent>
+              {stats.csatByDay.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={stats.csatByDay}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis domain={[0, 5]} />
+                    <RechartsTooltip />
+                    <Line type="monotone" dataKey="avg" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground py-12 text-center">{t("chat.gerencial.no_data")}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border bg-card shadow-sm">
+            <CardHeader><CardTitle>{t("chat.gerencial.peak_hours")}</CardTitle></CardHeader>
+            <CardContent>
+              {stats.chatsByHour.some(h => h.count > 0) ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={stats.chatsByHour}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" tickFormatter={(h) => `${h}h`} />
+                    <YAxis allowDecimals={false} />
+                    <RechartsTooltip labelFormatter={(h) => `${h}:00`} />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground py-12 text-center">{t("chat.gerencial.no_data")}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border bg-card shadow-sm">
+            <CardHeader><CardTitle>{t("chat.gerencial.resolution_distribution")}</CardTitle></CardHeader>
+            <CardContent>
+              {stats.resolutionDistribution.length > 0 ? (
+                <div className="flex flex-wrap gap-4 py-8 justify-center">
+                  {stats.resolutionDistribution.map((item) => (
+                    <div key={item.status} className="flex items-center gap-2">
+                      <Badge className={resolutionColor(item.status)}>
+                        {item.status === "resolved" ? t("chat.history.resolved") :
+                         item.status === "escalated" ? t("chat.history.escalated") :
+                         t("chat.history.pending_status")}
+                      </Badge>
+                      <span className="text-2xl font-bold">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-12 text-center">{t("chat.gerencial.no_data")}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Attendant Performance Table */}
+        {stats.attendantPerformance.length > 0 && (
+          <Card className="rounded-lg border bg-card shadow-sm">
+            <CardHeader>
+              <CardTitle>{t("chat.gerencial.attendant_performance")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("chat.gerencial.attendant")}</TableHead>
+                    <TableHead>{t("chat.dashboard.team_col")}</TableHead>
+                    <TableHead className="text-right">{t("chat.gerencial.chats_col")}</TableHead>
+                    <TableHead className="text-right">{t("chat.gerencial.csat_col")}</TableHead>
+                    <TableHead className="text-right">{t("chat.gerencial.resolution_col")}</TableHead>
+                    <TableHead className="text-right">{t("chat.gerencial.avg_time_col")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stats.attendantPerformance.map((att) => {
+                    const attId = attendantOptions.find((a) => a.name === att.name)?.id;
+                    const teamName = teams.find((t) => attId && t.memberIds.includes(attId))?.name ?? "—";
+                    return (
+                      <TableRow key={att.name}>
+                        <TableCell className="font-medium">{att.name}</TableCell>
+                        <TableCell><span className="text-xs text-muted-foreground">{teamName}</span></TableCell>
+                        <TableCell className="text-right">{att.chats}</TableCell>
+                        <TableCell className="text-right">{att.csat != null ? `${att.csat}/5` : "—"}</TableCell>
+                        <TableCell className="text-right">{att.resolutionRate != null ? `${att.resolutionRate}%` : "—"}</TableCell>
+                        <TableCell className="text-right">{att.avgResolution != null ? `${att.avgResolution}min` : "—"}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
         <Separator />
 
-        {/* Section: Real-time Status */}
+        {/* Section: Real-time Status by Team */}
         <div>
           <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
             Status em Tempo Real
           </p>
-          <Card className="rounded-lg border bg-card shadow-sm">
-            <CardContent className="pt-6">
-              {queuesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-                </div>
+
+          {queuesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {teamGroups.length === 0 ? (
+                <Card className="rounded-lg border bg-card shadow-sm">
+                  <CardContent className="py-6 text-center text-muted-foreground">
+                    Nenhum atendente cadastrado
+                  </CardContent>
+                </Card>
               ) : (
-                <div className="space-y-6">
-                  {/* Attendant table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Atendente</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-center">Na Fila</TableHead>
-                        <TableHead className="w-[200px]">Capacidade</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {attendants.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
-                            Nenhum atendente cadastrado
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        attendants.map((att) => {
-                          const pct = capacityPercent(att.active_count, att.max_conversations);
-                          const isExpanded = expandedAttendant === att.id;
-
-                          return (
-                            <Collapsible key={att.id} open={isExpanded} onOpenChange={() => handleExpandAttendant(att.id)} asChild>
-                              <>
-                                <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => handleExpandAttendant(att.id)}>
-                                  <TableCell className="font-medium">
-                                    <div className="flex items-center gap-1">
-                                      <CollapsibleTrigger asChild>
-                                        <span className="shrink-0">
-                                          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRightIcon className="h-3 w-3" />}
-                                        </span>
-                                      </CollapsibleTrigger>
-                                      <span className={`h-2 w-2 rounded-full shrink-0 ${att.status === "online" ? "bg-green-500" : att.status === "busy" ? "bg-amber-500" : "bg-gray-400"}`} />
-                                      {att.display_name}
-                                      {att.user_id === user?.id && (
-                                        <span className="text-xs text-muted-foreground ml-1">(você)</span>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(att.status)}`}>
-                                      {att.status}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-center">{att.waiting_count}</TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex-1">
-                                        <Progress
-                                          value={pct}
-                                          className="h-2"
-                                          style={{
-                                            ['--progress-color' as string]: pct < 60 ? 'hsl(142 71% 45%)' : pct < 80 ? 'hsl(48 96% 53%)' : 'hsl(0 84% 60%)',
-                                          }}
-                                        />
-                                      </div>
-                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                        {att.active_count}/{att.max_conversations}
-                                      </span>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                                <CollapsibleContent asChild>
-                                  <TableRow>
-                                    <TableCell colSpan={4} className="p-0">
-                                      <div className="bg-muted/30 p-3 space-y-1">
-                                        {(attendantRooms[att.id] ?? []).length === 0 ? (
-                                          <p className="text-xs text-muted-foreground">Nenhuma conversa ativa</p>
-                                        ) : (
-                                          (attendantRooms[att.id] ?? []).map((room) => (
-                                            <div
-                                              key={room.id}
-                                              className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                                              onClick={(e) => { e.stopPropagation(); handleRoomClick(room.id, att.id, room.visitor_name); }}
-                                            >
-                                              <div className="flex items-center gap-2">
-                                                <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                                                <span className="text-sm">{room.visitor_name}</span>
-                                                <Badge variant={room.status === "active" ? "default" : "secondary"} className="text-[10px]">
-                                                  {room.status}
-                                                </Badge>
-                                                <span className="text-xs text-muted-foreground">{timeAgo(room.created_at)}</span>
-                                              </div>
-                                              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
-                                                <Eye className="h-3 w-3" />
-                                                Ver
-                                              </Button>
-                                            </div>
-                                          ))
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                </CollapsibleContent>
-                              </>
-                            </Collapsible>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-
-                  {/* Unassigned rooms */}
-                  {unassignedRooms.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Fila Geral (sem atendente)</h4>
-                      <div className="space-y-1">
-                        {unassignedRooms.map((room) => (
-                          <div
-                            key={room.id}
-                            className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                            onClick={() => handleRoomClick(room.id, null, room.visitor_name)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-sm">{room.visitor_name}</span>
-                              <span className="text-xs text-muted-foreground">{timeAgo(room.created_at)} atrás</span>
-                            </div>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
-                              <Eye className="h-3 w-3" />
-                              Ver
-                            </Button>
-                          </div>
-                        ))}
+                teamGroups.map((group) => (
+                  <Card key={group.teamId ?? "none"} className="rounded-lg border bg-card shadow-sm">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm">{group.teamName}</CardTitle>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            {group.summary.online} online
+                          </span>
+                          <span>{group.summary.activeTotal} {t("chat.dashboard.active_conversations")}</span>
+                          <span>{t("chat.dashboard.capacity")}: {group.summary.avgCapacity}%</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t("chat.gerencial.attendant")}</TableHead>
+                            <TableHead>{t("chat.dashboard.skill_level")}</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-center">{t("chat.dashboard.in_queue")}</TableHead>
+                            <TableHead className="w-[200px]">{t("chat.dashboard.capacity")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.members.map((att) => renderAttendantRow(att))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))
               )}
-            </CardContent>
-          </Card>
+
+              {/* Unassigned rooms */}
+              {unassignedRooms.length > 0 && (
+                <Card className="rounded-lg border bg-card shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{t("chat.dashboard.unassigned_queue")}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-1">
+                      {unassignedRooms.map((room) => (
+                        <div
+                          key={room.id}
+                          className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                          onClick={() => handleRoomClick(room.id, null, room.visitor_name)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">{room.visitor_name}</span>
+                            <span className="text-xs text-muted-foreground">{timeAgo(room.created_at)} atrás</span>
+                          </div>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
+                            <Eye className="h-3 w-3" />
+                            Ver
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

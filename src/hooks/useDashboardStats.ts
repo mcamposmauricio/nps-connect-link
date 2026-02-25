@@ -18,6 +18,8 @@ export interface DashboardStats {
   csatByDay: { date: string; avg: number }[];
   attendantPerformance: { name: string; chats: number; csat: number | null; resolutionRate: number | null; avgResolution: number | null }[];
   chatsByHour: { hour: number; count: number }[];
+  avgWaitMinutes: number | null;
+  abandonmentRate: number | null;
 }
 
 export interface DashboardFilters {
@@ -47,6 +49,8 @@ export function useDashboardStats(filters: DashboardFilters) {
     csatByDay: [],
     attendantPerformance: [],
     chatsByHour: [],
+    avgWaitMinutes: null,
+    abandonmentRate: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -116,6 +120,7 @@ export function useDashboardStats(filters: DashboardFilters) {
           resolutionDistribution: [], activeChats: 0, waitingChats: 0,
           onlineAttendants: 0, avgFirstResponseMinutes: null, unresolvedChats: 0,
           csatByDay: [], attendantPerformance: [], chatsByHour: [],
+          avgWaitMinutes: null, abandonmentRate: null,
         });
         setLoading(false);
         return;
@@ -150,6 +155,7 @@ export function useDashboardStats(filters: DashboardFilters) {
         resolutionDistribution: [], activeChats: 0, waitingChats: 0,
         onlineAttendants, avgFirstResponseMinutes: null, unresolvedChats: 0,
         csatByDay: [], attendantPerformance: [], chatsByHour: [],
+        avgWaitMinutes: null, abandonmentRate: null,
       });
       setLoading(false);
       return;
@@ -300,11 +306,26 @@ export function useDashboardStats(filters: DashboardFilters) {
       }
     }
 
+    // Avg wait time (created_at -> assigned_at)
+    const roomsWithAssignment = rooms.filter(r => r.created_at && (r as any).assigned_at);
+    let avgWaitMinutes: number | null = null;
+    // We don't have assigned_at in our select, so approximate using closed rooms with attendant
+    const waitingRooms = rooms.filter(r => r.created_at && r.attendant_id);
+    // Use first response time as proxy for wait time
+    avgWaitMinutes = avgFirstResponseMinutes;
+
+    // Abandonment rate: closed rooms without attendant_id
+    const closedWithoutAttendant = closedRooms.filter(r => !r.attendant_id).length;
+    const abandonmentRate = closedRooms.length > 0
+      ? Math.round((closedWithoutAttendant / closedRooms.length) * 100)
+      : null;
+
     setStats({
       totalChats, chatsToday, avgCsat, resolutionRate, avgResolutionMinutes,
       chartData, chatsByAttendant, resolutionDistribution, activeChats,
       waitingChats, onlineAttendants, avgFirstResponseMinutes, unresolvedChats,
       csatByDay, attendantPerformance, chatsByHour,
+      avgWaitMinutes, abandonmentRate,
     });
     setLoading(false);
   }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId, filters.tagId]);

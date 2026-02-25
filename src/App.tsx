@@ -28,6 +28,7 @@ import ChatWidget from "./pages/ChatWidget";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminWorkspace from "./pages/AdminWorkspace";
 import AdminAttendants from "./pages/AdminAttendants";
+import AdminCSATReport from "./pages/AdminCSATReport";
 
 import AdminSettings from "./pages/AdminSettings";
 import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
             <Route path="/admin/history" element={<AdminChatHistory />} />
             <Route path="/admin/banners" element={<AdminBanners />} />
+            <Route path="/admin/csat" element={<AdminCSATReport />} />
 
             {/* NPS Module */}
             <Route path="/nps/dashboard" element={<Dashboard />} />
