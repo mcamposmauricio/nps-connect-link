@@ -255,58 +255,38 @@ const AdminChatHistory = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">{t("chat.history.title")}</h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {totalCount} {t("chat.history.total_closed")}
             </p>
           </div>
           <div className="flex gap-2">
             <Button onClick={exportToCSV} variant="outline" size="sm" disabled={rooms.length === 0}>
-              <Download className="h-4 w-4 mr-2" />
-              Página
+              <Download className="h-4 w-4 mr-2" />Página
             </Button>
             <Button onClick={handleFullExport} variant="outline" size="sm" disabled={exporting}>
-              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-              Exportar Tudo
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}Exportar Tudo
             </Button>
           </div>
         </div>
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-2">
-            <span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span>
-            <Button size="sm" variant="outline" onClick={() => handleBulkAction("resolved")}>
-              <CheckCircle2 className="h-4 w-4 mr-1" />
-              Marcar como Resolvido
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkAction("archived")}>
-              <Archive className="h-4 w-4 mr-1" />
-              Arquivar
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
-              Limpar seleção
-            </Button>
+          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-2">
+            <span className="text-[13px] font-medium">{selectedIds.size} selecionado(s)</span>
+            <Button size="sm" variant="outline" onClick={() => handleBulkAction("resolved")}><CheckCircle2 className="h-4 w-4 mr-1" />Marcar como Resolvido</Button>
+            <Button size="sm" variant="outline" onClick={() => handleBulkAction("archived")}><Archive className="h-4 w-4 mr-1" />Arquivar</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Limpar seleção</Button>
           </div>
         )}
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex items-center gap-2 flex-wrap bg-muted/30 rounded-xl px-4 py-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t("chat.history.search_client")}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
-              className="pl-9"
-            />
+            <Input placeholder={t("chat.history.search_client")} value={search} onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }} className="pl-9 h-9" />
           </div>
-          <Select
-            value={resolutionStatus ?? "all"}
-            onValueChange={(v) => { setResolutionStatus(v === "all" ? null : v); handleFilterChange(); }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder={t("chat.history.filter.status")} />
-            </SelectTrigger>
+          <Select value={resolutionStatus ?? "all"} onValueChange={(v) => { setResolutionStatus(v === "all" ? null : v); handleFilterChange(); }}>
+            <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder={t("chat.history.filter.status")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("common.all")}</SelectItem>
               <SelectItem value="resolved">{t("chat.history.resolved")}</SelectItem>
@@ -315,27 +295,15 @@ const AdminChatHistory = () => {
               <SelectItem value="archived">Arquivado</SelectItem>
             </SelectContent>
           </Select>
-          <Select
-            value={attendantId ?? "all"}
-            onValueChange={(v) => { setAttendantId(v === "all" ? null : v); handleFilterChange(); }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder={t("chat.history.filter.attendant")} />
-            </SelectTrigger>
+          <Select value={attendantId ?? "all"} onValueChange={(v) => { setAttendantId(v === "all" ? null : v); handleFilterChange(); }}>
+            <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder={t("chat.history.filter.attendant")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("common.all")}</SelectItem>
-              {attendants.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.display_name}</SelectItem>
-              ))}
+              {attendants.map((a) => <SelectItem key={a.id} value={a.id}>{a.display_name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select
-            value={csatFilter ?? "all"}
-            onValueChange={(v) => { setCsatFilter(v === "all" ? null : v); handleFilterChange(); }}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="CSAT" />
-            </SelectTrigger>
+          <Select value={csatFilter ?? "all"} onValueChange={(v) => { setCsatFilter(v === "all" ? null : v); handleFilterChange(); }}>
+            <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="CSAT" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos CSAT</SelectItem>
               <SelectItem value="low">1-2 (Ruim)</SelectItem>
@@ -344,26 +312,17 @@ const AdminChatHistory = () => {
             </SelectContent>
           </Select>
           {tags.length > 0 && (
-            <Select
-              value={tagId ?? "all"}
-              onValueChange={(v) => { setTagId(v === "all" ? null : v); handleFilterChange(); }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tag" />
-              </SelectTrigger>
+            <Select value={tagId ?? "all"} onValueChange={(v) => { setTagId(v === "all" ? null : v); handleFilterChange(); }}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas Tags</SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
-                ))}
+                {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
               </SelectContent>
             </Select>
           )}
-
-          {/* Date range */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 h-10">
+              <Button variant="outline" size="sm" className="gap-2 h-9">
                 <CalendarIcon className="h-4 w-4" />
                 {dateFrom ? format(dateFrom, "dd/MM") : "De"} — {dateTo ? format(dateTo, "dd/MM") : "Até"}
               </Button>
@@ -371,27 +330,17 @@ const AdminChatHistory = () => {
             <PopoverContent className="w-auto p-0" align="start">
               <div className="flex gap-2 p-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">De</p>
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={(d) => { setDateFrom(d); handleFilterChange(); }}
-                  />
+                  <p className="text-[11px] text-muted-foreground mb-1">De</p>
+                  <Calendar mode="single" selected={dateFrom} onSelect={(d) => { setDateFrom(d); handleFilterChange(); }} />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Até</p>
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={(d) => { setDateTo(d); handleFilterChange(); }}
-                  />
+                  <p className="text-[11px] text-muted-foreground mb-1">Até</p>
+                  <Calendar mode="single" selected={dateTo} onSelect={(d) => { setDateTo(d); handleFilterChange(); }} />
                 </div>
               </div>
               {(dateFrom || dateTo) && (
                 <div className="p-2 border-t">
-                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); handleFilterChange(); }}>
-                    Limpar datas
-                  </Button>
+                  <Button variant="ghost" size="sm" className="w-full text-[11px]" onClick={() => { setDateFrom(undefined); setDateTo(undefined); handleFilterChange(); }}>Limpar datas</Button>
                 </div>
               )}
             </PopoverContent>
@@ -399,38 +348,29 @@ const AdminChatHistory = () => {
         </div>
 
         {/* Table */}
-        <Card className="rounded-lg border bg-card shadow-sm">
-          <CardContent className="pt-6">
+        <Card className="rounded-xl border border-white/[0.06] bg-card shadow-sm">
+          <CardContent className="p-4">
             {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
+              <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
             ) : rooms.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                {t("chat.history.no_data")}
-              </p>
+              <p className="text-[13px] text-muted-foreground text-center py-8">{t("chat.history.no_data")}</p>
             ) : (
               <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[40px]">
-                        <Checkbox
-                          checked={selectedIds.size === rooms.length && rooms.length > 0}
-                          onCheckedChange={toggleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead className="w-[40px]"></TableHead>
-                      <TableHead>ID</TableHead>
-                      <TableHead>{t("chat.history.client")}</TableHead>
-                      <TableHead>{t("chat.history.attendant")}</TableHead>
-                      <TableHead>{t("chat.history.resolution")}</TableHead>
-                      <TableHead>{t("chat.history.csat")}</TableHead>
-                      <TableHead>Duração</TableHead>
-                      <TableHead>{t("chat.history.tags")}</TableHead>
-                      <TableHead>{t("chat.history.started_at")}</TableHead>
-                      <TableHead>{t("chat.history.closed_at")}</TableHead>
-                      <TableHead className="w-[80px]">Ações</TableHead>
+                      <TableHead className="w-[40px]"><Checkbox checked={selectedIds.size === rooms.length && rooms.length > 0} onCheckedChange={toggleSelectAll} /></TableHead>
+                      <TableHead className="w-[40px] text-[10px] font-medium uppercase tracking-wider text-muted-foreground"></TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">ID</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.client")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.attendant")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.resolution")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.csat")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Duração</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.tags")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.started_at")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.closed_at")}</TableHead>
+                      <TableHead className="w-[80px] text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -438,79 +378,38 @@ const AdminChatHistory = () => {
                       const duration = room.closed_at && room.created_at
                         ? Math.floor((new Date(room.closed_at).getTime() - new Date(room.created_at).getTime()) / 60000)
                         : null;
-
                       return (
                         <TableRow key={room.id} className="hover:bg-muted/50">
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={selectedIds.has(room.id)}
-                              onCheckedChange={() => toggleSelect(room.id)}
-                            />
-                          </TableCell>
-                          <TableCell
-                            className="cursor-pointer"
-                            onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante" })}
-                          >
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{room.id.slice(0, 8)}</TableCell>
-                          <TableCell>{room.visitor_name ?? "—"}</TableCell>
-                          <TableCell>{room.attendant_name ?? "—"}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.has(room.id)} onCheckedChange={() => toggleSelect(room.id)} /></TableCell>
+                          <TableCell className="cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante" })}><Eye className="h-4 w-4 text-muted-foreground" /></TableCell>
+                          <TableCell className="font-mono text-[11px]">{room.id.slice(0, 8)}</TableCell>
+                          <TableCell className="text-[13px]">{room.visitor_name ?? "—"}</TableCell>
+                          <TableCell className="text-[13px]">{room.attendant_name ?? "—"}</TableCell>
                           <TableCell>{resolutionBadge(room.resolution_status)}</TableCell>
                           <TableCell>
                             {room.csat_score != null ? (
-                              <span className={`flex items-center gap-1 font-medium ${csatColor(room.csat_score)}`}>
-                                <Star className="h-3 w-3 fill-current" />
-                                {room.csat_score}/5
+                              <span className={`flex items-center gap-1 text-[13px] font-medium ${csatColor(room.csat_score)}`}>
+                                <Star className="h-3 w-3 fill-current" />{room.csat_score}/5
                               </span>
                             ) : "—"}
                           </TableCell>
-                          <TableCell className="text-sm">{formatDuration(duration)}</TableCell>
+                          <TableCell className="text-[13px] tabular-nums">{formatDuration(duration)}</TableCell>
                           <TableCell>
                             <div className="flex gap-1 flex-wrap">
                               {room.tags.length > 0
-                                ? room.tags.map((tag, i) => (
-                                    <Badge key={i} variant="outline" style={{ borderColor: tag.color, color: tag.color }}>
-                                      {tag.name}
-                                    </Badge>
-                                  ))
+                                ? room.tags.map((tag, i) => <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>)
                                 : "—"}
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">
-                            {format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {room.closed_at
-                              ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm")
-                              : "—"}
-                          </TableCell>
+                          <TableCell className="text-[13px] tabular-nums">{format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                          <TableCell className="text-[13px] tabular-nums">{room.closed_at ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm") : "—"}</TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
+                              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {room.resolution_status === "pending" && (
-                                  <DropdownMenuItem onClick={() => handleReopenChat(room.id, room.attendant_id)}>
-                                    <RotateCcw className="h-4 w-4 mr-2" />
-                                    Reabrir
-                                  </DropdownMenuItem>
-                                )}
-                                {room.resolution_status !== "resolved" && (
-                                  <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "resolved")}>
-                                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                                    Marcar como Resolvido
-                                  </DropdownMenuItem>
-                                )}
-                                {room.resolution_status !== "archived" && (
-                                  <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "archived")}>
-                                    <Archive className="h-4 w-4 mr-2" />
-                                    Arquivar
-                                  </DropdownMenuItem>
-                                )}
+                                {room.resolution_status === "pending" && <DropdownMenuItem onClick={() => handleReopenChat(room.id, room.attendant_id)}><RotateCcw className="h-4 w-4 mr-2" />Reabrir</DropdownMenuItem>}
+                                {room.resolution_status !== "resolved" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "resolved")}><CheckCircle2 className="h-4 w-4 mr-2" />Marcar como Resolvido</DropdownMenuItem>}
+                                {room.resolution_status !== "archived" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "archived")}><Archive className="h-4 w-4 mr-2" />Arquivar</DropdownMenuItem>}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -520,29 +419,14 @@ const AdminChatHistory = () => {
                   </TableBody>
                 </Table>
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-4">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                       {t("chat.history.page").replace("{page}", String(page + 1)).replace("{total}", String(totalPages))}
                     </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page === 0}
-                        onClick={() => setPage((p) => p - 1)}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page >= totalPages - 1}
-                        onClick={() => setPage((p) => p + 1)}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 )}
