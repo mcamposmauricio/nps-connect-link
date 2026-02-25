@@ -158,7 +158,8 @@ export default function ChatWidgetDocsTab({ widgetPosition, widgetPrimaryColor, 
     L.push("");
     L.push("## Sobre o Widget");
     L.push("Widget embeddable de chat em tempo real. Funciona via um `<script>` que injeta um iframe no site do cliente.");
-    L.push("Fluxo: script carrega → resolve visitante (se api-key) → cria iframe → `window.NPSChat.update()` envia dados ao iframe via postMessage.");
+    L.push("Fluxo: script carrega → busca configuração dinâmica (`get-widget-config`: campos customizados + settings) → resolve visitante com upsert completo (`resolve-chat-visitor`) → cria iframe com flags de decisão (`auto_start`, `needs_form`, `has_history`).");
+    L.push("O backend centraliza todo o upsert (visitor + contato + empresa) ANTES do chat iniciar. O `chat_room` é criado com `contact_id` e `company_contact_id`, alimentando o side panel do atendente automaticamente.");
     L.push("");
 
     // ── Installation ──
@@ -300,12 +301,26 @@ export default function ChatWidgetDocsTab({ widgetPosition, widgetPrimaryColor, 
     // ── Behavior ──
     L.push("## Comportamento");
     L.push("");
-    L.push("- **Auto-start**: Se `name` + `email` estiverem presentes no `update()`, o formulário de pré-chat é pulado e a conversa inicia direto.");
+    L.push("### Árvore de Decisão ao Abrir o Chat");
+    L.push("");
+    L.push("1. **`external_id` + `name` + `email` enviados** → Backend faz upsert (visitor + contato + empresa) → Retorna `auto_start: true` → Chat inicia direto, sem formulário.");
+    L.push("2. **`external_id` enviado mas SEM `name`/`email`** → Backend retorna `needs_form: true` → Widget exibe formulário obrigatório → Ao preencher, backend faz upsert e inicia chat.");
+    L.push("3. **SEM `external_id` mas com `name` + `email`** → Backend busca contato por email → Se encontrar: vincula e retorna `auto_start: true` → Se não: cria novo contato.");
+    L.push("4. **Nenhum dado enviado** → Widget exibe formulário obrigatório (modo anônimo).");
+    L.push("");
+    L.push("### Regras Gerais");
+    L.push("");
     L.push("- **Vinculação de empresa**: `company_id` busca uma empresa existente por `external_id`. Se não encontrar, cria automaticamente.");
     L.push("- **Prioridade**: Se `company_id` e `company_name` forem enviados juntos, `company_id` tem prioridade para vinculação. `company_name` atualiza o nome.");
     L.push("- **Campos customizados**: São mesclados via JSONB merge — campos existentes são preservados, apenas os enviados são atualizados.");
     L.push("- **Múltiplas chamadas**: `update()` pode ser chamado quantas vezes for necessário. Os dados são acumulados.");
     L.push("- **Sem `update()`**: O widget funciona normalmente em modo visitante anônimo (formulário de pré-chat).");
+    L.push("- **Upsert centralizado**: Todo o processamento (visitor, contato, empresa, campos customizados) é feito no backend antes do chat iniciar. O iframe NÃO faz upsert.");
+    L.push("");
+    L.push("### Side Panel do Atendente");
+    L.push("");
+    L.push("Todos os dados (empresa, MRR, Health Score, campos customizados) aparecem automaticamente no painel lateral do atendente assim que ele aceita o chat.");
+    L.push("O backend preenche `contact_id` e `company_contact_id` no `chat_room` durante o upsert. O `VisitorInfoPanel` lê esses IDs e carrega os dados automaticamente.");
     L.push("");
 
     // ── Full example ──
@@ -410,12 +425,21 @@ export default function ChatWidgetDocsTab({ widgetPosition, widgetPrimaryColor, 
 
     // Behavior
     parts.push("\n## 4. Comportamento\n");
-    parts.push("- **Auto-start**: Se `name` + `email` presentes → formulário pulado, chat inicia direto.");
+    parts.push("### Árvore de Decisão\n");
+    parts.push("1. `external_id` + `name` + `email` → Backend faz upsert (visitor + contato + empresa) → `auto_start: true` → Chat direto, sem formulário.");
+    parts.push("2. `external_id` sem `name`/`email` → `needs_form: true` → Formulário obrigatório.");
+    parts.push("3. Sem `external_id` + `name` + `email` → Backend busca contato por email → Vincula ou cria.");
+    parts.push("4. Nenhum dado → Formulário obrigatório (modo anônimo).\n");
+    parts.push("### Regras Gerais\n");
+    parts.push("- **Upsert centralizado**: Todo processamento (visitor, contato, empresa) é feito no backend antes do chat iniciar.");
     parts.push("- **company_id**: Busca empresa existente por `external_id`. Se não encontrar, cria nova.");
     parts.push("- **Prioridade**: `company_id` tem prioridade sobre `company_name` para vinculação.");
     parts.push("- **Campos customizados**: Mesclados via JSONB merge (campos existentes preservados).");
     parts.push("- **Múltiplas chamadas**: `update()` pode ser chamado várias vezes. Dados são acumulados.");
-    parts.push("- **Sem `update()`**: Widget funciona em modo anônimo (formulário de pré-chat).");
+    parts.push("- **Sem `update()`**: Widget funciona em modo anônimo (formulário de pré-chat).\n");
+    parts.push("### Side Panel do Atendente\n");
+    parts.push("Todos os dados (empresa, MRR, Health Score, campos customizados) aparecem automaticamente no painel lateral do atendente ao aceitar o chat.");
+    parts.push("O backend preenche `contact_id` e `company_contact_id` no `chat_room` durante o upsert.");
 
     // Payload
     parts.push("\n## 5. Payload de Exemplo\n```json\n" + buildPayloadJson() + "\n```");
@@ -423,11 +447,23 @@ export default function ChatWidgetDocsTab({ widgetPosition, widgetPrimaryColor, 
     // Flow
     parts.push("\n## 6. Fluxo Interno\n");
     parts.push("1. Script (`nps-chat-embed.js`) carrega no site do cliente");
-    parts.push("2. Se `data-api-key` + `data-external-id` presentes → chama `resolve-chat-visitor` para vincular visitante");
-    parts.push("3. Cria iframe com o widget de chat");
-    parts.push("4. `window.NPSChat.update(payload)` envia dados ao iframe via `postMessage`");
-    parts.push("5. Iframe processa: identifica visitante, vincula empresa, salva campos customizados");
-    parts.push("6. Se `name` + `email` → auto-start (pula formulário)");
+    parts.push("2. Se `data-api-key` presente → busca configuração dinâmica (`get-widget-config`) com campos customizados do tenant");
+    parts.push("3. Se `data-api-key` + `data-external-id` → chama `resolve-chat-visitor` com upsert completo");
+    parts.push("4. Backend retorna flags: `auto_start` (pular form), `needs_form` (exibir form), `has_history` (tem histórico)");
+    parts.push("5. Cria iframe com widget de chat, passando flags e IDs resolvidos");
+    parts.push("6. `window.NPSChat.update(payload)` envia dados ao iframe e ao backend simultaneamente");
+    parts.push("7. Dados persistidos: visitor, contato, empresa e campos customizados atualizados via JSONB merge");
+
+    // Behavior
+    parts.push("\n## 7. Comportamento\n");
+    parts.push("### Árvore de Decisão\n");
+    parts.push("1. `external_id` + `name` + `email` → Backend faz upsert → `auto_start: true` → Chat direto");
+    parts.push("2. `external_id` sem `name`/`email` → `needs_form: true` → Formulário obrigatório");
+    parts.push("3. Sem `external_id` + `name` + `email` → Backend busca por email → Vincula ou cria");
+    parts.push("4. Nenhum dado → Formulário obrigatório (modo anônimo)\n");
+    parts.push("### Side Panel do Atendente\n");
+    parts.push("Todos os dados (empresa, MRR, Health Score, campos customizados) aparecem automaticamente no painel lateral do atendente.");
+    parts.push("O backend preenche `contact_id` e `company_contact_id` no `chat_room` durante o upsert.");
 
     return parts.join("\n");
   };
@@ -573,11 +609,12 @@ export default function ChatWidgetDocsTab({ widgetPosition, widgetPrimaryColor, 
             <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground space-y-1">
               <h4 className="text-sm font-semibold text-foreground mb-2">Fluxo Interno do Widget</h4>
               <p>1. Script (<code className="bg-muted px-1 rounded">nps-chat-embed.js</code>) carrega no site do cliente</p>
-              <p>2. Se <code className="bg-muted px-1 rounded">data-api-key</code> + <code className="bg-muted px-1 rounded">data-external-id</code> presentes → chama <code className="bg-muted px-1 rounded">resolve-chat-visitor</code></p>
-              <p>3. Cria iframe com o widget de chat</p>
-              <p>4. <code className="bg-muted px-1 rounded">window.NPSChat.update(payload)</code> envia dados ao iframe via <code className="bg-muted px-1 rounded">postMessage</code></p>
-              <p>5. Iframe processa: identifica visitante, vincula empresa, salva campos customizados</p>
-              <p>6. Se <code className="bg-muted px-1 rounded">name</code> + <code className="bg-muted px-1 rounded">email</code> presentes → auto-start (pula formulário)</p>
+              <p>2. Se <code className="bg-muted px-1 rounded">data-api-key</code> presente → busca configuração dinâmica (<code className="bg-muted px-1 rounded">get-widget-config</code>) com campos customizados do tenant</p>
+              <p>3. Se <code className="bg-muted px-1 rounded">data-api-key</code> + <code className="bg-muted px-1 rounded">data-external-id</code> → chama <code className="bg-muted px-1 rounded">resolve-chat-visitor</code> com upsert completo</p>
+              <p>4. Backend retorna flags: <code className="bg-muted px-1 rounded">auto_start</code> (pular form), <code className="bg-muted px-1 rounded">needs_form</code> (exibir form), <code className="bg-muted px-1 rounded">has_history</code> (tem histórico)</p>
+              <p>5. Cria iframe com widget de chat, passando flags e IDs resolvidos</p>
+              <p>6. <code className="bg-muted px-1 rounded">window.NPSChat.update(payload)</code> envia dados ao iframe e ao backend simultaneamente</p>
+              <p>7. Dados persistidos: visitor, contato, empresa e campos customizados atualizados via JSONB merge</p>
             </div>
 
             {/* Reserved Fields */}
@@ -650,11 +687,19 @@ export default function ChatWidgetDocsTab({ widgetPosition, widgetPrimaryColor, 
             {/* Behavior notes */}
             <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground space-y-1">
               <h4 className="text-sm font-semibold text-foreground mb-2">Regras de Comportamento</h4>
-              <p>• <strong>Auto-start</strong>: <code className="bg-muted px-1 rounded">name</code> + <code className="bg-muted px-1 rounded">email</code> presentes → formulário pulado automaticamente.</p>
+              <p className="font-semibold text-foreground mt-1">Árvore de Decisão:</p>
+              <p>1. <code className="bg-muted px-1 rounded">external_id</code> + <code className="bg-muted px-1 rounded">name</code> + <code className="bg-muted px-1 rounded">email</code> → Backend faz upsert → <code className="bg-muted px-1 rounded">auto_start: true</code> → Chat direto</p>
+              <p>2. <code className="bg-muted px-1 rounded">external_id</code> sem <code className="bg-muted px-1 rounded">name</code>/<code className="bg-muted px-1 rounded">email</code> → <code className="bg-muted px-1 rounded">needs_form: true</code> → Formulário obrigatório</p>
+              <p>3. Sem <code className="bg-muted px-1 rounded">external_id</code> + <code className="bg-muted px-1 rounded">name</code> + <code className="bg-muted px-1 rounded">email</code> → Backend busca por email → Vincula ou cria</p>
+              <p>4. Nenhum dado → Formulário obrigatório (modo anônimo)</p>
+              <p className="font-semibold text-foreground mt-2">Regras Gerais:</p>
+              <p>• <strong>Upsert centralizado</strong>: Todo processamento (visitor, contato, empresa, campos customizados) é feito no backend antes do chat iniciar.</p>
               <p>• <strong>company_id</strong>: Busca empresa por <code className="bg-muted px-1 rounded">external_id</code>. Se não encontrar, cria nova.</p>
-              <p>• <strong>Prioridade</strong>: <code className="bg-muted px-1 rounded">company_id</code> tem prioridade sobre <code className="bg-muted px-1 rounded">company_name</code>.</p>
               <p>• <strong>Custom fields</strong>: Mesclados via JSONB merge — campos existentes preservados, apenas os enviados são atualizados.</p>
               <p>• <strong>Múltiplas chamadas</strong>: <code className="bg-muted px-1 rounded">update()</code> pode ser chamado quantas vezes for necessário.</p>
+              <p className="font-semibold text-foreground mt-2">Side Panel do Atendente:</p>
+              <p>• Todos os dados (empresa, MRR, Health Score, campos customizados) aparecem automaticamente no painel lateral do atendente ao aceitar o chat.</p>
+              <p>• O backend preenche <code className="bg-muted px-1 rounded">contact_id</code> e <code className="bg-muted px-1 rounded">company_contact_id</code> no <code className="bg-muted px-1 rounded">chat_room</code> durante o upsert.</p>
             </div>
 
             {/* Payload Example */}
