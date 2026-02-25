@@ -1,168 +1,160 @@
 
-# Plano: Dashboard de Chat Completa + Status em Tempo Real por Time + Relatorio CSAT
+# Redesign UI/UX das Paginas de Dados (Dashboard, Gerencial, CSAT, Historico)
 
-## Resumo
+## Problema Atual
 
-Tres grandes melhorias no modulo de Chat:
+As paginas de dados tem inconsistencias visuais entre si:
+- Dashboard usa cards inline com estilos diferentes do MetricCard
+- CSAT Report usa MetricCard mas com layout diferente do Dashboard
+- Gerencial usa um KPICard local com estilo proprio
+- Tipografia dos titulos das secoes inconsistente (h1 com tamanhos diferentes, labels com tracking diferente)
+- Filtros sem padrao visual unificado (uns dentro de Card, outros soltos)
+- Graficos com alturas inconsistentes (250px vs 300px)
+- Tabelas com densidade visual diferente entre paginas
+- Secoes sem separacao visual clara
 
-1. **Dashboard de Atendimento reformulada** com indicadores mais completos e insights visuais
-2. **Status em Tempo Real com segmentacao por time** e mais indicadores por atendente
-3. **Nova pagina de Relatorio CSAT** com listagem completa, filtros avancados e link para conversa
+## Principios do Redesign
 
----
+1. **Consistencia**: todas as paginas usam os mesmos componentes e espacamentos
+2. **Hierarquia visual**: KPIs no topo, graficos no meio, tabelas detalhadas embaixo
+3. **Tipografia limpa**: tamanhos padronizados para cada nivel
+4. **Densidade controlada**: espacamento de 24px entre secoes, 16px entre cards
+5. **Filtros unificados**: barra de filtros padronizada com visual identico em todas as paginas
 
-## 1. Dashboard de Atendimento (AdminDashboard.tsx) -- Melhorias
+## Mudancas por Arquivo
 
-### 1.1 Novos KPIs no header de metricas
+### 1. MetricCard (`src/components/ui/metric-card.tsx`) -- Ajustar como componente padrao
 
-Adicionar cards que faltam ao grid atual de 7 cards:
+- Reduzir padding de `p-5` para `p-4` para cards mais compactos
+- Valor principal: `text-2xl` (era `text-3xl`) para nao dominar demais
+- Label: `text-[10px]` uppercase tracking-widest `text-muted-foreground/70`
+- Icone: reduzir container de `p-3` para `p-2.5`, icone de `h-5 w-5` para `h-4 w-4`
+- Adicionar prop opcional `subtitle` para texto auxiliar abaixo do valor
 
-| KPI | Calculo | Icone |
-|-----|---------|-------|
-| Tempo Medio de Espera (TME) | Media entre `created_at` e `assigned_at` das rooms do periodo | Clock |
-| Tempo Medio de Primeira Resposta | Ja existe no hook, promover para card visivel | Zap |
-| Chats Nao Resolvidos | Ja existe (`unresolvedChats`), promover para card | AlertTriangle |
-| Taxa de Abandono | Rooms que ficaram em `waiting` e foram fechadas sem attendant_id | TrendingDown |
+### 2. Novo componente: `src/components/ui/section-label.tsx`
 
-### 1.2 Novos graficos
+Componente reutilizavel para labels de secao tipo "METRICAS DO PERIODO", "STATUS EM TEMPO REAL":
+- `text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60`
+- Padding bottom de `mb-3`
 
-- **Grafico de Conversas por Dia** (ja existe no Gerencial, trazer para o Dashboard principal como area chart)
-- **Grafico de CSAT por Dia** (line chart -- ja existe no Gerencial, trazer)
-- **Grafico de Horario de Pico** (bar chart 24h -- ja existe no Gerencial, trazer)
-- **Distribuicao de Resolucao** (donut/pie chart com resolved/pending/escalated/archived)
+### 3. Novo componente: `src/components/ui/filter-bar.tsx`
 
-### 1.3 Tabela de Performance por Atendente
+Barra de filtros padronizada usada em todas as paginas:
+- Fundo `bg-muted/30` com `rounded-xl` e `px-4 py-3`
+- Icone de filtro a esquerda
+- Selects com largura minima consistente e `h-9` (menor que o padrao)
+- Chips de score (para CSAT) opcionais
 
-Adicionar a tabela de performance (`attendantPerformance`) que ja existe no Gerencial, mas com colunas extras:
-- Nome, Total Chats, CSAT Medio, Taxa Resolucao, Tempo Medio Resolucao, **Tempo Medio Primeira Resposta**, **Time (nome do chat_team)**
+### 4. Novo componente: `src/components/ui/chart-card.tsx`
 
-### 1.4 Filtros adicionais
+Wrapper padronizado para graficos:
+- Card com `rounded-xl` e padding interno consistente
+- Titulo no header: `text-sm font-medium` (nao `text-h3`)
+- Altura fixa de `h-[240px]` para todos os graficos
+- Empty state centralizado com icone + texto
 
-Adicionar ao filtro existente:
-- **Regra de Atendimento (Categoria)** -- dropdown de `chat_service_categories`
-- **Tag** -- dropdown de `chat_tags`
+### 5. AdminDashboard.tsx -- Redesign completo
 
----
+**Header**: 
+- Titulo `text-2xl font-semibold` com subtitulo `text-sm text-muted-foreground`
+- Badge de "Atualizado ha X" alinhado a direita no mesmo nivel
 
-## 2. Status em Tempo Real -- Segmentacao por Time
+**Filtros**: Substituir Card atual por FilterBar padronizado
 
-### 2.1 Reorganizar a secao "Status em Tempo Real"
+**KPIs**: 
+- Grid `grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6` (6 cards por linha em telas grandes, nao 11 cards)
+- Agrupar KPIs relacionados visualmente:
+  - Linha 1: Ativos, Na Fila, Encerrados Hoje, Atendentes Online, CSAT Medio, Taxa Resolucao
+  - Linha 2: TME, Tempo 1a Resposta, Nao Resolvidos, Taxa Abandono, Tempo Resolucao
+- Usar MetricCard unificado para todos (remover cards inline customizados)
 
-Substituir a tabela plana de atendentes por uma visao agrupada por time:
+**Graficos**: 
+- Grid de 2 colunas usando ChartCard padronizado
+- Altura uniforme de 240px
+- Cores dos graficos usando tokens do design system (primary, accent, success)
 
-```text
-Time: Suporte Nivel 1
-  +----------------------------+--------+-------+-------------+
-  | Atendente                  | Status | Fila  | Capacidade  |
-  +----------------------------+--------+-------+-------------+
-  | Maria Silva (voce)         | Online |   2   | ████░ 3/5   |
-  | Joao Santos                | Busy   |   1   | ██████ 5/5  |
-  +----------------------------+--------+-------+-------------+
-  Resumo: 2 online | 5 ativos | Cap. media: 80%
+**Tabela de Performance**:
+- Dentro de Card com header compacto
+- Texto da tabela `text-[13px]`
+- Head com `text-[10px] uppercase tracking-wider`
+- Celulas numericas com `tabular-nums font-medium`
 
-Time: Suporte Nivel 2
-  ...
+**Status em Tempo Real por Time**:
+- Section label padronizado
+- Cards de time com header mais compacto: nome do time a esquerda, badges resumo a direita
+- Resumo inline: `text-[11px]` com separadores visuais (dot separators)
+- Tabela de atendentes: tipografia reduzida para `text-[13px]`
+- Barra de capacidade mais fina: `h-1.5` (era `h-2`)
+- Status badge menor e mais sutil
 
-Sem Time
-  | Pedro Costa                | Offline|   0   | ░░░░░ 0/5   |
-```
+### 6. AdminDashboardGerencial.tsx -- Alinhar com mesmo padrao
 
-### 2.2 Indicadores por time (resumo inline)
+- Substituir KPICard local pelo MetricCard padrao
+- Aplicar mesmo grid de KPIs
+- Usar ChartCard para graficos
+- Alinhar FilterBar
+- Tabela de performance com mesma tipografia
 
-Cada bloco de time exibe:
-- Total de atendentes online / total do time
-- Total de conversas ativas no time
-- Capacidade media do time (%)
-- CSAT medio do time (no periodo filtrado)
+### 7. AdminCSATReport.tsx -- Redesign
 
-### 2.3 Indicadores adicionais por atendente
+**Header**: Titulo + subtitulo + botao Export alinhados
 
-Adicionar colunas na tabela:
-- **Nivel** (Junior/Pleno/Senior) -- badge colorido
-- **Conversas Ativas** (numero atual) vs **Capacidade Max**
-- **CSAT** (media no periodo, com estrela)
-- Manter a funcionalidade de expandir para ver rooms individuais
+**Filtros**: FilterBar com score chips integrados na mesma linha
 
-### 2.4 Dados necessarios
+**KPIs**: 4 MetricCards padronizados em `grid-cols-2 lg:grid-cols-4`
 
-Buscar `chat_teams` e `chat_team_members` para agrupar atendentes. Usar join com `attendant_profiles` para enrichment. Atendentes sem time ficam em grupo "Sem Time".
+**Graficos**: 2 ChartCards lado a lado com altura de 240px
 
----
+**Tabela de Resultados**:
+- Card com header compacto: titulo + contador + sort dropdown
+- Tipografia da tabela: `text-[13px]`
+- Coluna Score: estrelas menores `h-3 w-3` + numero sem borda extra (simplificar)
+- Coluna Comentario: max-width com truncate + tooltip (ja existe, manter)
+- Paginacao com visual mais limpo: botoes ghost ao inves de outline
 
-## 3. Nova Pagina: Relatorio CSAT
+### 8. AdminChatHistory.tsx -- Alinhar tipografia e espacamentos
 
-### 3.1 Rota e navegacao
+- Aplicar mesmo padrao de header (PageHeader component)
+- Filtros com FilterBar padronizado (mover filtros de busca + selects para dentro)
+- Tabela com mesma tipografia reduzida `text-[13px]`
+- Headers `text-[10px] uppercase tracking-wider`
+- Paginacao com mesmo visual das outras paginas
 
-- Rota: `/admin/csat`
-- Novo arquivo: `src/pages/AdminCSATReport.tsx`
-- Adicionar no menu lateral no grupo "Relatorios" com icone Star e label "CSAT"
-- Adicionar rota em `App.tsx`
+## Regras de Tipografia Padronizadas
 
-### 3.2 Metricas do header (4 cards)
+| Elemento | Classe |
+|----------|--------|
+| Titulo da pagina | `text-2xl font-semibold` |
+| Subtitulo da pagina | `text-sm text-muted-foreground` |
+| Label de secao | `text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60` |
+| Titulo de card/chart | `text-sm font-medium` |
+| Label de KPI | `text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70` |
+| Valor de KPI | `text-2xl font-semibold tabular-nums` |
+| Header de tabela | `text-[10px] font-medium uppercase tracking-wider text-muted-foreground` |
+| Celula de tabela | `text-[13px]` |
+| Badge/chip | `text-[10px] font-medium` |
+| Texto auxiliar | `text-[11px] text-muted-foreground` |
 
-| Card | Valor |
-|------|-------|
-| CSAT Medio | Media geral do periodo |
-| Total de Avaliacoes | Quantidade de rooms com csat_score != null |
-| Avaliacoes Positivas | % de notas 4-5 |
-| Avaliacoes Negativas | % de notas 1-2 |
+## Espacamentos Padronizados
 
-### 3.3 Graficos
+| Entre | Valor |
+|-------|-------|
+| Secoes da pagina | `gap-6` (24px) |
+| Cards no grid | `gap-4` (16px) |
+| Dentro de card (padding) | `p-4` |
+| Label de secao ate conteudo | `mb-3` |
 
-- **CSAT por Dia** (line chart com media diaria)
-- **Distribuicao de Notas** (bar chart horizontal: quantas notas 1, 2, 3, 4, 5)
+## Arquivos Modificados
 
-### 3.4 Filtros
+- `src/components/ui/metric-card.tsx` -- ajustes de tamanho
+- `src/components/ui/section-label.tsx` -- NOVO
+- `src/components/ui/filter-bar.tsx` -- NOVO
+- `src/components/ui/chart-card.tsx` -- NOVO
+- `src/pages/AdminDashboard.tsx` -- redesign completo
+- `src/pages/AdminDashboardGerencial.tsx` -- alinhar padrao
+- `src/pages/AdminCSATReport.tsx` -- redesign
+- `src/pages/AdminChatHistory.tsx` -- ajustes de tipografia e filtros
 
-| Filtro | Tipo |
-|--------|------|
-| Periodo | today/week/month/all |
-| Nota CSAT | 1, 2, 3, 4, 5 (multi-select ou dropdown) |
-| Atendente | dropdown de attendant_profiles |
-| Time | dropdown de chat_teams |
-| Tag | dropdown de chat_tags |
-| Data De / Ate | date pickers |
+## Nenhuma mudanca no banco de dados ou logica de hooks
 
-### 3.5 Tabela de resultados
-
-Colunas da tabela:
-
-| Coluna | Descricao |
-|--------|-----------|
-| Cliente | Nome do visitante (visitor_name) |
-| Atendente | display_name do attendant |
-| Nota | 1-5 com estrelas coloridas (vermelho 1-2, amarelo 3, verde 4-5) |
-| Comentario | Texto do csat_comment (truncado com tooltip) |
-| Duracao | Tempo total da conversa |
-| Tags | Tags vinculadas a room |
-| Data | Data de encerramento |
-| Acao | Botao "Ver Conversa" que abre ReadOnlyChatDialog |
-
-### 3.6 Paginacao e exportacao
-
-- Paginacao: 20 registros por pagina
-- Botao "Exportar CSV" com todas as colunas
-- Ordenacao por nota (asc/desc) e por data
-
-### 3.7 Hook dedicado: `useCSATReport.ts`
-
-Query: `chat_rooms` WHERE `csat_score IS NOT NULL` AND `status = 'closed'`, com joins para visitor_name, attendant_name, tags. Filtros aplicados via query params.
-
----
-
-## Alteracoes tecnicas
-
-### Arquivos novos
-- `src/pages/AdminCSATReport.tsx` -- pagina completa do relatorio CSAT
-- `src/hooks/useCSATReport.ts` -- hook de dados paginados com filtros
-
-### Arquivos modificados
-- `src/pages/AdminDashboard.tsx` -- adicionar graficos, KPIs extras, tabela de performance, filtros de categoria/tag, secao de status reorganizada por time
-- `src/hooks/useDashboardStats.ts` -- adicionar calculo de TME, taxa de abandono, tempo medio de primeira resposta por atendente
-- `src/components/AppSidebar.tsx` -- adicionar link "CSAT" no grupo de Relatorios
-- `src/App.tsx` -- adicionar rota `/admin/csat`
-- `src/locales/pt-BR.ts` -- chaves de traducao para CSAT report
-- `src/locales/en.ts` -- chaves de traducao para CSAT report
-
-### Sem alteracoes no banco de dados
-Todos os dados necessarios ja existem nas tabelas `chat_rooms`, `chat_visitors`, `attendant_profiles`, `chat_teams`, `chat_team_members`, `chat_tags`, `chat_room_tags`. Nenhuma migration necessaria.
+Todas as mudancas sao puramente visuais/UI. Os hooks, queries e dados permanecem identicos.
