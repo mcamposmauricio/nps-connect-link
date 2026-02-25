@@ -23,6 +23,7 @@ import {
   User,
   Inbox,
   Shield,
+  Star,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -392,6 +393,13 @@ export function AppSidebar() {
                           <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => navigate("/admin/gerencial")} isActive={isActive("/admin/gerencial")} tooltip={t("chat.gerencial.title")} className={cn("pl-6", isActive("/admin/gerencial") ? activeItemCls : "hover:bg-sidebar-accent")}>
                               <TrendingUp className="h-4 w-4" /><span>{t("chat.gerencial.title")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("chat.reports", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/csat")} isActive={isActive("/admin/csat")} tooltip={t("csat.report.title")} className={cn("pl-6", isActive("/admin/csat") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Star className="h-4 w-4" /><span>CSAT</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )}
