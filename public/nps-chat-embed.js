@@ -12,13 +12,24 @@
   // Resolved visitor data
   var resolvedToken = null;
   var resolvedName = null;
+  var resolvedEmail = null;
   var resolvedOwnerUserId = null;
   var resolvedCompanyContactId = null;
   var resolvedContactId = null;
+  var resolvedAutoStart = false;
+  var resolvedNeedsForm = false;
+  var resolvedHasHistory = false;
 
-  // Update API state
+  // Dynamic field definitions from backend
+  var fieldDefinitions = [];
+  var widgetSettings = {};
+
+  // Accumulated visitor props
   var visitorProps = {};
   var chatIframe = null;
+
+  // Reserved keys that map to specific params (not custom_data)
+  var RESERVED_KEYS = ["name", "email", "phone", "company_id", "company_name", "user_id"];
 
   // --- Banner Logic ---
   var bannerContainer = null;
@@ -36,10 +47,7 @@
     div.setAttribute("data-assignment-id", banner.assignment_id);
     div.style.cssText =
       "padding:12px 20px;font-size:14px;position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;background-color:" +
-      banner.bg_color +
-      ";color:" +
-      banner.text_color +
-      ";";
+      banner.bg_color + ";color:" + banner.text_color + ";";
 
     var contentDiv = document.createElement("div");
     contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
@@ -52,9 +60,7 @@
       text.textContent = banner.content;
     }
     contentDiv.appendChild(text);
-    if (banner.text_align) {
-      contentDiv.style.textAlign = banner.text_align;
-    }
+    if (banner.text_align) contentDiv.style.textAlign = banner.text_align;
 
     if (banner.link_url) {
       var link = document.createElement("a");
@@ -62,8 +68,7 @@
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.textContent = banner.link_label || "Saiba mais";
-      link.style.cssText =
-        "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
+      link.style.cssText = "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
       contentDiv.appendChild(link);
     }
 
@@ -103,16 +108,13 @@
     var closeBtn = document.createElement("button");
     closeBtn.innerHTML = "✕";
     closeBtn.style.cssText =
-      "background:none;border:none;cursor:pointer;color:" +
-      banner.text_color +
+      "background:none;border:none;cursor:pointer;color:" + banner.text_color +
       ";font-size:16px;padding:4px 6px;border-radius:4px;opacity:0.7;";
     closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
     closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
     closeBtn.onclick = function () {
       div.remove();
-      if (bannerContainer && bannerContainer.children.length === 0) {
-        bannerContainer.remove();
-      }
+      if (bannerContainer && bannerContainer.children.length === 0) bannerContainer.remove();
     };
     actions.appendChild(closeBtn);
 
@@ -130,22 +132,13 @@
 
   function loadBanners() {
     var bannerUrl;
-
-    // Prefer api_key + external_id path
     if (apiKey && externalId) {
-      bannerUrl =
-        supabaseUrl +
-        "/functions/v1/get-visitor-banners?api_key=" +
-        encodeURIComponent(apiKey) +
-        "&external_id=" +
-        encodeURIComponent(externalId);
+      bannerUrl = supabaseUrl + "/functions/v1/get-visitor-banners?api_key=" +
+        encodeURIComponent(apiKey) + "&external_id=" + encodeURIComponent(externalId);
     } else {
       var token = resolvedToken || localStorage.getItem("chat_visitor_token");
       if (!token) return;
-      bannerUrl =
-        supabaseUrl +
-        "/functions/v1/get-visitor-banners?visitor_token=" +
-        encodeURIComponent(token);
+      bannerUrl = supabaseUrl + "/functions/v1/get-visitor-banners?visitor_token=" + encodeURIComponent(token);
     }
 
     fetch(bannerUrl)
@@ -161,74 +154,114 @@
       .catch(function () {});
   }
 
-  // --- Resolve visitor via api_key + external_id ---
-  function resolveVisitor(callback) {
-    if (!apiKey || !externalId) {
-      callback();
-      return;
+  // --- Fetch dynamic widget config ---
+  function fetchWidgetConfig(callback) {
+    if (!apiKey) { callback(); return; }
+
+    fetch(supabaseUrl + "/functions/v1/get-widget-config?api_key=" + encodeURIComponent(apiKey))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.fields) fieldDefinitions = data.fields;
+        if (data.settings) {
+          widgetSettings = data.settings;
+          if (data.settings.company_name && !script.getAttribute("data-company-name")) {
+            companyName = data.settings.company_name;
+          }
+          if (data.settings.primary_color && !script.getAttribute("data-primary-color")) {
+            primaryColor = data.settings.primary_color;
+          }
+        }
+        if (data.owner_user_id) resolvedOwnerUserId = data.owner_user_id;
+        callback();
+      })
+      .catch(function () { callback(); });
+  }
+
+  // --- Separate reserved vs custom data ---
+  function buildResolverPayload(props) {
+    var payload = { api_key: apiKey, external_id: externalId };
+    var customData = {};
+
+    for (var key in props) {
+      if (!props.hasOwnProperty(key)) continue;
+      if (RESERVED_KEYS.indexOf(key) !== -1) {
+        payload[key] = props[key];
+      } else {
+        customData[key] = props[key];
+      }
     }
 
+    if (Object.keys(customData).length > 0) {
+      payload.custom_data = customData;
+    }
+
+    return payload;
+  }
+
+  // --- Resolve visitor via api_key + external_id ---
+  function resolveVisitor(callback) {
+    if (!apiKey) { callback(); return; }
+
+    var payload = buildResolverPayload(visitorProps);
+
+    // Only call if we have at least api_key
     fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: apiKey, external_id: externalId }),
+      body: JSON.stringify(payload),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.visitor_token) {
           resolvedToken = data.visitor_token;
           resolvedName = data.visitor_name || "";
-          resolvedOwnerUserId = data.user_id || "";
+          resolvedEmail = data.visitor_email || "";
+          resolvedOwnerUserId = data.user_id || resolvedOwnerUserId;
           resolvedCompanyContactId = data.company_contact_id || "";
           resolvedContactId = data.contact_id || "";
+          resolvedAutoStart = !!data.auto_start;
+          resolvedHasHistory = !!data.has_history;
+          resolvedNeedsForm = false;
           localStorage.setItem("chat_visitor_token", data.visitor_token);
-        } else if (data.user_id) {
-          // Fallback: contact not found but API key valid — use owner user_id
-          resolvedOwnerUserId = data.user_id;
+        } else {
+          if (data.user_id) resolvedOwnerUserId = data.user_id;
+          resolvedNeedsForm = !!data.needs_form;
+          resolvedAutoStart = !!data.auto_start;
         }
         callback();
       })
-      .catch(function () {
-        callback();
-      });
+      .catch(function () { callback(); });
   }
 
   // --- Chat Widget Iframe ---
   function createChatWidget() {
     var iframe = document.createElement("iframe");
-    var iframeSrc =
-      baseUrl +
-      "/widget?embed=true&position=" +
-      encodeURIComponent(position) +
-      "&primaryColor=" +
-      encodeURIComponent(primaryColor) +
-      "&companyName=" +
-      encodeURIComponent(companyName) +
-      "&buttonShape=" +
-      encodeURIComponent(buttonShape);
+    var iframeSrc = baseUrl + "/widget?embed=true" +
+      "&position=" + encodeURIComponent(position) +
+      "&primaryColor=" + encodeURIComponent(primaryColor) +
+      "&companyName=" + encodeURIComponent(companyName) +
+      "&buttonShape=" + encodeURIComponent(buttonShape);
 
-    // Pass resolved visitor info to skip form
     if (resolvedToken) {
-      iframeSrc +=
-        "&visitorToken=" + encodeURIComponent(resolvedToken) +
+      iframeSrc += "&visitorToken=" + encodeURIComponent(resolvedToken) +
         "&visitorName=" + encodeURIComponent(resolvedName || "") +
         "&ownerUserId=" + encodeURIComponent(resolvedOwnerUserId || "") +
         "&companyContactId=" + encodeURIComponent(resolvedCompanyContactId || "") +
         "&contactId=" + encodeURIComponent(resolvedContactId || "");
     }
 
-    // Fallback: pass ownerUserId even without resolved token
     if (!resolvedToken && resolvedOwnerUserId) {
       iframeSrc += "&ownerUserId=" + encodeURIComponent(resolvedOwnerUserId);
     }
 
-    // Always pass API key so iframe can resolve owner even with cached script
-    if (apiKey) {
-      iframeSrc += "&apiKey=" + encodeURIComponent(apiKey);
-    }
+    if (apiKey) iframeSrc += "&apiKey=" + encodeURIComponent(apiKey);
+
+    // Pass resolver flags
+    if (resolvedAutoStart) iframeSrc += "&autoStart=true";
+    if (resolvedNeedsForm) iframeSrc += "&needsForm=true";
+    if (resolvedHasHistory) iframeSrc += "&hasHistory=true";
 
     iframe.src = iframeSrc;
-    // Start small (FAB size only) to avoid blocking clicks on the host page
     iframe.style.cssText =
       "position:fixed;bottom:20px;" +
       (position === "left" ? "left:20px" : "right:20px") +
@@ -237,7 +270,6 @@
     document.body.appendChild(iframe);
     chatIframe = iframe;
 
-    // Listen for chat open/close to resize iframe dynamically
     window.addEventListener("message", function (event) {
       if (event.data && event.data.type === "chat-toggle") {
         if (event.data.isOpen) {
@@ -264,20 +296,34 @@
           visitorProps[key] = props[key];
         }
       }
+
+      // Forward to iframe
       if (chatIframe && chatIframe.contentWindow) {
         chatIframe.contentWindow.postMessage(
           { type: "nps-chat-update", props: visitorProps },
           "*"
         );
       }
+
+      // If visitor already resolved, send updated data to backend in background
+      if (resolvedToken && apiKey) {
+        var payload = buildResolverPayload(visitorProps);
+        fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }).catch(function () {});
+      }
     },
   };
 
-  // Init: resolve visitor first (if api_key + external_id provided), then load banners + chat
+  // Init: fetch config -> resolve visitor -> load banners + chat
   function init() {
-    resolveVisitor(function () {
-      loadBanners();
-      createChatWidget();
+    fetchWidgetConfig(function () {
+      resolveVisitor(function () {
+        loadBanners();
+        createChatWidget();
+      });
     });
   }
 

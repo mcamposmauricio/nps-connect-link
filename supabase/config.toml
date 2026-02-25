@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.backoffice-admin]
 verify_jwt = false
+
+[functions.get-widget-config]
+verify_jwt = false

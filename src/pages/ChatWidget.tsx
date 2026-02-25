@@ -136,11 +136,45 @@ const ChatWidget = () => {
         if (name && !autoStartTriggered.current && !visitorId) {
           autoStartTriggered.current = true;
         }
+
+        // If visitor already exists, sync data to backend in background
+        if (visitorId && paramApiKey) {
+          const RESERVED = ["name", "email", "phone", "company_id", "company_name", "user_id"];
+          const payload: Record<string, any> = { api_key: paramApiKey };
+          const customData: Record<string, any> = {};
+          for (const [key, val] of Object.entries(props)) {
+            if (RESERVED.includes(key)) {
+              payload[key] = val;
+            } else {
+              customData[key] = val;
+            }
+          }
+          if (Object.keys(customData).length > 0) payload.custom_data = customData;
+
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          fetch(`${supabaseUrl}/functions/v1/resolve-chat-visitor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": supabaseAnonKey },
+            body: JSON.stringify(payload),
+          }).then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              // Update room IDs if returned
+              if (roomId && (data.contact_id || data.company_contact_id)) {
+                await supabase.from("chat_rooms").update({
+                  ...(data.contact_id ? { contact_id: data.contact_id } : {}),
+                  ...(data.company_contact_id ? { company_contact_id: data.company_contact_id } : {}),
+                }).eq("id", roomId);
+              }
+            }
+          }).catch(() => {});
+        }
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [isEmbed, visitorId]);
+  }, [isEmbed, visitorId, paramApiKey, roomId]);
 
   // Auto-start chat when name+email provided via update() API
   useEffect(() => {
@@ -533,184 +567,112 @@ const ChatWidget = () => {
     setPhase("history");
   };
 
-  // Company upsert: maps payload fields to contacts table columns
-  const COMPANY_DIRECT_FIELDS: Record<string, string> = {
-    mrr: "mrr",
-    contract_value: "contract_value",
-    company_sector: "company_sector",
-    company_document: "company_document",
-    company_name: "trade_name",
-  };
-
-  const RESERVED_CONTACT_KEYS = ["name", "email", "phone"];
-  const RESERVED_COMPANY_KEYS = ["company_id", "company_name", "user_id"];
-
-  const upsertCompany = async (ownerUserId: string, props: Record<string, any>) => {
-    const companyId = props.company_id;
-    const companyName = props.company_name;
-    if (!companyId && !companyName) return { contactId: null, companyContactId: null };
-
-    let contactId: string | null = null;
-    let companyContactId: string | null = null;
-
-    // 1. Try to find existing company directly by external_id on contacts table
-    if (companyId) {
-      const { data: existingCompany } = await supabase
-        .from("contacts")
-        .select("id")
-        .eq("external_id", String(companyId))
-        .eq("user_id", ownerUserId)
-        .eq("is_company", true)
-        .maybeSingle();
-
-      if (existingCompany) {
-        contactId = existingCompany.id;
-      }
-    }
-
-    // 2. If not found, create company (with external_id, no fake email)
-    if (!contactId && (companyId || companyName)) {
-      // Collect direct fields for creation
-      const directFields: Record<string, any> = {};
-      for (const [key, val] of Object.entries(props)) {
-        if (RESERVED_CONTACT_KEYS.includes(key) || RESERVED_COMPANY_KEYS.includes(key)) continue;
-        if (COMPANY_DIRECT_FIELDS[key]) {
-          directFields[COMPANY_DIRECT_FIELDS[key]] = val;
-        }
-      }
-
-      const { data: newCompany } = await supabase
-        .from("contacts")
-        .insert({
-          name: companyName || `Empresa ${companyId}`,
-          trade_name: companyName || null,
-          external_id: companyId ? String(companyId) : null,
-          is_company: true,
-          user_id: ownerUserId,
-          ...directFields,
-        } as any)
-        .select("id")
-        .single();
-
-      if (newCompany) contactId = newCompany.id;
-    }
-
-    // 3. Find or create company_contact
-    if (contactId) {
-      const contactEmail = formData.email || null;
-      const contactExtId = companyId ? String(companyId) : null;
-
-      // Try to find by external_id first, then by email
-      let existingCC = null;
-      if (contactExtId) {
-        const { data } = await supabase
-          .from("company_contacts")
-          .select("id")
-          .eq("company_id", contactId)
-          .eq("external_id", contactExtId)
-          .maybeSingle();
-        existingCC = data;
-      }
-      if (!existingCC && contactEmail) {
-        const { data } = await supabase
-          .from("company_contacts")
-          .select("id")
-          .eq("company_id", contactId)
-          .eq("email", contactEmail)
-          .maybeSingle();
-        existingCC = data;
-      }
-
-      if (existingCC) {
-        companyContactId = existingCC.id;
-      } else {
-        const { data: newCC } = await supabase
-          .from("company_contacts")
-          .insert({
-            company_id: contactId,
-            name: formData.name || "Contato",
-            email: contactEmail || `contact-${Date.now()}@placeholder.local`,
-            phone: formData.phone || null,
-            external_id: contactExtId,
-            user_id: ownerUserId,
-          })
-          .select("id")
-          .single();
-        if (newCC) companyContactId = newCC.id;
-      }
-    }
-
-    // 4. Update company fields (direct + custom)
-    if (contactId) {
-      const directUpdate: Record<string, any> = {};
-      const customUpdate: Record<string, any> = {};
-
-      for (const [key, val] of Object.entries(props)) {
-        if (RESERVED_CONTACT_KEYS.includes(key) || RESERVED_COMPANY_KEYS.includes(key)) continue;
-        if (COMPANY_DIRECT_FIELDS[key]) {
-          directUpdate[COMPANY_DIRECT_FIELDS[key]] = val;
-        } else {
-          customUpdate[key] = val;
-        }
-      }
-
-      if (Object.keys(directUpdate).length > 0) {
-        await supabase.from("contacts").update(directUpdate).eq("id", contactId);
-      }
-
-      if (Object.keys(customUpdate).length > 0) {
-        const { data: current } = await supabase
-          .from("contacts")
-          .select("custom_fields")
-          .eq("id", contactId)
-          .single();
-        const merged = { ...((current?.custom_fields as Record<string, any>) ?? {}), ...customUpdate };
-        await supabase.from("contacts").update({ custom_fields: merged }).eq("id", contactId);
-      }
-    }
-
-    return { contactId, companyContactId };
-  };
+  // Company upsert logic has been moved to resolve-chat-visitor edge function
 
   const handleStartChat = async () => {
     if (!formData.name.trim()) return;
     setLoading(true);
     setAllBusy(false);
 
-    // Resolve ownerUserId: prefer param, fallback to API key resolution
     let ownerUserId = paramOwnerUserId;
-    if (!ownerUserId && paramApiKey) {
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const res = await fetch(`${supabaseUrl}/functions/v1/resolve-chat-visitor`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "apikey": supabaseAnonKey },
-          body: JSON.stringify({ api_key: paramApiKey }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user_id) ownerUserId = data.user_id;
-        }
-      } catch { /* fallback to dummy */ }
-    }
-    if (!ownerUserId) ownerUserId = "00000000-0000-0000-0000-000000000000";
+    let finalCompanyContactId: string | null = paramCompanyContactId || null;
+    let finalContactId: string | null = paramContactId || null;
+    let resolvedVisitorToken: string | null = null;
+    let resolvedVisitorId: string | null = null;
 
     const hasCustomProps = Object.keys(customProps).length > 0;
 
-    // Upsert company data if company_id or company_name present
-    let upsertContactId: string | null = null;
-    let upsertCompanyContactId: string | null = null;
-    if (customProps.company_id || customProps.company_name) {
-      const result = await upsertCompany(ownerUserId, customProps);
-      upsertContactId = result.contactId;
-      upsertCompanyContactId = result.companyContactId;
+    // Use resolve-chat-visitor for full upsert if we have an API key
+    if (paramApiKey) {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+        // Build payload separating reserved from custom
+        const RESERVED = ["name", "email", "phone", "company_id", "company_name", "user_id"];
+        const payload: Record<string, any> = {
+          api_key: paramApiKey,
+          name: formData.name,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+        };
+
+        // Add external_id from URL if present
+        const urlExternalId = new URLSearchParams(window.location.search).get("externalId");
+        if (urlExternalId) payload.external_id = urlExternalId;
+
+        // Separate custom props
+        const customData: Record<string, any> = {};
+        for (const [key, val] of Object.entries(customProps)) {
+          if (RESERVED.includes(key)) {
+            payload[key] = val;
+          } else {
+            customData[key] = val;
+          }
+        }
+        if (Object.keys(customData).length > 0) payload.custom_data = customData;
+
+        const res = await fetch(`${supabaseUrl}/functions/v1/resolve-chat-visitor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": supabaseAnonKey },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user_id) ownerUserId = data.user_id;
+          if (data.contact_id) finalContactId = data.contact_id;
+          if (data.company_contact_id) finalCompanyContactId = data.company_contact_id;
+          if (data.visitor_token) {
+            resolvedVisitorToken = data.visitor_token;
+            localStorage.setItem("chat_visitor_token", data.visitor_token);
+
+            // Get visitor ID
+            const { data: vData } = await supabase
+              .from("chat_visitors")
+              .select("id")
+              .eq("visitor_token", data.visitor_token)
+              .maybeSingle();
+            if (vData) resolvedVisitorId = vData.id;
+          }
+        }
+      } catch { /* fallback below */ }
     }
 
-    // Use upserted IDs or fallback to URL params
-    const finalCompanyContactId = upsertCompanyContactId || paramCompanyContactId || null;
-    const finalContactId = upsertContactId || paramContactId || null;
+    if (!ownerUserId) ownerUserId = "00000000-0000-0000-0000-000000000000";
 
+    // If resolver already created a visitor, use it
+    if (resolvedVisitorId) {
+      setVisitorToken(resolvedVisitorToken);
+      setVisitorId(resolvedVisitorId);
+
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .insert({
+          visitor_id: resolvedVisitorId,
+          owner_user_id: ownerUserId,
+          status: "waiting",
+          ...(finalCompanyContactId ? { company_contact_id: finalCompanyContactId } : {}),
+          ...(finalContactId ? { contact_id: finalContactId } : {}),
+          ...(hasCustomProps ? { metadata: customProps } : {}),
+        })
+        .select("id, status, attendant_id")
+        .single();
+
+      if (room) {
+        setRoomId(room.id);
+        if (room.status === "active" && room.attendant_id) {
+          setPhase("chat");
+        } else {
+          setPhase("waiting");
+        }
+        postMsg("chat-ready");
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: create visitor directly (no API key / anonymous mode)
     const { data: visitor, error: vError } = await supabase
       .from("chat_visitors")
       .insert({
