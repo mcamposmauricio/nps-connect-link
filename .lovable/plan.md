@@ -1,160 +1,79 @@
 
-# Redesign UI/UX das Paginas de Dados (Dashboard, Gerencial, CSAT, Historico)
+# Plano: Remocao Completa de 5 Usuarios do Sistema
 
-## Problema Atual
+## Resumo
 
-As paginas de dados tem inconsistencias visuais entre si:
-- Dashboard usa cards inline com estilos diferentes do MetricCard
-- CSAT Report usa MetricCard mas com layout diferente do Dashboard
-- Gerencial usa um KPICard local com estilo proprio
-- Tipografia dos titulos das secoes inconsistente (h1 com tamanhos diferentes, labels com tracking diferente)
-- Filtros sem padrao visual unificado (uns dentro de Card, outros soltos)
-- Graficos com alturas inconsistentes (250px vs 300px)
-- Tabelas com densidade visual diferente entre paginas
-- Secoes sem separacao visual clara
+Remover completamente os usuarios `felipe@marqponto.com.br`, `lucas@marqponto.com.br`, `thaina@marqponto.com.br`, `matheus@marqponto.com.br` e `mauricio@marqponto.com.br` de todas as tabelas do sistema e do auth, para que possam ser cadastrados novamente do zero.
 
-## Principios do Redesign
+## Usuarios encontrados
 
-1. **Consistencia**: todas as paginas usam os mesmos componentes e espacamentos
-2. **Hierarquia visual**: KPIs no topo, graficos no meio, tabelas detalhadas embaixo
-3. **Tipografia limpa**: tamanhos padronizados para cada nivel
-4. **Densidade controlada**: espacamento de 24px entre secoes, 16px entre cards
-5. **Filtros unificados**: barra de filtros padronizada com visual identico em todas as paginas
+| Email | user_id | Tenant | Status |
+|-------|---------|--------|--------|
+| felipe@marqponto.com.br | c1e05a0e-... | 9d0bacc... | Aceito |
+| lucas@marqponto.com.br | 4941b9ad-... | 9d0bacc... | Aceito |
+| matheus@marqponto.com.br | c4644e4d-... | 9d0bacc... | Aceito |
+| mauricio@marqponto.com.br | 0f04ffe2-... | 34d971f... | Aceito |
+| thaina@marqponto.com.br | -- | -- | Nao encontrada |
 
-## Mudancas por Arquivo
+**Nota:** `thaina@marqponto.com.br` nao possui perfil no sistema. Sera verificada apenas no auth.
 
-### 1. MetricCard (`src/components/ui/metric-card.tsx`) -- Ajustar como componente padrao
+## Ordem de exclusao (respeitando dependencias)
 
-- Reduzir padding de `p-5` para `p-4` para cards mais compactos
-- Valor principal: `text-2xl` (era `text-3xl`) para nao dominar demais
-- Label: `text-[10px]` uppercase tracking-widest `text-muted-foreground/70`
-- Icone: reduzir container de `p-3` para `p-2.5`, icone de `h-5 w-5` para `h-4 w-4`
-- Adicionar prop opcional `subtitle` para texto auxiliar abaixo do valor
+A exclusao precisa seguir uma ordem especifica para nao violar foreign keys e constraints:
 
-### 2. Novo componente: `src/components/ui/section-label.tsx`
+### Passo 1 -- Limpar referencias em chat_assignment_configs
+Dois registros de `rr_last_attendant_id` apontam para attendant_profiles destes usuarios. Setar para NULL antes de deletar os attendants.
 
-Componente reutilizavel para labels de secao tipo "METRICAS DO PERIODO", "STATUS EM TEMPO REAL":
-- `text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60`
-- Padding bottom de `mb-3`
+### Passo 2 -- Deletar chat_team_members
+3 registros vinculando attendant_profiles a times.
 
-### 3. Novo componente: `src/components/ui/filter-bar.tsx`
+### Passo 3 -- Nullificar attendant_id em chat_rooms
+~20 rooms historicas que foram atendidas por estes usuarios. Em vez de deletar as rooms (que contem historico de conversa), setar `attendant_id = NULL` para preservar o historico.
 
-Barra de filtros padronizada usada em todas as paginas:
-- Fundo `bg-muted/30` com `rounded-xl` e `px-4 py-3`
-- Icone de filtro a esquerda
-- Selects com largura minima consistente e `h-9` (menor que o padrao)
-- Chips de score (para CSAT) opcionais
+### Passo 4 -- Deletar chat_room_reads
+~18 registros de leitura de salas.
 
-### 4. Novo componente: `src/components/ui/chart-card.tsx`
+### Passo 5 -- Deletar attendant_profiles
+3 registros (Felipe, Lucas, Matheus).
 
-Wrapper padronizado para graficos:
-- Card com `rounded-xl` e padding interno consistente
-- Titulo no header: `text-sm font-medium` (nao `text-h3`)
-- Altura fixa de `h-[240px]` para todos os graficos
-- Empty state centralizado com icone + texto
+### Passo 6 -- Deletar user_permissions
+~50+ registros de permissoes por modulo.
 
-### 5. AdminDashboard.tsx -- Redesign completo
+### Passo 7 -- Deletar user_roles
+2 registros (Matheus admin, Mauricio admin).
 
-**Header**: 
-- Titulo `text-2xl font-semibold` com subtitulo `text-sm text-muted-foreground`
-- Badge de "Atualizado ha X" alinhado a direita no mesmo nivel
+### Passo 8 -- Deletar csms
+3 registros (Felipe, Lucas, Matheus).
 
-**Filtros**: Substituir Card atual por FilterBar padronizado
+### Passo 9 -- Deletar user_profiles
+4 registros.
 
-**KPIs**: 
-- Grid `grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6` (6 cards por linha em telas grandes, nao 11 cards)
-- Agrupar KPIs relacionados visualmente:
-  - Linha 1: Ativos, Na Fila, Encerrados Hoje, Atendentes Online, CSAT Medio, Taxa Resolucao
-  - Linha 2: TME, Tempo 1a Resposta, Nao Resolvidos, Taxa Abandono, Tempo Resolucao
-- Usar MetricCard unificado para todos (remover cards inline customizados)
+### Passo 10 -- Deletar usuarios do auth
+Usar a Edge Function `backoffice-admin` com action `delete-auth-user` para cada user_id. Para `thaina@marqponto.com.br`, verificar se existe no auth e deletar se existir.
 
-**Graficos**: 
-- Grid de 2 colunas usando ChartCard padronizado
-- Altura uniforme de 240px
-- Cores dos graficos usando tokens do design system (primary, accent, success)
+## Implementacao
 
-**Tabela de Performance**:
-- Dentro de Card com header compacto
-- Texto da tabela `text-[13px]`
-- Head com `text-[10px] uppercase tracking-wider`
-- Celulas numericas com `tabular-nums font-medium`
+Sera criada uma Edge Function temporaria ou usada a funcao `backoffice-admin` existente para executar a limpeza via service_role_key, ja que as tabelas possuem RLS e as operacoes precisam de acesso administrativo.
 
-**Status em Tempo Real por Time**:
-- Section label padronizado
-- Cards de time com header mais compacto: nome do time a esquerda, badges resumo a direita
-- Resumo inline: `text-[11px]` com separadores visuais (dot separators)
-- Tabela de atendentes: tipografia reduzida para `text-[13px]`
-- Barra de capacidade mais fina: `h-1.5` (era `h-2`)
-- Status badge menor e mais sutil
+A abordagem mais segura sera executar as queries SQL diretamente via migration tool (que usa service role), garantindo a ordem correta.
 
-### 6. AdminDashboardGerencial.tsx -- Alinhar com mesmo padrao
+## Tabelas afetadas
 
-- Substituir KPICard local pelo MetricCard padrao
-- Aplicar mesmo grid de KPIs
-- Usar ChartCard para graficos
-- Alinhar FilterBar
-- Tabela de performance com mesma tipografia
+| Tabela | Acao | Quantidade |
+|--------|------|-----------|
+| chat_assignment_configs | UPDATE rr_last_attendant_id = NULL | 2 |
+| chat_team_members | DELETE | 3 |
+| chat_rooms | UPDATE attendant_id = NULL | ~20 |
+| chat_room_reads | DELETE | ~18 |
+| attendant_profiles | DELETE | 3 |
+| user_permissions | DELETE | ~50 |
+| user_roles | DELETE | 2 |
+| csms | DELETE | 3 |
+| user_profiles | DELETE | 4 |
+| auth.users | DELETE via Edge Function | 4-5 |
 
-### 7. AdminCSATReport.tsx -- Redesign
+## Impacto
 
-**Header**: Titulo + subtitulo + botao Export alinhados
-
-**Filtros**: FilterBar com score chips integrados na mesma linha
-
-**KPIs**: 4 MetricCards padronizados em `grid-cols-2 lg:grid-cols-4`
-
-**Graficos**: 2 ChartCards lado a lado com altura de 240px
-
-**Tabela de Resultados**:
-- Card com header compacto: titulo + contador + sort dropdown
-- Tipografia da tabela: `text-[13px]`
-- Coluna Score: estrelas menores `h-3 w-3` + numero sem borda extra (simplificar)
-- Coluna Comentario: max-width com truncate + tooltip (ja existe, manter)
-- Paginacao com visual mais limpo: botoes ghost ao inves de outline
-
-### 8. AdminChatHistory.tsx -- Alinhar tipografia e espacamentos
-
-- Aplicar mesmo padrao de header (PageHeader component)
-- Filtros com FilterBar padronizado (mover filtros de busca + selects para dentro)
-- Tabela com mesma tipografia reduzida `text-[13px]`
-- Headers `text-[10px] uppercase tracking-wider`
-- Paginacao com mesmo visual das outras paginas
-
-## Regras de Tipografia Padronizadas
-
-| Elemento | Classe |
-|----------|--------|
-| Titulo da pagina | `text-2xl font-semibold` |
-| Subtitulo da pagina | `text-sm text-muted-foreground` |
-| Label de secao | `text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60` |
-| Titulo de card/chart | `text-sm font-medium` |
-| Label de KPI | `text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70` |
-| Valor de KPI | `text-2xl font-semibold tabular-nums` |
-| Header de tabela | `text-[10px] font-medium uppercase tracking-wider text-muted-foreground` |
-| Celula de tabela | `text-[13px]` |
-| Badge/chip | `text-[10px] font-medium` |
-| Texto auxiliar | `text-[11px] text-muted-foreground` |
-
-## Espacamentos Padronizados
-
-| Entre | Valor |
-|-------|-------|
-| Secoes da pagina | `gap-6` (24px) |
-| Cards no grid | `gap-4` (16px) |
-| Dentro de card (padding) | `p-4` |
-| Label de secao ate conteudo | `mb-3` |
-
-## Arquivos Modificados
-
-- `src/components/ui/metric-card.tsx` -- ajustes de tamanho
-- `src/components/ui/section-label.tsx` -- NOVO
-- `src/components/ui/filter-bar.tsx` -- NOVO
-- `src/components/ui/chart-card.tsx` -- NOVO
-- `src/pages/AdminDashboard.tsx` -- redesign completo
-- `src/pages/AdminDashboardGerencial.tsx` -- alinhar padrao
-- `src/pages/AdminCSATReport.tsx` -- redesign
-- `src/pages/AdminChatHistory.tsx` -- ajustes de tipografia e filtros
-
-## Nenhuma mudanca no banco de dados ou logica de hooks
-
-Todas as mudancas sao puramente visuais/UI. Os hooks, queries e dados permanecem identicos.
+- Historico de chat preservado (rooms e mensagens permanecem, apenas attendant_id fica NULL)
+- Nenhuma empresa/contato sera afetada (nenhum CSM estava vinculado a contatos)
+- Apos a limpeza, os emails ficam livres para novo cadastro/convite
