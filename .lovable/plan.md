@@ -1,96 +1,127 @@
 
 
-# Atualizar Documentacao do Widget para Refletir o Novo Fluxo Dinamico
+# Consolidar Blueprint Definitivo em .lovable/plan.md
 
-## Problema
+## O que sera feito
 
-A pagina de documentacao (`ChatWidgetDocsTab.tsx`) ainda descreve o fluxo antigo do widget. O script embed (`nps-chat-embed.js`) ja foi atualizado com `get-widget-config`, resolver com flags e upsert centralizado, mas a documentacao nao acompanhou.
+Substituir o conteudo atual do `.lovable/plan.md` (que ainda contem o plano antigo de atualizacao da documentacao do widget) pelo **Blueprint Definitivo Consolidado** do sistema Journey CS, unificando todas as 7 secoes construidas ao longo da conversa em um unico documento.
 
-## Inconsistencias Encontradas
+## Estrutura do documento final
 
-| Item | Estado Atual (errado) | Estado Correto |
-|------|----------------------|----------------|
-| Fluxo no prompt | "script carrega -> resolve visitante -> cria iframe -> update() envia via postMessage" | "script carrega -> busca config dinamica (get-widget-config) -> resolve visitante (upsert completo) -> cria iframe com flags" |
-| Passos internos | 6 passos sem mencionar busca de config | 7 passos: config dinamica como passo 1 |
-| Comportamento | Apenas "auto-start se name+email" | Arvore de decisao completa: auto_start, needs_form, has_history |
-| Upsert | "Iframe processa e salva" | "Backend centraliza upsert (visitor + contact + company) antes do chat iniciar" |
-| Side panel | Nao mencionado | Dados aparecem automaticamente no painel do atendente |
-
-## Mudancas
-
-### Arquivo unico: `src/components/chat/ChatWidgetDocsTab.tsx`
-
-### 1. Atualizar `buildVibecodingPrompt()`
-
-**Secao "Sobre o Widget"** (linha 161):
-- De: "Fluxo: script carrega -> resolve visitante (se api-key) -> cria iframe -> update() envia dados"
-- Para: "Fluxo: script carrega -> busca configuracao dinamica (campos customizados + settings) -> resolve visitante com upsert completo -> cria iframe com flags de decisao (auto_start, needs_form, has_history)"
-
-**Secao "Comportamento"** (linhas 301-308):
-Adicionar a arvore de decisao completa:
+O arquivo tera a seguinte organizacao:
 
 ```text
-### Arvore de Decisao ao Abrir o Chat
+SECAO 0 — ESPECIFICACAO FUNCIONAL E REGRAS DE NEGOCIO
+  0.1  Visao Geral do Produto
+  0.2  Papeis e Perfis de Acesso (Master/Admin/Attendant)
+  0.3  Fluxo de Onboarding (convite, aceite, provisionamento)
+  0.4  Modulo Chat (widget, workspace, atribuicao, auto-rules, horarios, banners, dashboard, historico)
+  0.5  Modulo NPS (campanhas, widget, notificacoes, triggers)
+  0.6  Modulo Customer Success (kanban, trilhas, timeline, relatorios)
+  0.7  Modulo Backoffice Master (tenants, usuarios, operacoes)
+  0.8  CRM (empresas, pessoas, CNPJ)
+  0.9  Campos Customizaveis (definicao, fluxo, exibicao)
+  0.10 Portal do Cliente
+  0.11 API Keys (prefixos, validacao)
+  0.12 Internacionalizacao
+  0.13 Integracao de Email (Gmail/SMTP)
+  0.14 Regras Transversais
+  0.15 Landing Pages
 
-1. Se external_id + name + email enviados:
-   -> Backend faz upsert (visitor + contato + empresa)
-   -> Retorna auto_start: true
-   -> Chat inicia direto, sem formulario
+PARTE 1 — CONFIGURACAO BASE
+  1.1 index.html (completo)
+  1.2 main.tsx (completo)
+  1.3 App.tsx — rotas completas
+  1.4 Design System CSS (index.css completo)
+  1.5 Tailwind Config (completo)
+  1.6 Dependencias (package.json)
 
-2. Se external_id enviado mas SEM name/email:
-   -> Backend retorna needs_form: true
-   -> Widget exibe formulario obrigatorio
-   -> Ao preencher, backend faz upsert e inicia chat
+PARTE 2 — AUTENTICACAO E MULTI-TENANCY
+  2.1 AuthContext (logica completa)
+  2.2 useAuth
+  2.3 LanguageContext
 
-3. Se NAO tem external_id mas tem name + email:
-   -> Backend busca contato por email
-   -> Se encontrar: vincula e retorna auto_start: true
-   -> Se nao: cria novo contato
+PARTE 3 — LAYOUT PROTEGIDO
+  3.1 SidebarLayout
+  3.2 AppSidebar
+  3.3 SidebarDataContext
 
-4. Se nenhum dado enviado:
-   -> Widget exibe formulario obrigatorio (modo anonimo)
+PARTE 4 — HOOKS CRITICOS
+  4.1 useChatRealtime
+  4.2 useDashboardStats
+  4.3 useChatHistory
+  4.4 useAttendants
+
+PARTE 5 — BANCO DE DADOS
+  5.1 Enums
+  5.2 40 Tabelas
+  5.3 Database Functions e Triggers (19 funcoes)
+  5.4 RLS completo
+  5.5 Realtime
+  5.6 Storage
+  5.7 52 Migrations
+
+PARTE 6 — EDGE FUNCTIONS (14 funcoes)
+
+PARTE 7 — SCRIPTS EMBED
+  7.1 nps-chat-embed.js (completo)
+  7.2 nps-widget.js (completo)
+
+SECAO A — WIDGET DE CHAT (ChatWidget.tsx)
+  A.1 Fases (7)
+  A.2 Inicializacao
+  A.3 widgetConfig
+  A.4 Regras de Comportamento
+  A.5 handleStartChat
+  A.6 Realtime Subscriptions
+  A.7 Comunicacao postMessage
+  A.8 Renderizacao de Mensagens
+
+SECAO B — SCRIPT EMBED DETALHADO
+  B.1 Atributos HTML
+  B.2 Variaveis Internas
+  B.3 Fluxo de Inicializacao
+  B.4 buildResolverPayload
+  B.5 API Publica NPSChat.update()
+  B.6 Parametros da URL do iframe
+  B.7 Dimensionamento
+  B.8 Banners DOM
+
+SECAO C — CAMPOS CUSTOMIZAVEIS
+  C.1 Tabela chat_custom_field_definitions
+  C.2 Colunas Mapeaveis (maps_to)
+  C.3 Fluxo Payload -> Banco
+  C.4 Gestao (CustomFieldDefinitionsTab)
+  C.5 Exibicao (VisitorInfoPanel)
+
+SECAO D — get-widget-config (detalhado)
+
+SECAO E — resolve-chat-visitor (detalhado)
+  E.1-E.6 Input, arvore decisao, helpers, retorno
+
+SECAO F — INTEGRACOES INTERNAS
+  F.1 Vinculo Room -> CRM
+  F.2 Sync via update()
+  F.3 Fluxo completo Cliente -> Atendente
+  F.4 supabaseUrl hardcoded
+
+SECAO G — MAPA DO REPOSITORIO GITHUB
+  G.1 Arvore raiz
+  G.2 Arvore src/ (completa com anotacoes)
+  G.3 Arvore supabase/ (52 migrations + 14 functions)
+  G.4 Tabela de referencia rapida
+  G.5 Arquivos auto-gerados
+  G.6 Arquivos que precisam atualizacao ao migrar
+  G.7 Ordem de leitura recomendada
+  G.8 Contagem de arquivos (~270)
+  G.9 Instrucao para o novo Lovable
 ```
 
-Adicionar nota sobre side panel:
-```text
-- **Side panel do atendente**: Todos os dados (empresa, MRR, Health Score, campos customizados)
-  aparecem automaticamente no painel lateral do atendente assim que ele aceita o chat.
-  O backend preenche contact_id e company_contact_id no chat_room durante o upsert.
-```
+## Conteudo
 
-**Secao "Fluxo Interno"** (linhas 424-429):
-Atualizar para 7 passos:
+O conteudo e exatamente o que foi construido e aprovado nas 6 iteracoes anteriores da conversa, consolidado em um unico arquivo. Nenhuma informacao nova sera inventada — apenas a unificacao de todo o material ja validado.
 
-```text
-1. Script (nps-chat-embed.js) carrega no site do cliente
-2. Se data-api-key presente: busca configuracao dinamica (get-widget-config) com campos customizados do tenant
-3. Se data-api-key + data-external-id: chama resolve-chat-visitor com upsert completo
-4. Backend retorna flags: auto_start (pular form), needs_form (exibir form), has_history (tem historico)
-5. Cria iframe com widget de chat, passando flags e IDs resolvidos
-6. window.NPSChat.update(payload) envia dados ao iframe e ao backend simultaneamente
-7. Dados persistidos: visitor, contato, empresa e campos customizados atualizados via JSONB merge
-```
+## Arquivo afetado
 
-### 2. Atualizar `buildFullDoc()`
-
-A mesma logica se aplica a funcao `buildFullDoc()` (linhas 367-432), que gera a documentacao completa para copiar. Atualizar:
-
-- Secao "Fluxo Interno" (passo 6): mesmos 7 passos acima
-- Secao "Comportamento": adicionar arvore de decisao
-- Adicionar secao sobre side panel e dados do atendente
-
-### 3. Atualizar secao visual "Fluxo Interno" no JSX
-
-O bloco JSX do "Fluxo Interno" (linhas 573-581) tambem precisa ser atualizado com os mesmos 7 passos para manter consistencia entre o texto copiavel e o que aparece na tela.
-
-### 4. Atualizar secao "Regras de Comportamento" no JSX
-
-O bloco de regras (linhas 651-657) precisa incluir:
-- Menção a arvore de decisao (auto_start / needs_form / has_history)
-- Nota sobre o side panel do atendente
-- Que o upsert e centralizado no backend (nao no iframe)
-
-## Resumo
-
-Apenas um arquivo afetado: `src/components/chat/ChatWidgetDocsTab.tsx`. As mudancas sao textuais -- atualizar strings e descricoes para refletir o fluxo real implementado no `nps-chat-embed.js` e `resolve-chat-visitor`.
+Apenas `.lovable/plan.md` — substituicao completa do conteudo atual pelo blueprint consolidado.
 
