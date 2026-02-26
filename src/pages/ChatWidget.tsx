@@ -1163,17 +1163,17 @@ const ChatWidget = () => {
                           ? "bg-white/10 border-white/30 opacity-80"
                           : "bg-background/50 border-muted-foreground/30 text-muted-foreground"
                       }`}>
-                        {quoteText}
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{quoteText}</span>
                       </div>
                     )}
                     {msg.message_type === "file" && msg.metadata?.file_url
                       ? <>
                           {renderFileMessage(msg)}
                           {msg.content && msg.content !== msg.metadata.file_name && (
-                            <p className="mt-1 whitespace-pre-wrap">{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
+                            <p className="mt-1 whitespace-pre-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
                           )}
                         </>
-                      : <p className="whitespace-pre-wrap">{renderTextWithLinks(mainContent || msg.content, msg.sender_type === "visitor")}</p>
+                      : <p className="whitespace-pre-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderTextWithLinks(mainContent || msg.content, msg.sender_type === "visitor")}</p>
                     }
                     <p className="text-[10px] opacity-50 mt-1 text-right">
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

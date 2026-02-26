@@ -382,10 +382,10 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
                     ? <>
                         {renderFileMessage(msg)}
                         {msg.content && msg.content !== msg.metadata.file_name && (
-                          <p className="mt-1 whitespace-pre-wrap">{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
+                          <p className="mt-1 whitespace-pre-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
                         )}
                       </>
-                    : <p className="whitespace-pre-wrap">{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
+                    : <p className="whitespace-pre-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
                   }
                   <p className="text-xs opacity-60 mt-1">
                     {format(new Date(msg.created_at), "HH:mm")}
