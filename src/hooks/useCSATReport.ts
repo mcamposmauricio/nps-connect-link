@@ -20,6 +20,8 @@ export interface CSATReportFilters {
   attendantId: string | null;
   teamId: string | null;
   tagId: string | null;
+  contactId: string | null;
+  companyContactId: string | null;
   dateFrom: string | null;
   dateTo: string | null;
   sortBy: "date" | "score";
@@ -131,6 +133,8 @@ export function useCSATReport(filters: CSATReportFilters) {
     if (filters.scores.length > 0) statsQuery = statsQuery.in("csat_score", filters.scores);
     if (teamAttendantIds) statsQuery = statsQuery.in("attendant_id", teamAttendantIds);
     if (tagRoomIds) statsQuery = statsQuery.in("id", tagRoomIds);
+    if (filters.contactId) statsQuery = statsQuery.eq("contact_id", filters.contactId);
+    if (filters.companyContactId) statsQuery = statsQuery.eq("company_contact_id", filters.companyContactId);
 
     const { data: allRooms } = await statsQuery;
     const rooms = allRooms ?? [];
@@ -187,6 +191,8 @@ export function useCSATReport(filters: CSATReportFilters) {
     if (filters.scores.length > 0) pageQuery = pageQuery.in("csat_score", filters.scores);
     if (teamAttendantIds) pageQuery = pageQuery.in("attendant_id", teamAttendantIds);
     if (tagRoomIds) pageQuery = pageQuery.in("id", tagRoomIds);
+    if (filters.contactId) pageQuery = pageQuery.eq("contact_id", filters.contactId);
+    if (filters.companyContactId) pageQuery = pageQuery.eq("company_contact_id", filters.companyContactId);
 
     const { data: pageData } = await pageQuery;
     const pageRooms = pageData ?? [];

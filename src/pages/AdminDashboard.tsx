@@ -31,6 +31,8 @@ const AdminDashboard = () => {
   const [attendantOptions, setAttendantOptions] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
+  const [contactOptions, setContactOptions] = useState<{ id: string; name: string; companyId: string }[]>([]);
   const { stats, loading } = useDashboardStats(filters);
   const { attendants, unassignedRooms, loading: queuesLoading } = useAttendantQueues();
 
@@ -46,12 +48,14 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchMeta = async () => {
-      const [attRes, catRes, tagRes, teamRes, memberRes] = await Promise.all([
+      const [attRes, catRes, tagRes, teamRes, memberRes, compRes, ccRes] = await Promise.all([
         supabase.from("attendant_profiles").select("id, display_name, user_id"),
         supabase.from("chat_service_categories").select("id, name").order("name"),
         supabase.from("chat_tags").select("id, name").order("name"),
         supabase.from("chat_teams").select("id, name").order("name"),
         supabase.from("chat_team_members").select("team_id, attendant_id"),
+        supabase.from("contacts").select("id, name").eq("is_company", true).order("name"),
+        supabase.from("company_contacts").select("id, name, company_id").order("name"),
       ]);
       if (attRes.data) {
         setAttendantOptions(attRes.data.map((a) => ({ id: a.id, name: a.display_name })));
@@ -60,6 +64,8 @@ const AdminDashboard = () => {
       }
       setCategories(catRes.data ?? []);
       setTags(tagRes.data ?? []);
+      setCompanyOptions((compRes.data ?? []).map((c) => ({ id: c.id, name: c.name })));
+      setContactOptions((ccRes.data ?? []).map((c) => ({ id: c.id, name: c.name, companyId: c.company_id })));
       const teamData = teamRes.data ?? [];
       const memberData = memberRes.data ?? [];
       setTeams(teamData.map((team) => ({
@@ -314,12 +320,30 @@ const AdminDashboard = () => {
               </SelectContent>
             </Select>
           )}
-          {tags.length > 0 && (
+           {tags.length > 0 && (
             <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}>
               <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
                 {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          {companyOptions.length > 0 && (
+            <Select value={filters.contactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, contactId: v === "all" ? null : v, companyContactId: null }))}>
+              <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Empresas</SelectItem>
+                {companyOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          {contactOptions.length > 0 && (
+            <Select value={filters.companyContactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, companyContactId: v === "all" ? null : v }))}>
+              <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Contato" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Contatos</SelectItem>
+                {(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
           )}

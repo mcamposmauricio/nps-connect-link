@@ -24,14 +24,20 @@ const AdminDashboardGerencial = () => {
   const { stats, loading } = useDashboardStats(filters);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
+  const [contactOptions, setContactOptions] = useState<{ id: string; name: string; companyId: string }[]>([]);
 
   useEffect(() => {
     Promise.all([
       supabase.from("chat_service_categories").select("id, name").order("name"),
       supabase.from("chat_tags").select("id, name").order("name"),
-    ]).then(([catRes, tagRes]) => {
+      supabase.from("contacts").select("id, name").eq("is_company", true).order("name"),
+      supabase.from("company_contacts").select("id, name, company_id").order("name"),
+    ]).then(([catRes, tagRes, compRes, ccRes]) => {
       setCategories(catRes.data ?? []);
       setTags(tagRes.data ?? []);
+      setCompanyOptions((compRes.data ?? []).map((c) => ({ id: c.id, name: c.name })));
+      setContactOptions((ccRes.data ?? []).map((c) => ({ id: c.id, name: c.name, companyId: c.company_id })));
     });
   }, []);
 
@@ -91,6 +97,24 @@ const AdminDashboardGerencial = () => {
             <SelectContent>
               <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
               {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        {companyOptions.length > 0 && (
+          <Select value={filters.contactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, contactId: v === "all" ? null : v, companyContactId: null }))}>
+            <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas Empresas</SelectItem>
+              {companyOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        {contactOptions.length > 0 && (
+          <Select value={filters.companyContactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, companyContactId: v === "all" ? null : v }))}>
+            <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Contato" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Contatos</SelectItem>
+              {(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
