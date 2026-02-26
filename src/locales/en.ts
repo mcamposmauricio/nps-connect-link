@@ -1296,4 +1296,23 @@ export default {
   "chat.dashboard.in_queue": "In Queue",
   "chat.dashboard.unassigned_queue": "General Queue (unassigned)",
   "chat.dashboard.team_col": "Team",
+
+  // Filter labels
+  "filter.all_attendants": "All Attendants",
+  "filter.all_status": "All Status",
+  "filter.all_categories": "All Categories",
+  "filter.all_tags": "All Tags",
+  "filter.all_teams": "All Teams",
+  "filter.all_csat": "All CSAT",
+
+  // Tag management
+  "chat.tags.manage_title": "Manage Tags",
+  "chat.tags.manage_description": "Edit, delete or create classification tags for conversations",
+  "chat.tags.new": "New Tag",
+  "chat.tags.name": "Name",
+  "chat.tags.color": "Color",
+  "chat.tags.created_at": "Created at",
+  "chat.tags.usage_count": "uses",
+  "chat.tags.delete_confirm": "Are you sure you want to delete this tag? It will be removed from all conversations.",
+  "chat.tags.no_tags": "No tags registered",
 };

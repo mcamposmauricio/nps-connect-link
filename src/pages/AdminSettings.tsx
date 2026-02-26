@@ -25,6 +25,7 @@ import TeamsTab from "@/components/chat/TeamsTab";
 import CategoriesTab from "@/components/chat/CategoriesTab";
 import CustomFieldDefinitionsTab from "@/components/chat/CustomFieldDefinitionsTab";
 import ChatWidgetDocsTab from "@/components/chat/ChatWidgetDocsTab";
+import TagManagementSection from "@/components/chat/TagManagementSection";
 
 interface Macro {
   id: string;
@@ -720,8 +721,12 @@ const AdminSettings = () => {
             <AutoMessagesTab />
           </TabsContent>
 
-          {/* ===== Macros Tab ===== */}
+          {/* ===== Macros & Tags Tab ===== */}
           <TabsContent value="macros" className="space-y-4 mt-4">
+            {/* Tag Management */}
+            <TagManagementSection />
+
+            {/* Macros */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">

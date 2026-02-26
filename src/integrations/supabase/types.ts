@@ -74,6 +74,7 @@ export type Database = {
           id: string
           max_conversations: number | null
           skill_level: string | null
+          sound_enabled: boolean | null
           status: string | null
           tenant_id: string | null
           updated_at: string | null
@@ -88,6 +89,7 @@ export type Database = {
           id?: string
           max_conversations?: number | null
           skill_level?: string | null
+          sound_enabled?: boolean | null
           status?: string | null
           tenant_id?: string | null
           updated_at?: string | null
@@ -102,6 +104,7 @@ export type Database = {
           id?: string
           max_conversations?: number | null
           skill_level?: string | null
+          sound_enabled?: boolean | null
           status?: string | null
           tenant_id?: string | null
           updated_at?: string | null
