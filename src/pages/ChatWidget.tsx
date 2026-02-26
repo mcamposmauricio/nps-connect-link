@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { renderTextWithLinks } from "@/utils/chatUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -424,7 +425,14 @@ const ChatWidget = () => {
   }, [visitorId, phase, fetchHistory]);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+    // Use double-rAF to ensure scroll happens after layout + paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    });
   }, [messages]);
 
   const checkRoomAssignment = async (rId: string) => {
@@ -1162,10 +1170,10 @@ const ChatWidget = () => {
                       ? <>
                           {renderFileMessage(msg)}
                           {msg.content && msg.content !== msg.metadata.file_name && (
-                            <p className="mt-1">{msg.content}</p>
+                            <p className="mt-1 whitespace-pre-wrap">{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
                           )}
                         </>
-                      : <p>{mainContent || msg.content}</p>
+                      : <p className="whitespace-pre-wrap">{renderTextWithLinks(mainContent || msg.content, msg.sender_type === "visitor")}</p>
                     }
                     <p className="text-[10px] opacity-50 mt-1 text-right">
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

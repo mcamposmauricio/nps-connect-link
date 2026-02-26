@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { FileMessage } from "@/components/chat/FileMessage";
+import { renderTextWithLinks } from "@/utils/chatUtils";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -37,36 +38,6 @@ function getDayLabel(dateStr: string): string {
   return format(date, "dd/MM/yyyy", { locale: ptBR });
 }
 
-// Detect URLs and render them as clickable links
-function renderTextWithLinks(text: string, isOwn: boolean) {
-  const urlRegex = /(https?:\/\/[^\s<]+)/g;
-  const parts = text.split(urlRegex);
-  if (parts.length === 1) return <span>{text}</span>;
-
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (urlRegex.test(part)) {
-          // Reset lastIndex since we reuse the regex
-          urlRegex.lastIndex = 0;
-          return (
-            <a
-              key={i}
-              href={part}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`underline break-all ${isOwn ? "text-primary-foreground/90 hover:text-primary-foreground" : "text-primary hover:text-primary/80"}`}
-            >
-              {part}
-            </a>
-          );
-        }
-        urlRegex.lastIndex = 0;
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-}
 
 export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore, typingUser }: ChatMessageListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);

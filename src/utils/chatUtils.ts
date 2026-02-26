@@ -25,7 +25,30 @@ export interface FileMetadata {
   file_size?: number;
 }
 
+import React from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// Detect URLs and render them as clickable links
+export function renderTextWithLinks(text: string, isOwn: boolean): React.ReactNode {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  if (parts.length === 1) return text;
+
+  return React.createElement(React.Fragment, null,
+    ...parts.map((part, i) => {
+      if (/(https?:\/\/[^\s<]+)/.test(part)) {
+        return React.createElement("a", {
+          key: i,
+          href: part,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: `underline break-all ${isOwn ? "text-primary-foreground/90 hover:text-primary-foreground" : "text-primary hover:text-primary/80"}`,
+        }, part);
+      }
+      return React.createElement("span", { key: i }, part);
+    })
+  );
+}
 
 export async function uploadChatFile(
   file: File,

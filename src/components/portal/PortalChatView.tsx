@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ArrowLeft, Send, MessageSquare, Loader2, Paperclip, FileText, Download, X } from "lucide-react";
+import { renderTextWithLinks } from "@/utils/chatUtils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import PortalCSATForm from "./PortalCSATForm";
@@ -173,9 +174,13 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
 
   // Auto scroll
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    });
   }, [messages]);
 
   const uploadFile = async (file: File) => {
@@ -377,10 +382,10 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
                     ? <>
                         {renderFileMessage(msg)}
                         {msg.content && msg.content !== msg.metadata.file_name && (
-                          <p className="mt-1">{msg.content}</p>
+                          <p className="mt-1 whitespace-pre-wrap">{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
                         )}
                       </>
-                    : <p>{msg.content}</p>
+                    : <p className="whitespace-pre-wrap">{renderTextWithLinks(msg.content, msg.sender_type === "visitor")}</p>
                   }
                   <p className="text-xs opacity-60 mt-1">
                     {format(new Date(msg.created_at), "HH:mm")}
