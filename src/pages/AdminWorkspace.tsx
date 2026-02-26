@@ -48,8 +48,6 @@ const AdminWorkspace = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
-  const { rooms, loading: roomsLoading, markRoomAsRead, setSelectedRoomRef } = useChatRooms(user?.id ?? null, { excludeClosed: true });
-  const { messages, loading: messagesLoading, hasMore, loadingMore, loadMore } = useChatMessages(selectedRoomId);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -59,6 +57,9 @@ const AdminWorkspace = () => {
   const [proactiveChatOpen, setProactiveChatOpen] = useState(false);
   const [userAttendantId, setUserAttendantId] = useState<string | null>(null);
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const { rooms, loading: roomsLoading, markRoomAsRead, setSelectedRoomRef } = useChatRooms(user?.id ?? null, { excludeClosed: true, soundEnabled });
+  const { messages, loading: messagesLoading, hasMore, loadingMore, loadMore } = useChatMessages(selectedRoomId);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -76,12 +77,13 @@ const AdminWorkspace = () => {
     const fetchProfile = async () => {
       const { data: profile } = await supabase
         .from("attendant_profiles")
-        .select("id, display_name")
+        .select("id, display_name, sound_enabled")
         .eq("user_id", user.id)
         .maybeSingle();
       if (profile) {
         setUserAttendantId(profile.id);
         setUserDisplayName(profile.display_name);
+        setSoundEnabled(profile.sound_enabled !== false);
       } else {
         // Fallback to user_profiles
         const { data: userProfile } = await supabase

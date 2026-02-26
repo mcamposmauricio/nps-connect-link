@@ -143,7 +143,7 @@ export function useChatMessages(roomId: string | null) {
   return { messages, loading, hasMore, loadingMore, loadMore, refetch: fetchMessages };
 }
 
-export function useChatRooms(ownerUserId: string | null, options?: { excludeClosed?: boolean }) {
+export function useChatRooms(ownerUserId: string | null, options?: { excludeClosed?: boolean; soundEnabled?: boolean }) {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const selectedRoomIdRef = useRef<string | null>(null);
@@ -361,13 +361,15 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
 
           // Som de notificação apenas para mensagens do visitante em rooms não selecionados
           if (msg.sender_type === "visitor" && msg.room_id !== selectedRoomIdRef.current) {
-            try {
-              const audio = new Audio(
-                "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczGjlqj8Lb1LRiQhY0YYa95+3UdFQmLFl7p+Xj2p6MiWpXdZqXh3FxOBImWVhzl5KCcHM1EjhWX3eVkYBxcjURO1hdepCSfm5pJytRVnqNjoFyey8lRE55lYd5ciwnNk55ioJ3ay0vQU94jXlwYSAyREhqfG9eLjAqI0E="
-              );
-              audio.volume = 0.3;
-              audio.play().catch(() => {});
-            } catch {}
+            if (optionsRef.current?.soundEnabled !== false) {
+              try {
+                const audio = new Audio(
+                  "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczGjlqj8Lb1LRiQhY0YYa95+3UdFQmLFl7p+Xj2p6MiWpXdZqXh3FxOBImWVhzl5KCcHM1EjhWX3eVkYBxcjURO1hdepCSfm5pJytRVnqNjoFyey8lRE55lYd5ciwnNk55ioJ3ay0vQU94jXlwYSAyREhqfG9eLjAqI0E="
+                );
+                audio.volume = 0.3;
+                audio.play().catch(() => {});
+              } catch {}
+            }
 
             // Browser notification when tab is not focused
             if (document.hidden && "Notification" in window && Notification.permission === "granted") {
