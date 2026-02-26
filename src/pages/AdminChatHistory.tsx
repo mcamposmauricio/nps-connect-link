@@ -91,38 +91,79 @@ const AdminChatHistory = () => {
     setSelectedIds(new Set());
   };
 
-  // Reopen a pending chat
-  const handleReopenChat = async (roomId: string, originalAttendantId: string | null) => {
-    // Get attendant name for system message
+  // Reopen a pending chat — auto-assign to current user
+  const handleReopenChat = async (roomId: string) => {
+    if (!user) return;
+
+    // Get attendant name
     let attendantName = "Atendente";
-    if (user) {
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("display_name")
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("display_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (profile?.display_name) attendantName = profile.display_name;
+
+    // Resolve attendant_profile for current user
+    let { data: attProfile } = await supabase
+      .from("attendant_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!attProfile) {
+      // Find or create csm first
+      let { data: csm } = await supabase
+        .from("csms")
+        .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (profile?.display_name) attendantName = profile.display_name;
+      if (!csm) {
+        const { data: newCsm } = await supabase
+          .from("csms")
+          .insert({ user_id: user.id, name: attendantName, email: user.email ?? "", is_chat_enabled: true })
+          .select("id")
+          .single();
+        csm = newCsm;
+      }
+      // Wait for trigger to create attendant_profile
+      if (csm) {
+        await new Promise((r) => setTimeout(r, 500));
+        const { data: ap } = await supabase
+          .from("attendant_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        attProfile = ap;
+      }
     }
 
-    // Reactivate room
-    const updateData: Record<string, any> = {
-      status: originalAttendantId ? "active" : "waiting",
+    // Reactivate room with assignment
+    await supabase.from("chat_rooms").update({
+      status: "active",
       closed_at: null,
       resolution_status: null,
-    };
+      attendant_id: attProfile?.id ?? null,
+      assigned_at: new Date().toISOString(),
+    }).eq("id", roomId);
 
-    await supabase.from("chat_rooms").update(updateData).eq("id", roomId);
+    // Increment active_conversations
+    if (attProfile) {
+      await supabase.from("attendant_profiles")
+        .update({ active_conversations: 1 } as any)
+        .eq("id", attProfile.id);
+    }
 
     // Insert system message
     await supabase.from("chat_messages").insert({
       room_id: roomId,
       sender_type: "system",
       sender_name: "Sistema",
-      content: `[Sistema] Chat reaberto por ${attendantName}`,
+      content: `[Sistema] Chat reaberto e atribuído a ${attendantName}`,
       is_internal: false,
     });
 
-    toast.success("Chat reaberto com sucesso!");
+    toast.success("Chat reaberto e atribuído a você!");
     refetch();
   };
 
@@ -288,7 +329,7 @@ const AdminChatHistory = () => {
           <Select value={resolutionStatus ?? "all"} onValueChange={(v) => { setResolutionStatus(v === "all" ? null : v); handleFilterChange(); }}>
             <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder={t("chat.history.filter.status")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("common.all")}</SelectItem>
+              <SelectItem value="all">{t("filter.all_status")}</SelectItem>
               <SelectItem value="resolved">{t("chat.history.resolved")}</SelectItem>
               <SelectItem value="pending">{t("chat.history.pending_status")}</SelectItem>
               <SelectItem value="escalated">{t("chat.history.escalated")}</SelectItem>
@@ -298,14 +339,14 @@ const AdminChatHistory = () => {
           <Select value={attendantId ?? "all"} onValueChange={(v) => { setAttendantId(v === "all" ? null : v); handleFilterChange(); }}>
             <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder={t("chat.history.filter.attendant")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("common.all")}</SelectItem>
+              <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
               {attendants.map((a) => <SelectItem key={a.id} value={a.id}>{a.display_name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={csatFilter ?? "all"} onValueChange={(v) => { setCsatFilter(v === "all" ? null : v); handleFilterChange(); }}>
             <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="CSAT" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos CSAT</SelectItem>
+              <SelectItem value="all">{t("filter.all_csat")}</SelectItem>
               <SelectItem value="low">1-2 (Ruim)</SelectItem>
               <SelectItem value="neutral">3 (Neutro)</SelectItem>
               <SelectItem value="good">4-5 (Bom)</SelectItem>
@@ -407,7 +448,7 @@ const AdminChatHistory = () => {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {room.resolution_status === "pending" && <DropdownMenuItem onClick={() => handleReopenChat(room.id, room.attendant_id)}><RotateCcw className="h-4 w-4 mr-2" />Reabrir</DropdownMenuItem>}
+                                {room.resolution_status === "pending" && <DropdownMenuItem onClick={() => handleReopenChat(room.id)}><RotateCcw className="h-4 w-4 mr-2" />Reabrir</DropdownMenuItem>}
                                 {room.resolution_status !== "resolved" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "resolved")}><CheckCircle2 className="h-4 w-4 mr-2" />Marcar como Resolvido</DropdownMenuItem>}
                                 {room.resolution_status !== "archived" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "archived")}><Archive className="h-4 w-4 mr-2" />Arquivar</DropdownMenuItem>}
                               </DropdownMenuContent>

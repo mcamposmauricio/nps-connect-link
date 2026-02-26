@@ -72,7 +72,7 @@ const AdminDashboardGerencial = () => {
         <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v }))}>
           <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("common.all")}</SelectItem>
+            <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
             {attendants.map((a) => <SelectItem key={a.id} value={a.id}>{a.display_name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -80,7 +80,7 @@ const AdminDashboardGerencial = () => {
           <Select value={filters.categoryId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v === "all" ? null : v }))}>
             <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_category")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("common.all")}</SelectItem>
+              <SelectItem value="all">{t("filter.all_categories")}</SelectItem>
               {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -89,7 +89,7 @@ const AdminDashboardGerencial = () => {
           <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}>
             <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas Tags</SelectItem>
+              <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
               {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
             </SelectContent>
           </Select>

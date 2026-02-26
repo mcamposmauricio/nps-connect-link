@@ -102,7 +102,7 @@ const AdminCSATReport = () => {
             <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v, page: 0 }))}>
               <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("common.all")}</SelectItem>
+                <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
                 {attendantOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -110,7 +110,7 @@ const AdminCSATReport = () => {
               <Select value={filters.teamId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, teamId: v === "all" ? null : v, page: 0 }))}>
                 <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder={t("csat.report.team")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("common.all")}</SelectItem>
+                  <SelectItem value="all">{t("filter.all_teams")}</SelectItem>
                   {teamOptions.map((team) => <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -119,7 +119,7 @@ const AdminCSATReport = () => {
               <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v, page: 0 }))}>
                 <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("common.all")}</SelectItem>
+                  <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
                   {tagOptions.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
                 </SelectContent>
               </Select>

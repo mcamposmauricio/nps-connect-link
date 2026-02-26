@@ -604,6 +604,27 @@ export default {
   "common.yes": "Sim",
   "common.no": "Não",
   "common.done": "Concluído",
+  "common.all": "Todos",
+  "common.saving": "Salvando...",
+
+  // Filter labels
+  "filter.all_attendants": "Todos Atendentes",
+  "filter.all_status": "Todos Status",
+  "filter.all_categories": "Todas Categorias",
+  "filter.all_tags": "Todas Tags",
+  "filter.all_teams": "Todos Times",
+  "filter.all_csat": "Todos CSAT",
+
+  // Tag management
+  "chat.tags.manage_title": "Gerenciar Tags",
+  "chat.tags.manage_description": "Edite, exclua ou crie tags de classificação para conversas",
+  "chat.tags.new": "Nova Tag",
+  "chat.tags.name": "Nome",
+  "chat.tags.color": "Cor",
+  "chat.tags.created_at": "Criado em",
+  "chat.tags.usage_count": "usos",
+  "chat.tags.delete_confirm": "Tem certeza que deseja excluir esta tag? Ela será removida de todas as conversas.",
+  "chat.tags.no_tags": "Nenhuma tag cadastrada",
 
   // Heatmap
   "heatmap.title": "NPS por Região",

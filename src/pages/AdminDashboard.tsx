@@ -283,14 +283,14 @@ const AdminDashboard = () => {
           <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v }))}>
             <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("common.all")}</SelectItem>
+              <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
               {attendantOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filters.status ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, status: v === "all" ? null : v }))}>
             <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">{t("filter.all_status")}</SelectItem>
               <SelectItem value="active">Ativo</SelectItem>
               <SelectItem value="waiting">Na Fila</SelectItem>
               <SelectItem value="closed">Encerrado</SelectItem>
@@ -299,7 +299,7 @@ const AdminDashboard = () => {
           <Select value={filters.priority ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, priority: v === "all" ? null : v }))}>
             <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Prioridade" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="all">{t("filter.all_categories")}</SelectItem>
               <SelectItem value="normal">Normal</SelectItem>
               <SelectItem value="high">Alta</SelectItem>
               <SelectItem value="urgent">Urgente</SelectItem>
@@ -318,7 +318,7 @@ const AdminDashboard = () => {
             <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}>
               <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas Tags</SelectItem>
+                <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
                 {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
               </SelectContent>
             </Select>
