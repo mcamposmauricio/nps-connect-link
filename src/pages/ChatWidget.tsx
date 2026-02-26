@@ -1098,6 +1098,16 @@ const ChatWidget = () => {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Envie uma mensagem enquanto aguarda..."
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                onPaste={(e) => {
+                  const items = e.clipboardData?.items;
+                  if (!items) return;
+                  for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.startsWith("image/") || items[i].type.startsWith("application/")) {
+                      const file = items[i].getAsFile();
+                      if (file) { e.preventDefault(); handleFileSelect(file); return; }
+                    }
+                  }
+                }}
               />
               <Button size="icon" onClick={handleSend} disabled={!input.trim()} style={{ backgroundColor: primaryColor }}>
                 <Send className="h-4 w-4" />
@@ -1290,6 +1300,16 @@ const ChatWidget = () => {
             placeholder="Digite sua mensagem..."
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             disabled={uploading}
+            onPaste={(e) => {
+              const items = e.clipboardData?.items;
+              if (!items) return;
+              for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith("image/") || items[i].type.startsWith("application/")) {
+                  const file = items[i].getAsFile();
+                  if (file) { e.preventDefault(); handleFileSelect(file); return; }
+                }
+              }
+            }}
           />
           <Button size="icon" onClick={handleSend} disabled={(!input.trim() && !pendingFile) || uploading} style={{ backgroundColor: primaryColor }}>
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
