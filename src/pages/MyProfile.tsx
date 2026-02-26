@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Loader2, Headphones } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Camera, Loader2, Headphones, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CHAT_STATUS_OPTIONS = [
@@ -46,6 +47,7 @@ export default function MyProfile() {
   // Chat attendant status
   const [attendantId, setAttendantId] = useState<string | null>(null);
   const [chatStatus, setChatStatus] = useState<string>("offline");
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [savingStatus, setSavingStatus] = useState(false);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function MyProfile() {
           .maybeSingle(),
         supabase
           .from("attendant_profiles")
-          .select("id, status")
+          .select("id, status, sound_enabled")
           .eq("user_id", user.id)
           .maybeSingle(),
       ]);
@@ -76,6 +78,7 @@ export default function MyProfile() {
       if (attendantData) {
         setAttendantId(attendantData.id);
         setChatStatus(attendantData.status ?? "offline");
+        setSoundEnabled(attendantData.sound_enabled !== false);
       }
       setLoading(false);
     };
@@ -208,6 +211,26 @@ export default function MyProfile() {
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{currentStatusConfig.description}</p>
+
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="sound-toggle" className="text-sm font-medium cursor-pointer">
+                        Notificações sonoras
+                      </Label>
+                    </div>
+                    <Switch
+                      id="sound-toggle"
+                      checked={soundEnabled}
+                      onCheckedChange={async (checked) => {
+                        setSoundEnabled(checked);
+                        if (attendantId) {
+                          await supabase.from("attendant_profiles").update({ sound_enabled: checked }).eq("id", attendantId);
+                          toast({ title: checked ? "Som ativado" : "Som desativado" });
+                        }
+                      }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             )}

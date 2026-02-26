@@ -347,6 +347,16 @@ const ChatWidget = () => {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` }, (payload) => {
         const msg = payload.new as any;
         if (!msg.is_internal) {
+          // Play notification sound for attendant messages
+          if (msg.sender_type === "attendant") {
+            try {
+              const audio = new Audio(
+                "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczGjlqj8Lb1LRiQhY0YYa95+3UdFQmLFl7p+Xj2p6MiWpXdZqXh3FxOBImWVhzl5KCcHM1EjhWX3eVkYBxcjURO1hdepCSfm5pJytRVnqNjoFyey8lRE55lYd5ciwnNk55ioJ3ay0vQU94jXlwYSAyREhqfG9eLjAqI0E="
+              );
+              audio.volume = 0.25;
+              audio.play().catch(() => {});
+            } catch {}
+          }
           setMessages((prev) => {
             // Remove any optimistic version of this message to prevent duplicates
             const withoutOptimistic = prev.filter((m) => !m.id.startsWith("optimistic-"));
