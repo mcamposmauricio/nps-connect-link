@@ -1,79 +1,136 @@
 
-# Plano: Remocao Completa de 5 Usuarios do Sistema
+# Plano: Melhorias no Widget, Workspace e Gestao de Chat
 
-## Resumo
+## 7 melhorias identificadas
 
-Remover completamente os usuarios `felipe@marqponto.com.br`, `lucas@marqponto.com.br`, `thaina@marqponto.com.br`, `matheus@marqponto.com.br` e `mauricio@marqponto.com.br` de todas as tabelas do sistema e do auth, para que possam ser cadastrados novamente do zero.
+---
 
-## Usuarios encontrados
+## 1. Notificacao visual no widget minimizado (FAB)
 
-| Email | user_id | Tenant | Status |
-|-------|---------|--------|--------|
-| felipe@marqponto.com.br | c1e05a0e-... | 9d0bacc... | Aceito |
-| lucas@marqponto.com.br | 4941b9ad-... | 9d0bacc... | Aceito |
-| matheus@marqponto.com.br | c4644e4d-... | 9d0bacc... | Aceito |
-| mauricio@marqponto.com.br | 0f04ffe2-... | 34d971f... | Aceito |
-| thaina@marqponto.com.br | -- | -- | Nao encontrada |
+**Problema**: Quando o widget esta minimizado (FAB), nao ha indicacao de novas mensagens.
 
-**Nota:** `thaina@marqponto.com.br` nao possui perfil no sistema. Sera verificada apenas no auth.
+**Solucao**:
+- Adicionar estado `unreadCount` no `ChatWidget.tsx` que incrementa quando mensagens chegam via realtime e o widget esta fechado (`!isOpen`)
+- Renderizar badge vermelho com contador sobre o botao FAB (linhas ~848-876)
+- Ao abrir o widget (`setIsOpen(true)`), zerar o `unreadCount`
+- Na tela de historico, mostrar indicador de "mensagem nova" por room (comparar `last_message_at` com timestamp de ultimo acesso local)
 
-## Ordem de exclusao (respeitando dependencias)
+**Arquivos**: `src/pages/ChatWidget.tsx`
 
-A exclusao precisa seguir uma ordem especifica para nao violar foreign keys e constraints:
+---
 
-### Passo 1 -- Limpar referencias em chat_assignment_configs
-Dois registros de `rr_last_attendant_id` apontam para attendant_profiles destes usuarios. Setar para NULL antes de deletar os attendants.
+## 2. Links clicaveis nas mensagens do widget
 
-### Passo 2 -- Deletar chat_team_members
-3 registros vinculando attendant_profiles a times.
+**Problema**: O `ChatMessageList.tsx` ja implementa `renderTextWithLinks`, mas o widget (`ChatWidget.tsx`) tem sua propria renderizacao inline que nao usa essa funcao.
 
-### Passo 3 -- Nullificar attendant_id em chat_rooms
-~20 rooms historicas que foram atendidas por estes usuarios. Em vez de deletar as rooms (que contem historico de conversa), setar `attendant_id = NULL` para preservar o historico.
+**Solucao**:
+- Extrair `renderTextWithLinks` do `ChatMessageList.tsx` para `src/utils/chatUtils.ts`
+- No `ChatWidget.tsx`, importar e usar `renderTextWithLinks` nas bolhas de mensagem (atualmente renderiza `{msg.content}` diretamente, linhas ~1100-1200)
+- Estilizar links para visitantes: `text-primary underline` no widget
 
-### Passo 4 -- Deletar chat_room_reads
-~18 registros de leitura de salas.
+**Arquivos**: `src/utils/chatUtils.ts`, `src/pages/ChatWidget.tsx`, `src/components/chat/ChatMessageList.tsx`
 
-### Passo 5 -- Deletar attendant_profiles
-3 registros (Felipe, Lucas, Matheus).
+---
 
-### Passo 6 -- Deletar user_permissions
-~50+ registros de permissoes por modulo.
+## 3. Notificacao sonora configuravel
 
-### Passo 7 -- Deletar user_roles
-2 registros (Matheus admin, Mauricio admin).
+**Problema**: Nao existe sinalzacao sonora ao receber mensagens.
 
-### Passo 8 -- Deletar csms
-3 registros (Felipe, Lucas, Matheus).
+**Solucao**:
+- Adicionar coluna `sound_enabled` (boolean, default true) na tabela `attendant_profiles` via migration
+- No `MyProfile.tsx`, adicionar toggle "Notificacoes sonoras" na secao de chat (junto com status online/busy/offline)
+- No `AdminWorkspace.tsx`, ao receber mensagem nova via realtime (hook `useChatRealtime`), tocar um som de notificacao curto usando `new Audio('/notification.mp3').play()` -- apenas se `sound_enabled = true`
+- Adicionar arquivo de audio em `public/notification.mp3` (usar um tom curto padrao gerado via Web Audio API como fallback)
+- No widget (`ChatWidget.tsx`), tambem tocar som ao receber mensagem do atendente quando widget aberto
 
-### Passo 9 -- Deletar user_profiles
-4 registros.
+**Arquivos**: migration SQL, `src/pages/MyProfile.tsx`, `src/pages/AdminWorkspace.tsx`, `src/hooks/useChatRealtime.ts`, `public/notification.mp3`
 
-### Passo 10 -- Deletar usuarios do auth
-Usar a Edge Function `backoffice-admin` com action `delete-auth-user` para cada user_id. Para `thaina@marqponto.com.br`, verificar se existe no auth e deletar se existir.
+---
 
-## Implementacao
+## 4. Ultimos 5 chats no painel lateral (VisitorInfoPanel)
 
-Sera criada uma Edge Function temporaria ou usada a funcao `backoffice-admin` existente para executar a limpeza via service_role_key, ja que as tabelas possuem RLS e as operacoes precisam de acesso administrativo.
+**Problema**: O painel lateral nao mostra historico de chats do visitante.
 
-A abordagem mais segura sera executar as queries SQL diretamente via migration tool (que usa service role), garantindo a ordem correta.
+**Solucao**:
+- Na aba "Contato" do `VisitorInfoPanel.tsx`, adicionar secao "Historico de Chats" abaixo das metricas
+- Buscar os ultimos 5 `chat_rooms` do `company_contact_id` ou `visitor_id` (excluindo a sala atual), ordenados por `created_at DESC`
+- Exibir cards compactos com: data, status, CSAT, e preview da ultima mensagem
+- Botao "Ver conversa" que abre o `ReadOnlyChatDialog`
+- Botao "Carregar mais" que busca +5 rooms (paginacao incremental)
 
-## Tabelas afetadas
+**Arquivos**: `src/components/chat/VisitorInfoPanel.tsx`
 
-| Tabela | Acao | Quantidade |
-|--------|------|-----------|
-| chat_assignment_configs | UPDATE rr_last_attendant_id = NULL | 2 |
-| chat_team_members | DELETE | 3 |
-| chat_rooms | UPDATE attendant_id = NULL | ~20 |
-| chat_room_reads | DELETE | ~18 |
-| attendant_profiles | DELETE | 3 |
-| user_permissions | DELETE | ~50 |
-| user_roles | DELETE | 2 |
-| csms | DELETE | 3 |
-| user_profiles | DELETE | 4 |
-| auth.users | DELETE via Edge Function | 4-5 |
+---
 
-## Impacto
+## 5. Gerenciamento de tags (CRUD completo)
 
-- Historico de chat preservado (rooms e mensagens permanecem, apenas attendant_id fica NULL)
-- Nenhuma empresa/contato sera afetada (nenhum CSM estava vinculado a contatos)
-- Apos a limpeza, os emails ficam livres para novo cadastro/convite
+**Problema**: Tags so podem ser criadas inline durante o atendimento, sem opcao de editar, desativar ou excluir.
+
+**Solucao**:
+- Na pagina `AdminSettings.tsx`, na aba de Macros (ou criar nova sub-secao), adicionar gestao de tags:
+  - Tabela listando todas as tags com colunas: Nome, Cor, Criado em, Acoes
+  - Acoes: Editar (nome/cor), Excluir (com confirmacao e contagem de usos)
+- A exclusao de tags remove tambem os registros de `chat_room_tags` associados (cascade)
+- Reutilizar o padrao visual da tabela de macros ja existente
+
+**Arquivos**: `src/pages/AdminSettings.tsx`
+
+---
+
+## 6. Corrigir filtros com "common.all" e labels genericos
+
+**Problema**: Varios selects mostram "Todos" como texto selecionado sem contexto do que esta sendo filtrado.
+
+**Solucao**:
+- Em `AdminDashboard.tsx`: trocar `{t("common.all")}` por "Todos Atendentes"
+- Em `AdminDashboardGerencial.tsx`: trocar por "Todos Atendentes", "Todas Categorias"  
+- Em `AdminChatHistory.tsx`: trocar por "Todos Status", "Todos Atendentes"
+- Em `AdminCSATReport.tsx`: trocar por "Todos Atendentes", "Todos Times", "Todas Tags"
+- Adicionar chaves de traducao em `pt-BR.ts` e `en.ts` para cada filtro especifico
+- Usar o `placeholder` do `SelectTrigger` corretamente para que o valor padrao mostre o label descritivo
+
+**Arquivos**: `src/pages/AdminDashboard.tsx`, `src/pages/AdminDashboardGerencial.tsx`, `src/pages/AdminChatHistory.tsx`, `src/pages/AdminCSATReport.tsx`, `src/locales/pt-BR.ts`, `src/locales/en.ts`
+
+---
+
+## 7. Reabrir chat atribui automaticamente ao usuario logado
+
+**Problema**: Ao reabrir um chat no historico, ele fica em "waiting" sem atendente atribuido.
+
+**Solucao**:
+- No `AdminChatHistory.tsx`, metodo `handleReopenChat`: 
+  - Buscar o `attendant_profile` do usuario logado (mesmo padrao do `handleAssignRoom` no Workspace)
+  - Criar o perfil se nao existir (mesma logica)
+  - Ao dar update na room, ja setar `attendant_id`, `status: "active"`, `assigned_at: now()`
+  - Incrementar `active_conversations` do atendente
+- Mensagem de sistema: "Chat reaberto e atribuido a [nome]"
+
+**Arquivos**: `src/pages/AdminChatHistory.tsx`
+
+---
+
+## Alteracoes no banco de dados
+
+Uma unica migration:
+```sql
+ALTER TABLE public.attendant_profiles 
+ADD COLUMN IF NOT EXISTS sound_enabled boolean DEFAULT true;
+```
+
+## Resumo de arquivos
+
+| Arquivo | Tipo |
+|---------|------|
+| Migration SQL | Novo |
+| `src/pages/ChatWidget.tsx` | Modificado |
+| `src/utils/chatUtils.ts` | Modificado |
+| `src/components/chat/ChatMessageList.tsx` | Modificado |
+| `src/components/chat/VisitorInfoPanel.tsx` | Modificado |
+| `src/pages/AdminWorkspace.tsx` | Modificado |
+| `src/pages/AdminSettings.tsx` | Modificado |
+| `src/pages/AdminChatHistory.tsx` | Modificado |
+| `src/pages/MyProfile.tsx` | Modificado |
+| `src/hooks/useChatRealtime.ts` | Modificado |
+| `src/locales/pt-BR.ts` | Modificado |
+| `src/locales/en.ts` | Modificado |
+| `public/notification.mp3` | Novo (audio curto) |
