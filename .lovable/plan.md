@@ -1,38 +1,76 @@
 
-# Plano: Corrigir formatacao de mensagens no widget do chat
+# Plano: Painel de Pendencias Colapsavel + Ctrl+V no Widget
 
-## Problema
+## 1. Componente colapsavel "Com Pendencia" no Workspace
 
-A mensagem enviada pelo atendente aparece com quebras de linha corretas no workspace (fundo laranja), mas no widget do cliente (fundo cinza) o texto fica todo corrido, sem nenhuma quebra de linha, apesar do codigo ja ter a classe Tailwind `whitespace-pre-wrap`.
+**Problema**: Chats fechados com pendencia nao aparecem na fila do atendente. Ele precisa ir ao Historico para encontra-los.
 
-## Causa raiz
+**Solucao**: Criar um componente colapsavel que fica entre o botao "Novo Chat" e a lista de conversas ativas na coluna esquerda do Workspace.
 
-O codigo em `ChatWidget.tsx` (linha 1176) usa a classe Tailwind `whitespace-pre-wrap`, porem ha indicios de que essa classe nao esta sendo aplicada corretamente no contexto do iframe do widget. Isso pode ocorrer por:
-- Conflito de especificidade CSS (o `App.css` define estilos no `#root` que podem interferir)
-- PurgeCSS/JIT do Tailwind nao incluindo a classe no build final
+### Novo componente: `src/components/chat/PendingRoomsList.tsx`
+- Busca `chat_rooms` com `status = 'closed'` e `resolution_status = 'pending'` filtrados pelo `attendant_id` do usuario logado
+- Exibe um collapsible (usando `@radix-ui/react-collapsible`) com:
+  - Header: "Com Pendencia" + badge numerico com a contagem
+  - Por padrao, inicia **fechado** (collapsed)
+  - Ao expandir, lista cards compactos com: nome do visitante, data de encerramento, preview da ultima mensagem
+- Ao clicar em um card:
+  - Seleciona a room no painel central (mostra mensagens no mesmo painel de chat normal)
+  - No header do chat, exibe botoes: "Reabrir" e "Marcar Resolvido"
+- **Reabrir**: atualiza `status: 'active'`, `resolution_status: null`, `closed_at: null`, `assigned_at: now()` e insere mensagem de sistema
+- **Marcar Resolvido**: atualiza `resolution_status: 'resolved'` e remove da lista
+- Usa realtime subscription para atualizar automaticamente quando pendencias mudam
 
-## Solucao
+### Integracao em `src/pages/AdminWorkspace.tsx`
+- Importar `PendingRoomsList` e inserir entre o botao "Novo Chat" (linha 388-391) e o `ChatRoomList` (linha 393-395)
+- Passar `userAttendantId` e handlers de selecao/acao
+- Quando uma room pendente e selecionada, o painel central carrega mensagens normalmente via `useChatMessages`
+- Detectar se `selectedRoom` e uma room pendente (closed + pending) para exibir acoes diferentes no header
 
-Usar **inline style** `style={{ whiteSpace: 'pre-wrap' }}` diretamente nos elementos `<p>` que renderizam o conteudo das mensagens, garantindo que o estilo seja aplicado independentemente de qualquer conflito CSS. Isso sera feito em 3 arquivos:
+**Arquivos**:
+- `src/components/chat/PendingRoomsList.tsx` (novo)
+- `src/pages/AdminWorkspace.tsx` (modificado)
 
-### 1. `src/pages/ChatWidget.tsx`
-- **Linha 1176**: Substituir `className="whitespace-pre-wrap"` por `className="whitespace-pre-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}`
-- **Linha 1173**: Mesma correcao para mensagens com arquivo + texto
-- **Linha 1166**: Adicionar `style={{ whiteSpace: 'pre-wrap' }}` no quote text tambem
-- **Linha 1142-1143**: Adicionar no texto de mensagens de sistema
+---
 
-### 2. `src/components/portal/PortalChatView.tsx`
-- **Linha 388**: Mesma correcao inline para o portal do cliente
-- **Linha 385**: Correcao no texto acompanhando arquivo
+## 2. Ctrl+V para colar arquivos/imagens no Widget
 
-### 3. `src/utils/chatUtils.ts`
-- Sem alteracao necessaria, a funcao `renderTextWithLinks` preserva os `\n` nos spans corretamente
+**Problema**: O widget do cliente so permite enviar arquivos pelo botao de attach. Ctrl+V com imagens copiadas nao funciona.
 
-## Resumo
+**Solucao**: Adicionar handler `onPaste` no input do widget (fase "chat") que detecta arquivos na clipboard e os adiciona como `pendingFile`.
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/pages/ChatWidget.tsx` | Adicionar inline style `whiteSpace: 'pre-wrap'` + `wordBreak: 'break-word'` |
-| `src/components/portal/PortalChatView.tsx` | Mesma correcao inline |
+### Mudancas em `src/pages/ChatWidget.tsx`
+- Na area de input do chat (linha 1281, o `<Input>`), trocar por um `<textarea>` ou adicionar `onPaste` handler no `<Input>`:
+
+```typescript
+const handlePaste = (e: React.ClipboardEvent) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith("image/") || items[i].type.startsWith("application/")) {
+      const file = items[i].getAsFile();
+      if (file) {
+        e.preventDefault();
+        handleFileSelect(file);
+        return;
+      }
+    }
+  }
+};
+```
+
+- Adicionar `onPaste={handlePaste}` ao `<Input>` na linha 1281
+- Tambem adicionar no input da fase "waiting" (linha 1096) para consistencia
+
+**Arquivo**: `src/pages/ChatWidget.tsx`
+
+---
+
+## Resumo de mudancas
+
+| Arquivo | Tipo | Mudanca |
+|---------|------|---------|
+| `src/components/chat/PendingRoomsList.tsx` | Novo | Componente colapsavel com lista de rooms pendentes |
+| `src/pages/AdminWorkspace.tsx` | Modificado | Integrar PendingRoomsList + acoes para rooms pendentes no header |
+| `src/pages/ChatWidget.tsx` | Modificado | Adicionar onPaste handler para colar arquivos/imagens |
 
 Nenhuma alteracao no banco de dados.
