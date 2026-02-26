@@ -29,6 +29,8 @@ export interface DashboardFilters {
   priority?: string | null;
   categoryId?: string | null;
   tagId?: string | null;
+  contactId?: string | null;
+  companyContactId?: string | null;
 }
 
 export function useDashboardStats(filters: DashboardFilters) {
@@ -79,7 +81,7 @@ export function useDashboardStats(filters: DashboardFilters) {
     // Build rooms query
     let query = supabase
       .from("chat_rooms")
-      .select("id, status, resolution_status, created_at, closed_at, csat_score, attendant_id, priority, contact_id");
+      .select("id, status, resolution_status, created_at, closed_at, csat_score, attendant_id, priority, contact_id, company_contact_id");
 
     if (startDate) {
       query = query.gte("created_at", startDate.toISOString());
@@ -92,6 +94,12 @@ export function useDashboardStats(filters: DashboardFilters) {
     }
     if (filters.priority) {
       query = query.eq("priority", filters.priority);
+    }
+    if (filters.contactId) {
+      query = query.eq("contact_id", filters.contactId);
+    }
+    if (filters.companyContactId) {
+      query = query.eq("company_contact_id", filters.companyContactId);
     }
 
     // If filtering by category, we need to get contact IDs for that category first
@@ -328,7 +336,7 @@ export function useDashboardStats(filters: DashboardFilters) {
       avgWaitMinutes, abandonmentRate,
     });
     setLoading(false);
-  }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId, filters.tagId]);
+  }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId, filters.tagId, filters.contactId, filters.companyContactId]);
 
   useEffect(() => {
     fetchStats();

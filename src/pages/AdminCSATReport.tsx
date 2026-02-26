@@ -23,6 +23,7 @@ const AdminCSATReport = () => {
 
   const [filters, setFilters] = useState<CSATReportFilters>({
     period: "month", scores: [], attendantId: null, teamId: null, tagId: null,
+    contactId: null, companyContactId: null,
     dateFrom: null, dateTo: null, sortBy: "date", sortDir: "desc", page: 0,
   });
 
@@ -30,6 +31,8 @@ const AdminCSATReport = () => {
   const [attendantOptions, setAttendantOptions] = useState<{ id: string; name: string }[]>([]);
   const [teamOptions, setTeamOptions] = useState<{ id: string; name: string }[]>([]);
   const [tagOptions, setTagOptions] = useState<{ id: string; name: string }[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
+  const [contactOptions, setContactOptions] = useState<{ id: string; name: string; companyId: string }[]>([]);
   const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -37,10 +40,14 @@ const AdminCSATReport = () => {
       supabase.from("attendant_profiles").select("id, display_name").order("display_name"),
       supabase.from("chat_teams").select("id, name").order("name"),
       supabase.from("chat_tags").select("id, name").order("name"),
-    ]).then(([attRes, teamRes, tagRes]) => {
+      supabase.from("contacts").select("id, name").eq("is_company", true).order("name"),
+      supabase.from("company_contacts").select("id, name, company_id").order("name"),
+    ]).then(([attRes, teamRes, tagRes, compRes, ccRes]) => {
       setAttendantOptions((attRes.data ?? []).map((a) => ({ id: a.id, name: a.display_name })));
       setTeamOptions((teamRes.data ?? []).map((t) => ({ id: t.id, name: t.name })));
       setTagOptions((tagRes.data ?? []).map((t) => ({ id: t.id, name: t.name })));
+      setCompanyOptions((compRes.data ?? []).map((c) => ({ id: c.id, name: c.name })));
+      setContactOptions((ccRes.data ?? []).map((c) => ({ id: c.id, name: c.name, companyId: c.company_id })));
     });
   }, []);
 
@@ -126,6 +133,24 @@ const AdminCSATReport = () => {
             )}
             <Input type="date" className="w-[140px] h-9" value={filters.dateFrom ?? ""} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value || null, page: 0 }))} placeholder="De" />
             <Input type="date" className="w-[140px] h-9" value={filters.dateTo ?? ""} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value || null, page: 0 }))} placeholder="Até" />
+            {companyOptions.length > 0 && (
+              <Select value={filters.contactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, contactId: v === "all" ? null : v, companyContactId: null, page: 0 }))}>
+                <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas Empresas</SelectItem>
+                  {companyOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {contactOptions.length > 0 && (
+              <Select value={filters.companyContactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, companyContactId: v === "all" ? null : v, page: 0 }))}>
+                <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Contato" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Contatos</SelectItem>
+                  {(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
           </FilterBar>
 
           {/* Score chips */}

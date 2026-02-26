@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity, ExternalLink, RefreshCw } from "lucide-react";
+import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity, ExternalLink, RefreshCw, ChevronDown, Clock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { TimelineComponent } from "@/components/cs/TimelineComponent";
+import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
 
 
 interface Visitor {
@@ -72,6 +74,16 @@ interface FieldDef {
   is_active: boolean;
 }
 
+interface RecentChat {
+  id: string;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+  csat_score: number | null;
+  attendant_name: string | null;
+  tags: { name: string; color: string | null }[];
+}
+
 interface VisitorInfoPanelProps {
   roomId: string;
   visitorId: string;
@@ -108,6 +120,71 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   const [visitorMetadata, setVisitorMetadata] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const [chatPage, setChatPage] = useState(0);
+  const [hasMoreChats, setHasMoreChats] = useState(false);
+  const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
+  const CHAT_PAGE_SIZE = 5;
+
+  const fetchRecentChats = async (contactId: string | null | undefined, companyContactId: string | null | undefined, page: number) => {
+    if (!contactId && !companyContactId) return;
+    let query = supabase
+      .from("chat_rooms")
+      .select("id, status, created_at, closed_at, csat_score, attendant_id")
+      .order("created_at", { ascending: false })
+      .range(page * CHAT_PAGE_SIZE, (page + 1) * CHAT_PAGE_SIZE);
+
+    if (companyContactId) {
+      query = query.eq("company_contact_id", companyContactId);
+    } else if (contactId) {
+      query = query.eq("contact_id", contactId);
+    }
+
+    const { data: rooms } = await query;
+    const roomList = rooms ?? [];
+    setHasMoreChats(roomList.length > CHAT_PAGE_SIZE);
+    const trimmed = roomList.slice(0, CHAT_PAGE_SIZE);
+
+    // Fetch attendant names + tags for these rooms
+    const attIds = [...new Set(trimmed.map(r => r.attendant_id).filter(Boolean))] as string[];
+    const roomIds = trimmed.map(r => r.id);
+
+    const [attRes, tagsRes] = await Promise.all([
+      attIds.length > 0 ? supabase.from("attendant_profiles").select("id, display_name").in("id", attIds) : Promise.resolve({ data: [] }),
+      roomIds.length > 0 ? supabase.from("chat_room_tags").select("room_id, tag_id, chat_tags!tag_id(name, color)").in("room_id", roomIds) : Promise.resolve({ data: [] }),
+    ]);
+
+    const attMap: Record<string, string> = {};
+    (attRes.data ?? []).forEach((a: any) => { attMap[a.id] = a.display_name; });
+    const tagMap: Record<string, { name: string; color: string | null }[]> = {};
+    (tagsRes.data ?? []).forEach((rt: any) => {
+      if (!tagMap[rt.room_id]) tagMap[rt.room_id] = [];
+      if (rt.chat_tags) tagMap[rt.room_id].push({ name: rt.chat_tags.name, color: rt.chat_tags.color });
+    });
+
+    const mapped: RecentChat[] = trimmed.map(r => ({
+      id: r.id,
+      status: r.status ?? "closed",
+      created_at: r.created_at ?? "",
+      closed_at: r.closed_at,
+      csat_score: r.csat_score,
+      attendant_name: r.attendant_id ? (attMap[r.attendant_id] ?? null) : null,
+      tags: tagMap[r.id] ?? [],
+    }));
+
+    if (page === 0) {
+      setRecentChats(mapped);
+    } else {
+      setRecentChats(prev => [...prev, ...mapped]);
+    }
+    setChatPage(page);
+  };
+
+  const loadMoreChats = async () => {
+    const cId = propContactId || visitor?.contact_id;
+    const ccId = propCompanyContactId || visitor?.company_contact_id;
+    await fetchRecentChats(cId, ccId, chatPage + 1);
+  };
 
   const fetchData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -131,17 +208,17 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
       .order("display_order", { ascending: true });
     setFieldDefs((defs as any as FieldDef[]) ?? []);
 
-    const cId = propContactId || v?.contact_id;
-    const ccId = propCompanyContactId || v?.company_contact_id;
+    const resolvedContactId = propContactId || v?.contact_id;
+    const resolvedCcId = propCompanyContactId || v?.company_contact_id;
     const promises: Promise<void>[] = [];
 
-    if (cId) {
+    if (resolvedContactId) {
       promises.push(
         (async () => {
           const { data } = await supabase
             .from("contacts")
             .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document, custom_fields")
-            .eq("id", cId)
+            .eq("id", resolvedContactId)
             .maybeSingle();
           setCompany(data as Company | null);
         })()
@@ -151,7 +228,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           const { data } = await supabase
             .from("timeline_events")
             .select("id, type, title, description, date, user_name, metadata")
-            .eq("contact_id", cId)
+            .eq("contact_id", resolvedContactId)
             .order("date", { ascending: false })
             .limit(10);
           setTimelineEvents((data as TimelineEvent[]) ?? []);
@@ -159,13 +236,13 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
       );
     }
 
-    if (ccId) {
+    if (resolvedCcId) {
       promises.push(
         (async () => {
           const { data } = await supabase
             .from("company_contacts")
             .select("id, name, email, phone, role, department, external_id, chat_total, chat_avg_csat, chat_last_at")
-            .eq("id", ccId)
+            .eq("id", resolvedCcId)
             .maybeSingle();
           setCompanyContact(data as CompanyContact | null);
         })()
@@ -173,6 +250,8 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
     }
 
     await Promise.all(promises);
+    await fetchRecentChats(resolvedContactId, resolvedCcId, 0);
+
     setLoading(false);
     setRefreshing(false);
   };
@@ -305,6 +384,57 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                 </div>
               </div>
             )}
+
+            {/* Recent Chats */}
+            {recentChats.length > 0 && (
+              <div className="pt-2 border-t border-border space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Últimos Chats
+                </p>
+                <div className="space-y-1.5">
+                  {recentChats.map((chat) => (
+                    <button
+                      key={chat.id}
+                      onClick={() => setReadOnlyRoom({ id: chat.id, name: visitor?.name ?? "Visitante" })}
+                      className="w-full text-left p-2 rounded-md border border-border hover:bg-muted/50 transition-colors space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                          {new Date(chat.created_at).toLocaleDateString("pt-BR")}
+                        </span>
+                        <Badge
+                          variant={chat.status === "active" ? "default" : chat.status === "closed" ? "secondary" : "outline"}
+                          className="text-[9px] px-1.5 py-0"
+                        >
+                          {chat.status === "active" ? "Ativo" : chat.status === "closed" ? "Encerrado" : chat.status === "waiting" ? "Aguardando" : chat.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {chat.csat_score != null && (
+                          <span className="text-[10px] flex items-center gap-0.5">
+                            <Star className="h-2.5 w-2.5 fill-yellow-500 text-yellow-500" />
+                            {chat.csat_score}
+                          </span>
+                        )}
+                        {chat.attendant_name && (
+                          <span className="text-[10px] text-muted-foreground">{chat.attendant_name}</span>
+                        )}
+                        {chat.tags.map((tag, i) => (
+                          <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0" style={{ borderColor: tag.color ?? undefined }}>
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {hasMoreChats && (
+                  <Button variant="ghost" size="sm" className="w-full text-[11px] h-7" onClick={loadMoreChats}>
+                    <ChevronDown className="h-3 w-3 mr-1" /> Carregar mais
+                  </Button>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="company" className="px-4 pb-4 space-y-3 mt-0">
@@ -432,6 +562,13 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           </TabsContent>
         </ScrollArea>
       </Tabs>
+
+      <ReadOnlyChatDialog
+        roomId={readOnlyRoom?.id ?? null}
+        visitorName={readOnlyRoom?.name ?? ""}
+        open={!!readOnlyRoom}
+        onOpenChange={(open) => !open && setReadOnlyRoom(null)}
+      />
     </div>
   );
 }

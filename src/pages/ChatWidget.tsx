@@ -60,6 +60,7 @@ const ChatWidget = () => {
   const [csatScore, setCsatScore] = useState(0);
   const [csatComment, setCsatComment] = useState("");
   const [formData, setFormData] = useState({ name: paramVisitorName || "", email: "", phone: "" });
+  const [attendantName, setAttendantName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [allBusy, setAllBusy] = useState(false);
   const [outsideHours, setOutsideHours] = useState(false);
@@ -251,7 +252,7 @@ const ChatWidget = () => {
         } else {
           const { data: room } = await supabase
             .from("chat_rooms")
-            .select("id, status")
+            .select("id, status, attendant_id")
             .eq("visitor_id", visitor.id)
             .in("status", ["waiting", "active"])
             .maybeSingle();
@@ -259,6 +260,14 @@ const ChatWidget = () => {
           if (room) {
             setRoomId(room.id);
             setPhase(room.status === "active" ? "chat" : "waiting");
+            if (room.status === "active" && room.attendant_id) {
+              const { data: att } = await supabase
+                .from("attendant_profiles")
+                .select("display_name")
+                .eq("id", room.attendant_id)
+                .maybeSingle();
+              setAttendantName(att?.display_name ?? null);
+            }
           }
         }
         return;
@@ -377,14 +386,24 @@ const ChatWidget = () => {
 
     const channel = supabase
       .channel(`widget-room-${roomId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_rooms", filter: `id=eq.${roomId}` }, (payload) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_rooms", filter: `id=eq.${roomId}` }, async (payload) => {
         const room = payload.new as any;
         if (room.status === "active" && phase === "waiting") {
           setAllBusy(false);
           setPhase("chat");
           postMsg("chat-connected");
+          // Fetch attendant name
+          if (room.attendant_id) {
+            const { data: att } = await supabase
+              .from("attendant_profiles")
+              .select("display_name")
+              .eq("id", room.attendant_id)
+              .maybeSingle();
+            setAttendantName(att?.display_name ?? null);
+          }
         } else if (room.status === "closed") {
           setPhase("csat");
+          setAttendantName(null);
         }
       })
       .subscribe();
@@ -914,7 +933,7 @@ const ChatWidget = () => {
         <div className="flex-1">
           <p className="font-semibold text-sm">{companyName}</p>
           <p className="text-xs opacity-80">
-            {phase === "chat" ? "Chat ativo" : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
+            {phase === "chat" ? (attendantName ?? "Chat ativo") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
           </p>
         </div>
         {isEmbed && (
