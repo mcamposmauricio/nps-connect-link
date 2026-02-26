@@ -13,13 +13,14 @@ import { VisitorInfoPanel } from "@/components/chat/VisitorInfoPanel";
 import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
 import { ReassignDialog } from "@/components/chat/ReassignDialog";
 import ProactiveChatDialog from "@/components/chat/ProactiveChatDialog";
+import { PendingRoomsList } from "@/components/chat/PendingRoomsList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
-import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft, Tag, Plus } from "lucide-react";
+import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft, Tag, Plus, RotateCcw, CheckCircle2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type MobileView = "list" | "chat" | "info";
@@ -134,6 +135,57 @@ const AdminWorkspace = () => {
       });
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
+  const [pendingSelectedRoom, setPendingSelectedRoom] = useState<{
+    id: string; visitor_name: string; visitor_id: string; status: string;
+    resolution_status: string; attendant_id: string | null; contact_id: string | null;
+    company_contact_id: string | null; started_at: string | null;
+  } | null>(null);
+
+  // When selecting a room, check if it's a pending room not in the active list
+  const effectiveRoom = selectedRoom ?? pendingSelectedRoom;
+  const isPendingRoom = effectiveRoom?.status === "closed" && (effectiveRoom as any)?.resolution_status === "pending";
+
+  const handleSelectPendingRoom = async (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setReplyTarget(null);
+    // Fetch room data since it's not in the active rooms list
+    const { data } = await supabase
+      .from("chat_rooms")
+      .select("id, visitor_id, status, resolution_status, attendant_id, contact_id, company_contact_id, started_at, chat_visitors!visitor_id(name)")
+      .eq("id", roomId)
+      .maybeSingle();
+    if (data) {
+      const visitor = (data as any).chat_visitors as { name?: string } | null;
+      setPendingSelectedRoom({
+        id: data.id, visitor_name: visitor?.name ?? "Visitante", visitor_id: data.visitor_id,
+        status: data.status ?? "closed", resolution_status: data.resolution_status ?? "pending",
+        attendant_id: data.attendant_id, contact_id: data.contact_id, company_contact_id: data.company_contact_id,
+        started_at: data.started_at,
+      });
+    }
+    if (isMobile) setMobileView("chat");
+  };
+
+  const handleReopenRoom = async () => {
+    if (!selectedRoomId || !user) return;
+    await supabase.from("chat_rooms").update({
+      status: "active", resolution_status: null, closed_at: null, assigned_at: new Date().toISOString(),
+    }).eq("id", selectedRoomId);
+    await supabase.from("chat_messages").insert({
+      room_id: selectedRoomId, sender_type: "system", sender_name: "Sistema",
+      content: "[Sistema] Conversa reaberta pelo atendente", is_internal: true,
+    });
+    setPendingSelectedRoom(null);
+    toast.success("Conversa reaberta!");
+  };
+
+  const handleMarkResolved = async () => {
+    if (!selectedRoomId) return;
+    await supabase.from("chat_rooms").update({ resolution_status: "resolved" }).eq("id", selectedRoomId);
+    setPendingSelectedRoom(null);
+    setSelectedRoomId(null);
+    toast.success("Marcado como resolvido!");
+  };
 
   const handleSelectRoom = (id: string) => {
     setSelectedRoomId(id);
@@ -390,6 +442,7 @@ const AdminWorkspace = () => {
                   Novo Chat
                 </Button>
               </div>
+              <PendingRoomsList attendantId={userAttendantId} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectPendingRoom} />
               <div className="flex-1 min-h-0">
                 <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
               </div>
@@ -401,24 +454,35 @@ const AdminWorkspace = () => {
           {/* Center: Chat area */}
           <ResizablePanel defaultSize={infoPanelOpen ? 50 : 80} minSize={30}>
             <div className="h-full p-1.5 pt-3 pb-3">
-              {selectedRoom ? (
+              {effectiveRoom ? (
                 <Card className="h-full flex flex-col rounded-lg border bg-card shadow-sm overflow-hidden">
                   <div className="p-3 flex items-center justify-between border-b">
                     <div className="flex items-center gap-2 min-w-0">
                       <MessageSquare className="h-4 w-4 text-primary shrink-0" />
                       <span className="font-medium text-sm truncate">
-                        {selectedRoom.visitor_name || `${t("chat.workspace.room")} #${selectedRoom.id.slice(0, 8)}`}
+                        {(effectiveRoom as any).visitor_name || `${t("chat.workspace.room")} #${effectiveRoom.id.slice(0, 8)}`}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                        selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
-                        selectedRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
+                        effectiveRoom.status === "active" ? "bg-green-100 text-green-700" :
+                        effectiveRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
+                        isPendingRoom ? "bg-amber-100 text-amber-700" :
                         "bg-muted text-muted-foreground"
-                      }`}>{selectedRoom.status}</span>
-                      {renderDuration(selectedRoom)}
+                      }`}>{isPendingRoom ? "pendente" : effectiveRoom.status}</span>
+                      {!isPendingRoom && renderDuration(selectedRoom)}
                       <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      {selectedRoom.status === "waiting" && (
+                      {isPendingRoom && (
+                        <>
+                          <Button size="sm" variant="outline" className="gap-1" onClick={handleReopenRoom}>
+                            <RotateCcw className="h-3 w-3" />Reabrir
+                          </Button>
+                          <Button size="sm" variant="default" className="gap-1" onClick={handleMarkResolved}>
+                            <CheckCircle2 className="h-3 w-3" />Resolvido
+                          </Button>
+                        </>
+                      )}
+                      {selectedRoom?.status === "waiting" && !isPendingRoom && (
                         <>
                           <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>{t("chat.workspace.assign")}</Button>
                           <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
@@ -436,7 +500,7 @@ const AdminWorkspace = () => {
                           </Popover>
                         </>
                       )}
-                      {selectedRoom.status === "active" && (
+                      {selectedRoom?.status === "active" && !isPendingRoom && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
                             <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
@@ -465,7 +529,7 @@ const AdminWorkspace = () => {
                   <div className="flex-1 overflow-auto">
                     <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} />
                   </div>
-                  {selectedRoom.status !== "closed" && (
+                  {effectiveRoom.status !== "closed" && (
                     <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>
                   )}
                 </Card>
@@ -481,12 +545,12 @@ const AdminWorkspace = () => {
           </ResizablePanel>
 
           {/* Right: Visitor info */}
-          {selectedRoom && infoPanelOpen && (
+          {effectiveRoom && infoPanelOpen && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
                 <div className="h-full p-1.5 pr-3 pt-3 pb-3">
-                  <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} contactId={selectedRoom.contact_id} companyContactId={selectedRoom.company_contact_id} />
+                  <VisitorInfoPanel roomId={effectiveRoom.id} visitorId={effectiveRoom.visitor_id} contactId={effectiveRoom.contact_id} companyContactId={effectiveRoom.company_contact_id} />
                 </div>
               </ResizablePanel>
             </>
@@ -495,7 +559,7 @@ const AdminWorkspace = () => {
       </div>
 
       <CloseRoomDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen} onConfirm={handleConfirmClose} roomId={closingRoomId} />
-      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={selectedRoom?.attendant_id ?? null} onConfirm={handleReassign} />
+      <ReassignDialog open={reassignOpen} onOpenChange={setReassignOpen} currentAttendantId={effectiveRoom?.attendant_id ?? null} onConfirm={handleReassign} />
       {userAttendantId && (
         <ProactiveChatDialog
           open={proactiveChatOpen}
