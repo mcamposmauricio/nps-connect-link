@@ -98,7 +98,7 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto">
         {CS_STATUSES.map((status) => {
           const statusCompanies = getCompaniesByStatus(status.key);
           return (
@@ -106,7 +106,7 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
               key={status.key}
               onDragOver={handleDragOver}
               onDrop={() => handleDrop(status.key)}
-              className="min-h-[400px] rounded-lg border bg-card shadow-sm"
+              className="min-h-[400px] min-w-[200px] rounded-lg border bg-card shadow-sm"
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
@@ -117,7 +117,7 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
                   <Badge variant="secondary">{statusCompanies.length}</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
+              <CardContent className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
                 {statusCompanies.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     {t("cs.noCompaniesInStatus")}

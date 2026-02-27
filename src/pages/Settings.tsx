@@ -26,15 +26,15 @@ const Settings = () => {
 
         <Tabs defaultValue="team" className="space-y-6">
           <TabsList className="w-full lg:w-auto lg:inline-flex flex-wrap">
-            <TabsTrigger value="team" className="flex items-center gap-2">
+            <TabsTrigger value="team" className="flex items-center gap-2" title={t("settings.tabs.team")}>
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.team")}</span>
             </TabsTrigger>
-            <TabsTrigger value="organization" className="flex items-center gap-2">
+            <TabsTrigger value="organization" className="flex items-center gap-2" title={t("settings.tabs.organization")}>
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.organization")}</span>
             </TabsTrigger>
-            <TabsTrigger value="externalApi" className="flex items-center gap-2">
+            <TabsTrigger value="externalApi" className="flex items-center gap-2" title={t("settings.tabs.externalApi")}>
               <Globe className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings.tabs.externalApi")}</span>
             </TabsTrigger>
