@@ -1,154 +1,86 @@
 
-# Revisao e Melhorias do Gerenciamento de Banners
 
-## Contexto Atual
+# Revisao de Design UI/UX do Popup de Banners
 
-O sistema de banners hoje funciona como uma barra de notificacao fixa no topo da pagina do cliente (via embed script), com suporte a texto rico, links, votacao e atribuicao manual por contato. Porem, o conceito esta limitado: sem agendamento, sem segmentacao automatica, sem tipos visuais diferenciados, sem metricas de engajamento claras, e a UI de gerenciamento e basica.
+## Problemas Identificados
+
+### 1. Fundo branco no dark mode
+O dialog esta com fundo branco puro, quebrando completamente com o tema escuro da plataforma. Labels, inputs e separadores estao todos em estilo "light", criando um contraste visual desagradavel.
+
+### 2. Preview desconectado do scroll
+Quando o usuario rola o formulario para baixo, o preview desaparece do viewport. O preview deveria ficar fixo (sticky) para que o usuario veja as mudancas em tempo real enquanto edita qualquer campo.
+
+### 3. Seletores de tipo sem feedback de cor
+Os 5 botoes de tipo (Informacao, Alerta, Sucesso, Promocao, Atualizacao) sao todos cinza/neutros. Ao selecionar um tipo, a cor de fundo do banner deveria mudar automaticamente para uma cor sugerida (azul para info, amarelo para alerta, etc.), dando feedback visual imediato.
+
+### 4. Color pickers primitivos
+Os inputs `type="color"` nativos do browser sao minusculos e pouco intuitivos. Substituir por uma paleta de cores pre-definidas (presets) com opcao de cor customizada, similar ao que ja existe no BannerRichEditor.
+
+### 5. Secoes sem hierarquia visual clara
+As SectionLabels sao muito discretas (10px uppercase). Cada secao deveria ter um container visual mais claro, talvez com um icone representativo e um background sutil para separar os blocos.
+
+### 6. Footer do dialog sem contexto
+Os botoes "Cancel" e "Save" ficam isolados no fundo. O botao Save deveria mostrar um estado diferente quando ha mudancas pendentes e indicar claramente "Criar Banner" vs "Salvar Alteracoes".
+
+### 7. Layout mobile
+Em telas menores o grid `md:grid-cols-2` colapsa, jogando o preview para baixo do formulario inteiro, tornando-o inutil.
 
 ---
 
 ## Melhorias Propostas
 
-### 1. TIPOS DE BANNER (visual e semantico)
+### A. Corrigir cores para dark mode
+- Remover quaisquer classes de fundo branco explicitas do `DialogContent`
+- Garantir que todos os inputs, labels e separadores usem tokens semanticos (`bg-background`, `border-border`, etc.)
+- O preview mockup interno tambem precisa respeitar o tema
 
-Adicionar um campo `type` ao banner com opcoes pre-definidas que alteram automaticamente o icone e estilo visual:
+### B. Preview sticky
+- Aplicar `sticky top-0` na coluna do preview para que ele acompanhe o scroll do formulario
+- Isso garante que qualquer alteracao (tipo, cor, texto, link) seja visivel instantaneamente
 
-| Tipo | Icone | Uso |
-|------|-------|-----|
-| `info` | Info circle | Avisos gerais, novidades |
-| `warning` | AlertTriangle | Alertas importantes |
-| `success` | CheckCircle | Confirmacoes, boas noticias |
-| `promo` | Megaphone | Promocoes, ofertas |
-| `update` | Sparkles | Atualizacoes de produto |
+### C. Cores automaticas por tipo
+- Ao clicar em um tipo, aplicar automaticamente a cor de fundo e texto sugerida:
+  - Info: #3B82F6 (azul) / branco
+  - Alerta: #F59E0B (amber) / branco  
+  - Sucesso: #10B981 (verde) / branco
+  - Promocao: #8B5CF6 (roxo) / branco
+  - Atualizacao: #06B6D4 (cyan) / branco
+- O usuario ainda pode customizar depois
 
-**Impacto**: Novo campo `banner_type` na tabela `chat_banners` (default `info`). O preview e o embed script renderizam um icone a esquerda do texto baseado no tipo. No formulario, um seletor visual com os 5 tipos.
+### D. Paleta de cores com presets
+- Substituir `<input type="color">` por uma grade de cores pre-definidas (8-10 cores populares)
+- Manter um pequeno input de cor customizada para casos especificos
+- Mostrar o circulo de cor selecionada de forma mais proeminente
 
-### 2. AGENDAMENTO (inicio e fim)
+### E. Secoes com cards visuais
+- Agrupar cada secao em um bloco com `rounded-lg bg-muted/30 p-4` e um icone ao lado do titulo
+- Usar icones: Palette (aparencia), Link (interacao), Calendar (agendamento), Target (segmentacao)
 
-Adicionar campos `starts_at` e `expires_at` para controlar quando o banner fica visivel:
-- Se `starts_at` for nulo, fica ativo imediatamente
-- Se `expires_at` for nulo, nao expira
-- A edge function `get-visitor-banners` filtra por data atual
+### F. Footer melhorado
+- Texto do botao contextual: "Criar Banner" para novo, "Salvar Alteracoes" para edicao
+- Botao desabilitado ate que titulo e conteudo estejam preenchidos (ja existe, manter)
+- Adicionar indicador sutil de campos obrigatorios
 
-**Impacto**: 2 novos campos na tabela. Inputs de data/hora no formulario. Filtro SQL na edge function.
-
-### 3. PRIORIDADE / ORDEM
-
-Adicionar campo `priority` (1-10, default 5) para controlar a ordem de exibicao quando multiplos banners estao ativos para o mesmo contato. Banners com maior prioridade aparecem primeiro (no topo).
-
-**Impacto**: 1 campo novo. Order by na query da edge function.
-
-### 4. SEGMENTACAO AUTOMATICA - "Todos os clientes"
-
-Adicionar opcao de atribuir o banner a **todos os contatos** sem precisar selecionar um a um. Checkbox "Exibir para todos os clientes" no formulario, que seta um campo `target_all` na tabela. A edge function verifica este flag antes de checar assignments individuais.
-
-**Impacto**: 1 campo novo `target_all` (boolean, default false). Logica condicional na edge function.
-
-### 5. LIMITE DE EXIBICOES
-
-Adicionar campo `max_views` (nullable) para limitar quantas vezes o banner e exibido para cada contato. Quando `views_count >= max_views`, a edge function nao retorna mais aquele banner.
-
-**Impacto**: 1 campo novo na tabela `chat_banners`. Filtro na edge function.
-
-### 6. DISMISS PERMANENTE
-
-Quando o cliente fecha o banner (clica no X), registrar um `dismissed_at` no assignment para nao exibir novamente. Hoje o close so remove do DOM e reaparece no proximo carregamento.
-
-**Impacto**: 1 campo novo `dismissed_at` na tabela `chat_banner_assignments`. Nova edge function `dismiss-banner`. Filtro na query existente.
-
-### 7. UI/UX DO GERENCIAMENTO (AdminBanners.tsx)
-
-**7a. PageHeader padronizado**: Usar componente `PageHeader` em vez de markup manual.
-
-**7b. Cards redesenhados**: Cada banner card mostra:
-- Icone do tipo (colorido) a esquerda
-- Titulo + badge de status (Ativo/Inativo/Agendado/Expirado)
-- Preview inline do texto com a cor de fundo como barra lateral
-- Metricas compactas: destinatarios, views, taxa de voto (se habilitado)
-- Periodo de exibicao (se agendado)
-
-**7c. Confirmacao de exclusao**: Adicionar `AlertDialog` antes de deletar (hoje deleta sem confirmar).
-
-**7d. Duplicar banner**: Botao para clonar um banner existente com todas as configs (sem assignments).
-
-**7e. Empty state melhorado**: Ilustracao + descricao + CTA "Criar primeiro banner".
-
-**7f. Formulario reorganizado**: Separar em secoes visuais com `Separator`:
-- Secao 1: Tipo + Titulo
-- Secao 2: Conteudo (rich editor)
-- Secao 3: Aparencia (cores)
-- Secao 4: Link + Votacao
-- Secao 5: Agendamento
-- Secao 6: Segmentacao (todos ou selecionados)
-
-### 8. PREVIEW MELHORADO (BannerPreview.tsx)
-
-- Adicionar o icone do tipo selecionado no preview
-- Mostrar badge de "Agendado" ou "Expira em X dias" se datas estiverem preenchidas
-
-### 9. METRICAS NO CARD
-
-Adicionar calculo de taxa de engajamento:
-- `CTR` = cliques no link / views (se tiver link)
-- `Favorabilidade` = upvotes / (upvotes + downvotes) em % (se tiver votacao)
-
-### 10. EMBED SCRIPT (nps-chat-embed.js)
-
-- Adicionar icone SVG a esquerda do texto baseado no `banner_type`
-- Implementar dismiss permanente via nova edge function
-- Respeitar a ordem de `priority`
+### G. Layout responsivo melhorado
+- Em mobile: mostrar preview como um accordion/collapsible no topo, colapsado por padrao
+- Em desktop: manter grid 2 colunas com preview sticky
 
 ---
 
-## Banco de Dados
+## Detalhes Tecnicos
 
-### Migracao 1: `chat_banners` - novos campos
-```text
-ALTER TABLE chat_banners
-  ADD COLUMN banner_type text NOT NULL DEFAULT 'info',
-  ADD COLUMN starts_at timestamptz DEFAULT NULL,
-  ADD COLUMN expires_at timestamptz DEFAULT NULL,
-  ADD COLUMN priority integer NOT NULL DEFAULT 5,
-  ADD COLUMN target_all boolean NOT NULL DEFAULT false,
-  ADD COLUMN max_views integer DEFAULT NULL;
-```
-
-### Migracao 2: `chat_banner_assignments` - dismissed_at
-```text
-ALTER TABLE chat_banner_assignments
-  ADD COLUMN dismissed_at timestamptz DEFAULT NULL;
-```
-
----
-
-## Edge Functions
-
-### Atualizar `get-visitor-banners`
-- Filtrar `starts_at <= now() OR starts_at IS NULL`
-- Filtrar `expires_at > now() OR expires_at IS NULL`
-- Filtrar `dismissed_at IS NULL` nos assignments
-- Filtrar `max_views IS NULL OR views_count < max_views`
-- Suportar `target_all = true` (buscar banners sem assignment individual)
-- Ordenar por `priority DESC`
-- Retornar `banner_type` no payload
-
-### Nova edge function `dismiss-banner`
-- Recebe `assignment_id`
-- Seta `dismissed_at = now()` e `is_active = false`
-
----
-
-## Arquivos Impactados
+### Arquivos a modificar
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/AdminBanners.tsx` | Redesign completo do gerenciamento |
-| `src/components/chat/BannerPreview.tsx` | Adicionar icone de tipo e badges |
-| `src/components/chat/BannerRichEditor.tsx` | Sem mudancas |
-| `supabase/functions/get-visitor-banners/index.ts` | Filtros de data, dismiss, target_all, priority |
-| `supabase/functions/dismiss-banner/index.ts` | Nova edge function |
-| `public/nps-chat-embed.js` | Icone de tipo, dismiss permanente, ordenacao |
-| `src/locales/pt-BR.ts` | Novas chaves de traducao |
-| `src/locales/en.ts` | Novas chaves de traducao |
+| `src/pages/AdminBanners.tsx` | Redesign do dialog interno: sticky preview, secoes com cards, paleta de cores, cores auto por tipo, footer contextual, layout mobile |
+| `src/components/chat/BannerPreview.tsx` | Ajustar mock content para respeitar tema (usar tokens semanticos) |
 
-**2 migracoes de banco. 1 nova edge function. ~8 arquivos modificados.**
+### Abordagem
+- O `DialogContent` ja usa `max-w-3xl max-h-[90vh] overflow-y-auto`. Mover o overflow para apenas a coluna do formulario, mantendo preview fora do scroll
+- Criar constante `TYPE_DEFAULT_COLORS` mapeando cada tipo para bg/text colors sugeridas
+- Usar `Collapsible` do radix para preview mobile
+- Paleta de cores: grid de circulos clicaveis + input hex, reutilizando pattern do `BannerRichEditor`
+
+Nenhuma mudanca de banco de dados. Nenhuma nova dependencia.
+
