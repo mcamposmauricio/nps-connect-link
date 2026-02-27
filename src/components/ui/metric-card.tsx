@@ -30,7 +30,7 @@ export function MetricCard({
     : isPositive ? "text-success" : "text-destructive";
 
   return (
-    <div className={cn("rounded-xl border border-white/[0.06] bg-card shadow-sm p-4 animate-fade-in", className)}>
+    <div className={cn("rounded-xl border border-border bg-card shadow-sm p-4 animate-fade-in", className)}>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">

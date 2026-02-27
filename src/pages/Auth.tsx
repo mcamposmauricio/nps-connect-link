@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus, Mail, Lock, User } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuthContext } from "@/contexts/AuthContext";
 
@@ -168,12 +168,12 @@ const Auth = () => {
     }
   };
 
-  const cardClasses = "w-full max-w-md rounded-2xl border border-white/10 bg-card/80 backdrop-blur-xl p-8 shadow-2xl";
+  const cardClasses = "w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lg";
 
   // Invite loading
   if (inviteToken && inviteLoading) {
     return (
-      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">
         <div className={cardClasses + " text-center"}>
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-accent" />
           <p className="text-muted-foreground">{t("auth.loadingInvite")}</p>
@@ -185,7 +185,7 @@ const Auth = () => {
   // Invalid invite
   if (inviteToken && inviteError) {
     return (
-      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">
         <div className={cardClasses + " text-center"}>
           <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">{t("auth.inviteInvalid")}</h2>
@@ -201,7 +201,7 @@ const Auth = () => {
   // Existing user already logged in — simplified accept
   if (inviteToken && inviteProfile && isExistingUser && authUser) {
     return (
-      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">
         <div className={cardClasses}>
           <div className="flex justify-center mb-6">
             <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
@@ -227,7 +227,7 @@ const Auth = () => {
   // Invite acceptance form (new user)
   if (inviteToken && inviteProfile) {
     return (
-      <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">
         <div className={cardClasses}>
           <div className="flex justify-center mb-6">
             <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
@@ -269,22 +269,28 @@ const Auth = () => {
 
   // Default login
   return (
-    <div className="min-h-screen bg-dark-hero flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 flex items-center justify-center p-4">
       <div className={cardClasses + " animate-scale-in"}>
-        <div className="flex justify-center mb-8">
-          <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto" />
+        <div className="flex justify-center mb-6">
+          <img src="/logo-light.svg" alt="Journey" className="h-10 w-auto" />
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">{t("auth.email")}</label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.email")} required />
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("auth.email")} required className="pl-10" />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">{t("auth.password")}</label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" required minLength={6} />
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" required minLength={6} className="pl-10" />
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
