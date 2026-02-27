@@ -983,6 +983,7 @@ export type Database = {
           tenant_id: string | null
           updated_at: string | null
           visitor_id: string
+          visitor_last_read_at: string | null
         }
         Insert: {
           assigned_at?: string | null
@@ -1004,6 +1005,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string | null
           visitor_id: string
+          visitor_last_read_at?: string | null
         }
         Update: {
           assigned_at?: string | null
@@ -1025,6 +1027,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string | null
           visitor_id?: string
+          visitor_last_read_at?: string | null
         }
         Relationships: [
           {

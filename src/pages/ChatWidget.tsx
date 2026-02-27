@@ -73,7 +73,7 @@ const ChatWidget = () => {
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingBroadcast = useRef<number>(0);
-  const [attendantLastReadAt, setAttendantLastReadAt] = useState<string | null>(null);
+  // attendantLastReadAt removed — checks moved to workspace
   const [widgetConfig, setWidgetConfig] = useState<{
     show_outside_hours_banner: boolean;
     outside_hours_title: string;
@@ -399,6 +399,10 @@ const ChatWidget = () => {
             if (withoutOptimistic.some((m) => m.id === msg.id)) return withoutOptimistic;
             return [...withoutOptimistic, msg];
           });
+          // Update visitor_last_read_at when visitor sees a new message while widget is open
+          if (isOpenRef.current) {
+            supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId!).then(() => {});
+          }
         }
       })
       .subscribe();
@@ -460,9 +464,9 @@ const ChatWidget = () => {
           }
           setAttendantName(null);
         }
-        // Track attendant_last_read_at updates for read receipts
-        if (room.attendant_last_read_at) {
-          setAttendantLastReadAt(room.attendant_last_read_at);
+        // Update visitor_last_read_at when visitor sees messages
+        if (room.status === "active" || phase === "chat") {
+          supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId).then(() => {});
         }
       })
       .subscribe();
@@ -1444,20 +1448,6 @@ const ChatWidget = () => {
                       {isLastInGroup && (
                         <p className="text-[10px] opacity-40 mt-1 text-right flex items-center justify-end gap-1">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          {msg.sender_type === "visitor" && !msg.id.startsWith("optimistic-") && (
-                            <span className="inline-flex items-center">
-                              {attendantLastReadAt && msg.created_at <= attendantLastReadAt ? (
-                                <svg width="16" height="10" viewBox="0 0 16 10" fill="none" className="opacity-70">
-                                  <path d="M1 5l3 3L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                  <path d="M6 5l3 3L14 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              ) : (
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
-                                  <path d="M1 5l3 3L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              )}
-                            </span>
-                          )}
                         </p>
                       )}
                     </div>

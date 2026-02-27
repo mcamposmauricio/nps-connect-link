@@ -29,6 +29,7 @@ interface ChatMessageListProps {
   loadingMore?: boolean;
   onLoadMore?: () => void;
   typingUser?: string | null;
+  visitorLastReadAt?: string | null;
 }
 
 function getDayLabel(dateStr: string): string {
@@ -39,7 +40,7 @@ function getDayLabel(dateStr: string): string {
 }
 
 
-export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore, typingUser }: ChatMessageListProps) {
+export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore, typingUser, visitorLastReadAt }: ChatMessageListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,8 +169,22 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
                   <p className="whitespace-pre-wrap">{renderTextWithLinks(hasQuote ? mainContent : msg.content, isOwn)}</p>
                 )}
 
-                <p className="text-[10px] opacity-50 mt-1 text-right">
+                <p className="text-[10px] opacity-50 mt-1 text-right flex items-center justify-end gap-1">
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {isOwn && msg.sender_type !== "system" && (
+                    <span className="inline-flex items-center">
+                      {visitorLastReadAt && msg.created_at <= visitorLastReadAt ? (
+                        <svg width="16" height="10" viewBox="0 0 16 10" fill="none" className="opacity-70">
+                          <path d="M1 5l3 3L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M6 5l3 3L14 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ) : (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
+                          <path d="M1 5l3 3L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                  )}
                 </p>
               </div>
 
