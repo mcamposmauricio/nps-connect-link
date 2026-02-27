@@ -7,15 +7,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Shield } from "lucide-react";
 
 interface Team {
   id: string;
   name: string;
   description: string | null;
+  is_default: boolean;
   member_count: number;
 }
 
@@ -32,14 +34,43 @@ const TeamsTab = () => {
   const fetchTeams = async () => {
     setLoading(true);
     const [{ data: teamsData }, { data: membersData }] = await Promise.all([
-      supabase.from("chat_teams").select("id, name, description").order("name"),
+      supabase.from("chat_teams").select("id, name, description, is_default").order("name"),
       supabase.from("chat_team_members").select("team_id"),
     ]);
 
     const counts: Record<string, number> = {};
     (membersData ?? []).forEach((m: any) => { counts[m.team_id] = (counts[m.team_id] || 0) + 1; });
 
-    setTeams((teamsData ?? []).map((t: any) => ({ ...t, member_count: counts[t.id] || 0 })));
+    let allTeams = (teamsData ?? []).map((t: any) => ({ ...t, member_count: counts[t.id] || 0 })) as Team[];
+
+    // Auto-create default team if none exists
+    const hasDefault = allTeams.some(t => t.is_default);
+    if (!hasDefault) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: newTeam } = await supabase
+          .from("chat_teams")
+          .insert({
+            user_id: session.user.id,
+            name: t("chat.teams.defaultTeam"),
+            is_default: true,
+          } as any)
+          .select("id, name, description, is_default")
+          .single();
+        if (newTeam) {
+          allTeams = [{ ...(newTeam as any), member_count: 0 }, ...allTeams];
+        }
+      }
+    }
+
+    // Sort: default first, then alphabetical
+    allTeams.sort((a, b) => {
+      if (a.is_default && !b.is_default) return -1;
+      if (!a.is_default && b.is_default) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    setTeams(allTeams);
     setLoading(false);
   };
 
@@ -101,7 +132,15 @@ const TeamsTab = () => {
             <Card key={team.id}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{team.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{team.name}</CardTitle>
+                    {team.is_default && (
+                      <Badge variant="default" className="text-xs gap-1">
+                        <Shield className="h-3 w-3" />
+                        {t("chat.teams.default")}
+                      </Badge>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1">
                     <Badge variant="secondary" className="text-xs">
                       <Users className="h-3 w-3 mr-1" />{team.member_count}
@@ -109,9 +148,26 @@ const TeamsTab = () => {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(team)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(team.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {team.is_default ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{t("chat.teams.cannotDeleteDefault")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(team.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>

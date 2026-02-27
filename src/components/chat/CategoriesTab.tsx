@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Tag, X, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Tag, X, Search, Shield } from "lucide-react";
 import { AssignmentConfigPanel } from "@/components/chat/AssignmentConfigPanel";
 
 interface Category {
@@ -19,6 +20,7 @@ interface Category {
   name: string;
   description: string | null;
   color: string;
+  is_default: boolean;
 }
 
 interface Team {
@@ -55,12 +57,43 @@ const CategoriesTab = () => {
   const fetchAll = async () => {
     setLoading(true);
     const [{ data: cats }, { data: tms }, { data: comps }, { data: catTeams }] = await Promise.all([
-      supabase.from("chat_service_categories").select("id, name, description, color").order("name"),
+      supabase.from("chat_service_categories").select("id, name, description, color, is_default").order("name"),
       supabase.from("chat_teams").select("id, name").order("name"),
       supabase.from("contacts").select("id, name, trade_name, service_category_id").eq("is_company", true).order("name"),
       supabase.from("chat_category_teams").select("id, category_id, team_id"),
     ]);
-    setCategories((cats as Category[]) ?? []);
+
+    let allCats = (cats as Category[]) ?? [];
+
+    // Auto-create default category if none exists
+    const hasDefault = allCats.some(c => c.is_default);
+    if (!hasDefault) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: newCat } = await supabase
+          .from("chat_service_categories")
+          .insert({
+            user_id: session.user.id,
+            name: t("chat.categories.defaultQueue"),
+            color: "#6B7280",
+            is_default: true,
+          } as any)
+          .select("id, name, description, color, is_default")
+          .single();
+        if (newCat) {
+          allCats = [newCat as Category, ...allCats];
+        }
+      }
+    }
+
+    // Sort: default first, then alphabetical
+    allCats.sort((a, b) => {
+      if (a.is_default && !b.is_default) return -1;
+      if (!a.is_default && b.is_default) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    setCategories(allCats);
     setTeams(tms ?? []);
     setCompanies((comps as Company[]) ?? []);
     setCategoryTeams((catTeams as any[]) ?? []);
@@ -118,7 +151,6 @@ const CategoriesTab = () => {
     fetchAll();
   };
 
-  // Bulk add companies
   const openBulkDialog = (categoryId: string) => {
     setBulkCategoryId(categoryId);
     setBulkSearch("");
@@ -194,14 +226,37 @@ const CategoriesTab = () => {
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
                       <CardTitle className="text-base">{cat.name}</CardTitle>
+                      {cat.is_default && (
+                        <Badge variant="default" className="text-xs gap-1">
+                          <Shield className="h-3 w-3" />
+                          {t("chat.categories.default")}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(cat)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(cat.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {cat.is_default ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t("chat.categories.cannotDeleteDefault")}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(cat.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -227,7 +282,7 @@ const CategoriesTab = () => {
                     </div>
                   </div>
 
-                  {/* Assignment Config Panels — one per category→team link */}
+                  {/* Assignment Config Panels */}
                   {catTeamLinks.length > 0 && (
                     <div className="space-y-2">
                       {catTeamLinks.map(link => {

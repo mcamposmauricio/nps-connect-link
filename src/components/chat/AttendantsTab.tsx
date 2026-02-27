@@ -81,6 +81,40 @@ const AttendantsTab = () => {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: enabled ? t("chat.attendants.enabled") : t("chat.attendants.disabled") });
+
+      if (enabled) {
+        // Wait for trigger to create attendant_profile, then auto-assign to default team
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const { data: freshProfiles } = await supabase
+          .from("attendant_profiles")
+          .select("id")
+          .eq("csm_id", csmId);
+        const attProfile = freshProfiles?.[0];
+        if (attProfile) {
+          // Check if already in any team
+          const { data: existingMemberships } = await supabase
+            .from("chat_team_members")
+            .select("id")
+            .eq("attendant_id", attProfile.id);
+          if (!existingMemberships || existingMemberships.length === 0) {
+            // Find default team
+            const { data: defaultTeam } = await supabase
+              .from("chat_teams")
+              .select("id, tenant_id")
+              .eq("is_default", true)
+              .limit(1)
+              .maybeSingle();
+            if (defaultTeam) {
+              await supabase.from("chat_team_members").insert({
+                team_id: defaultTeam.id,
+                attendant_id: attProfile.id,
+                tenant_id: defaultTeam.tenant_id,
+              });
+            }
+          }
+        }
+      }
+
       fetchAll();
     }
   };
