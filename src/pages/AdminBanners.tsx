@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -16,11 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PageHeader } from "@/components/ui/page-header";
-import { SectionLabel } from "@/components/ui/section-label";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BannerPreview from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
@@ -65,12 +65,30 @@ interface Contact {
   email: string;
 }
 
-const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; color: string }[] = [
-  { value: "info", label: "Informação", icon: Info, color: "text-blue-500" },
-  { value: "warning", label: "Alerta", icon: AlertTriangle, color: "text-amber-500" },
-  { value: "success", label: "Sucesso", icon: CheckCircle, color: "text-emerald-500" },
-  { value: "promo", label: "Promoção", icon: Megaphone, color: "text-purple-500" },
-  { value: "update", label: "Atualização", icon: Sparkles, color: "text-cyan-500" },
+const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
+  info: { bg: "#3B82F6", text: "#FFFFFF" },
+  warning: { bg: "#F59E0B", text: "#FFFFFF" },
+  success: { bg: "#10B981", text: "#FFFFFF" },
+  promo: { bg: "#8B5CF6", text: "#FFFFFF" },
+  update: { bg: "#06B6D4", text: "#FFFFFF" },
+};
+
+const BG_COLOR_PRESETS = [
+  "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#06B6D4",
+  "#EF4444", "#EC4899", "#F97316", "#1E293B", "#6B7280",
+];
+
+const TEXT_COLOR_PRESETS = [
+  "#FFFFFF", "#000000", "#F8FAFC", "#1E293B", "#FEF3C7",
+  "#ECFDF5", "#EFF6FF", "#F5F3FF", "#ECFEFF", "#FEE2E2",
+];
+
+const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgClass: string; borderClass: string }[] = [
+  { value: "info", label: "Informação", icon: Info, bgClass: "bg-blue-500/15", borderClass: "border-blue-500/50" },
+  { value: "warning", label: "Alerta", icon: AlertTriangle, bgClass: "bg-amber-500/15", borderClass: "border-amber-500/50" },
+  { value: "success", label: "Sucesso", icon: CheckCircle, bgClass: "bg-emerald-500/15", borderClass: "border-emerald-500/50" },
+  { value: "promo", label: "Promoção", icon: Megaphone, bgClass: "bg-purple-500/15", borderClass: "border-purple-500/50" },
+  { value: "update", label: "Atualização", icon: Sparkles, bgClass: "bg-cyan-500/15", borderClass: "border-cyan-500/50" },
 ];
 
 const getBannerStatus = (banner: Banner): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
@@ -84,6 +102,7 @@ const getBannerStatus = (banner: Banner): { label: string; variant: "default" | 
 const AdminBanners = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [bannerDialog, setBannerDialog] = useState(false);
@@ -444,194 +463,282 @@ const AdminBanners = () => {
 
       {/* Banner Create/Edit Dialog */}
       <Dialog open={bannerDialog} onOpenChange={setBannerDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle>{editingBanner ? t("banners.edit") : t("banners.create")}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Form */}
-            <div className="space-y-5">
+
+          <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[1fr,320px] gap-0">
+            {/* Form column — scrollable */}
+            <div className="overflow-y-auto px-6 py-4 space-y-4">
+
+              {/* Mobile preview collapsible */}
+              {isMobile && (
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        Preview
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3">
+                    <BannerPreview
+                      content={form.content}
+                      contentHtml={form.content_html || undefined}
+                      textAlign={form.text_align}
+                      bgColor={form.bg_color}
+                      textColor={form.text_color}
+                      linkUrl={form.link_url || undefined}
+                      linkLabel={form.link_label || undefined}
+                      hasVoting={form.has_voting}
+                      bannerType={form.banner_type}
+                      startsAt={form.starts_at?.toISOString()}
+                      expiresAt={form.expires_at?.toISOString()}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
               {/* Section 1: Type + Title */}
-              <SectionLabel>{t("banners.sectionIdentification")}</SectionLabel>
-              <div className="space-y-3">
+              <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                  {t("banners.sectionIdentification")}
+                </div>
                 <div className="space-y-2">
-                  <Label>{t("banners.typeLabel")}</Label>
+                  <Label className="text-xs text-muted-foreground">{t("banners.typeLabel")}</Label>
                   <div className="grid grid-cols-5 gap-1.5">
                     {BANNER_TYPES.map((bt) => {
                       const Icon = bt.icon;
+                      const isSelected = form.banner_type === bt.value;
                       return (
                         <button
                           key={bt.value}
                           type="button"
-                          onClick={() => setForm({ ...form, banner_type: bt.value })}
+                          onClick={() => {
+                            const colors = TYPE_DEFAULT_COLORS[bt.value];
+                            setForm({ ...form, banner_type: bt.value, bg_color: colors.bg, text_color: colors.text });
+                          }}
                           className={cn(
-                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-colors",
-                            form.banner_type === bt.value ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
+                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
+                            isSelected
+                              ? cn(bt.bgClass, bt.borderClass, "ring-1 ring-offset-1 ring-offset-background", bt.borderClass.replace("border-", "ring-"))
+                              : "border-border hover:bg-muted/50"
                           )}
                         >
-                          <Icon className={cn("h-4 w-4", bt.color)} />
+                          <Icon className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-50")} style={isSelected ? { color: TYPE_DEFAULT_COLORS[bt.value].bg } : undefined} />
                           <span className="truncate">{bt.label}</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>{t("banners.titleLabel")}</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("banners.titleLabel")} <span className="text-destructive">*</span></Label>
                   <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno do banner" />
                 </div>
               </div>
 
-              <Separator />
-
               {/* Section 2: Content */}
-              <SectionLabel>{t("banners.sectionContent")}</SectionLabel>
-              <div className="space-y-2">
-                <Label>{t("banners.contentLabel")}</Label>
-                <BannerRichEditor
-                  initialHtml={form.content_html || undefined}
-                  textAlign={form.text_align}
-                  onChangeAlign={(align) => setForm({ ...form, text_align: align })}
-                  onChange={(html, text) => setForm({ ...form, content_html: html, content: text })}
-                  placeholder="Texto visível no widget (emojis OK)"
-                />
-              </div>
-
-              <Separator />
-
-              {/* Section 3: Appearance */}
-              <SectionLabel>{t("banners.sectionAppearance")}</SectionLabel>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("banners.bgColor")}</Label>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="w-10 h-10 rounded border cursor-pointer" />
-                    <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1" />
-                  </div>
+              <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Edit className="h-4 w-4 text-muted-foreground" />
+                  {t("banners.sectionContent")}
                 </div>
-                <div className="space-y-2">
-                  <Label>{t("banners.textColor")}</Label>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="w-10 h-10 rounded border cursor-pointer" />
-                    <Input value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="flex-1" />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Section 4: Link + Voting */}
-              <SectionLabel>{t("banners.sectionInteraction")}</SectionLabel>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label>{t("banners.linkUrl")}</Label>
-                  <Input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="https://..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("banners.linkLabel")}</Label>
-                  <Input value={form.link_label} onChange={(e) => setForm({ ...form, link_label: e.target.value })} placeholder="Saiba mais" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch checked={form.has_voting} onCheckedChange={(v) => setForm({ ...form, has_voting: v })} />
-                  <Label>{t("banners.enableVoting")}</Label>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Section 5: Scheduling */}
-              <SectionLabel>{t("banners.sectionSchedule")}</SectionLabel>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>{t("banners.startsAt")}</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.starts_at && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.starts_at ? format(form.starts_at, "dd/MM/yyyy") : "Imediato"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={form.starts_at ?? undefined} onSelect={(d) => setForm({ ...form, starts_at: d ?? null })} className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("banners.expiresAt")}</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.expires_at && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.expires_at ? format(form.expires_at, "dd/MM/yyyy") : "Sem limite"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={form.expires_at ?? undefined} onSelect={(d) => setForm({ ...form, expires_at: d ?? null })} className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>{t("banners.priority")}</Label>
-                  <Select value={String(form.priority)} onValueChange={(v) => setForm({ ...form, priority: Number(v) })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                        <SelectItem key={n} value={String(n)}>{n} {n === 10 ? "(máx)" : n === 1 ? "(mín)" : ""}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("banners.maxViews")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={form.max_views ?? ""}
-                    onChange={(e) => setForm({ ...form, max_views: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="Ilimitado"
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("banners.contentLabel")} <span className="text-destructive">*</span></Label>
+                  <BannerRichEditor
+                    initialHtml={form.content_html || undefined}
+                    textAlign={form.text_align}
+                    onChangeAlign={(align) => setForm({ ...form, text_align: align })}
+                    onChange={(html, text) => setForm({ ...form, content_html: html, content: text })}
+                    placeholder="Texto visível no widget (emojis OK)"
                   />
                 </div>
               </div>
 
-              <Separator />
+              {/* Section 3: Appearance — Color Palettes */}
+              <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Palette className="h-4 w-4 text-muted-foreground" />
+                  {t("banners.sectionAppearance")}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">{t("banners.bgColor")}</Label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.bg_color }} />
+                      <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
+                    </div>
+                    <div className="grid grid-cols-5 gap-1">
+                      {BG_COLOR_PRESETS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={cn(
+                            "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
+                            form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
+                          )}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setForm({ ...form, bg_color: color })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">{t("banners.textColor")}</Label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.text_color }} />
+                      <Input value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
+                    </div>
+                    <div className="grid grid-cols-5 gap-1">
+                      {TEXT_COLOR_PRESETS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={cn(
+                            "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
+                            form.text_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
+                          )}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setForm({ ...form, text_color: color })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Link + Voting */}
+              <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Link2 className="h-4 w-4 text-muted-foreground" />
+                  {t("banners.sectionInteraction")}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("banners.linkUrl")}</Label>
+                  <Input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="https://..." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("banners.linkLabel")}</Label>
+                  <Input value={form.link_label} onChange={(e) => setForm({ ...form, link_label: e.target.value })} placeholder="Saiba mais" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={form.has_voting} onCheckedChange={(v) => setForm({ ...form, has_voting: v })} />
+                  <Label className="text-sm">{t("banners.enableVoting")}</Label>
+                </div>
+              </div>
+
+              {/* Section 5: Scheduling */}
+              <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <CalendarSectionIcon className="h-4 w-4 text-muted-foreground" />
+                  {t("banners.sectionSchedule")}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("banners.startsAt")}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-9 text-sm", !form.starts_at && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                          {form.starts_at ? format(form.starts_at, "dd/MM/yyyy") : "Imediato"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={form.starts_at ?? undefined} onSelect={(d) => setForm({ ...form, starts_at: d ?? null })} className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("banners.expiresAt")}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-9 text-sm", !form.expires_at && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                          {form.expires_at ? format(form.expires_at, "dd/MM/yyyy") : "Sem limite"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={form.expires_at ?? undefined} onSelect={(d) => setForm({ ...form, expires_at: d ?? null })} className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("banners.priority")}</Label>
+                    <Select value={String(form.priority)} onValueChange={(v) => setForm({ ...form, priority: Number(v) })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                          <SelectItem key={n} value={String(n)}>{n} {n === 10 ? "(máx)" : n === 1 ? "(mín)" : ""}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("banners.maxViews")}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-9"
+                      value={form.max_views ?? ""}
+                      onChange={(e) => setForm({ ...form, max_views: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="Ilimitado"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Section 6: Segmentation */}
-              <SectionLabel>{t("banners.sectionSegmentation")}</SectionLabel>
-              <div className="space-y-3">
+              <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                  {t("banners.sectionSegmentation")}
+                </div>
                 <div className="flex items-center gap-3">
                   <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v })} />
-                  <Label>{t("banners.targetAll")}</Label>
+                  <Label className="text-sm">{t("banners.targetAll")}</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
-                  <Label>{t("banners.activeLabel")}</Label>
+                  <Label className="text-sm">{t("banners.activeLabel")}</Label>
                 </div>
               </div>
             </div>
 
-            {/* Preview */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Preview</Label>
-              <BannerPreview
-                content={form.content}
-                contentHtml={form.content_html || undefined}
-                textAlign={form.text_align}
-                bgColor={form.bg_color}
-                textColor={form.text_color}
-                linkUrl={form.link_url || undefined}
-                linkLabel={form.link_label || undefined}
-                hasVoting={form.has_voting}
-                bannerType={form.banner_type}
-                startsAt={form.starts_at?.toISOString()}
-                expiresAt={form.expires_at?.toISOString()}
-              />
-            </div>
+            {/* Preview column — sticky, desktop only */}
+            {!isMobile && (
+              <div className="hidden md:block border-l border-border bg-muted/10 px-4 py-4 overflow-y-auto">
+                <div className="sticky top-0 space-y-3">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Preview</Label>
+                  <BannerPreview
+                    content={form.content}
+                    contentHtml={form.content_html || undefined}
+                    textAlign={form.text_align}
+                    bgColor={form.bg_color}
+                    textColor={form.text_color}
+                    linkUrl={form.link_url || undefined}
+                    linkLabel={form.link_label || undefined}
+                    hasVoting={form.has_voting}
+                    bannerType={form.banner_type}
+                    startsAt={form.starts_at?.toISOString()}
+                    expiresAt={form.expires_at?.toISOString()}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={saveBanner} disabled={!form.title || !form.content}>{t("common.save")}</Button>
+            <Button onClick={saveBanner} disabled={!form.title || !form.content}>
+              {editingBanner ? "Salvar Alterações" : "Criar Banner"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
