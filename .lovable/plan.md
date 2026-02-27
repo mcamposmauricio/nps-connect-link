@@ -1,121 +1,42 @@
 
 
-# Redesign do Widget de Chat - UI/UX Moderno
+# Corrigir identificacao do atendente no header do widget
 
-## Visao Geral
+## Situacao Atual
 
-Redesign visual completo do `ChatWidget.tsx` para uma experiencia moderna, mantendo 100% das funcionalidades existentes. O foco e em micro-interacoes, tipografia, espacamento e acabamento visual que transmitam profissionalismo.
+O widget **ja possui** a logica de exibir o nome do atendente no header (avatar com iniciais, bolinha verde pulsante e nome no subtitulo). Porem, ha **3 cenarios onde o nome nao e carregado**, causando a impressao de que a funcionalidade nao funciona:
 
----
+### Cenarios com falha
 
-## 1. FAB (Floating Action Button)
+1. **Auto-atribuicao na criacao da sala** (linha 751): Quando a sala e criada e automaticamente atribuida (status="active"), o widget muda para fase "chat" mas **nao busca o display_name** do atendente.
 
-**Atual**: Circulo solido com icone `MessageSquare` estatico.
+2. **Reconexao por token salvo** (linha 286-297): Quando o visitante recarrega a pagina e o token salvo recupera uma sala ativa, o widget entra na fase "chat" mas **nao busca o attendant_id/display_name**.
 
-**Novo**:
-- Gradiente sutil usando `primaryColor` (base -> 10% mais escuro)
-- Sombra elevada com cor (`box-shadow: 0 4px 14px {primaryColor}40`)
-- Animacao de entrada `scale-in` ao carregar
-- Icone com transicao suave: `MessageSquare` quando fechado, `X` com rotacao ao abrir
-- Badge de mensagens nao lidas com animacao `pulse` (manter logica existente)
-- Hover: `scale(1.08)` + sombra expandida
+3. **Abertura de sala ativa do historico** (linha 550-591 e proactive rooms): Ao reabrir ou entrar em uma sala que ja esta ativa, o nome do atendente nao e recuperado.
 
-## 2. Header
+### Cenario que funciona
 
-**Atual**: Fundo solido `primaryColor` com icone + textos simples.
+- Quando a sala muda de "waiting" para "active" via realtime (UPDATE na `chat_rooms`), o callback busca o `attendant_id` e faz `setAttendantName` corretamente.
 
-**Novo**:
-- Gradiente no header: `linear-gradient(135deg, primaryColor, primaryColor-escurecido-15%)`
-- Avatar do atendente: quando `attendantName` existe, mostrar circulo com iniciais (ex: "MA" para "Maria Alves") ao lado do nome
-- Status indicator: bolinha verde pulsante ao lado do nome do atendente quando fase `chat`
-- Texto do subtitulo com animacao `fade-in` ao trocar de fase
-- Botao de fechar (X) com `backdrop-filter: blur` e borda semi-transparente
-- Cantos arredondados superiores maiores: `rounded-t-2xl`
+## Solucao
 
-## 3. Formulario Inicial (phase: form)
+Adicionar a busca do `attendantName` nos 3 cenarios faltantes, seguindo o mesmo padrao ja usado no realtime subscription.
 
-**Atual**: Labels + inputs padrao empilhados com botao ao final.
+### Arquivo: `src/pages/ChatWidget.tsx`
 
-**Novo**:
-- Ilustracao/icone decorativo no topo: icone `MessageSquare` grande com opacidade 8% como background decorativo
-- Inputs com icones inline (User, Mail, Phone) a esquerda dentro do campo
-- Labels flutuantes acima do input com tipografia `text-xs font-medium uppercase tracking-wide text-muted-foreground`
-- Botao "Iniciar Conversa" com icone `ArrowRight` e hover com deslocamento sutil (`translateX(2px)` no icone)
-- Espacamento vertical aumentado entre campos (gap-5)
-- Texto introdutorio com `text-sm leading-relaxed`
+**Correcao 1 - Auto-atribuicao na criacao (linha ~749-755)**:
+Quando `room.status === "active" && room.attendant_id`, buscar `display_name` do `attendant_profiles` antes de setar a fase.
 
-## 4. Lista de Historico (phase: history)
+**Correcao 2 - Reconexao por token salvo (linha ~286-297)**:
+Apos encontrar sala ativa, buscar `attendant_id` na query (ja retorna id e status) e fazer fetch do `display_name` caso exista.
 
-**Atual**: Cards com borda simples, icones pequenos, informacoes densas.
+**Correcao 3 - Proactive rooms e reopen (linhas ~436-444 e ~586-590)**:
+Quando uma sala proativa INSERT chega com status "active" e `attendant_id`, buscar o nome. No reopen, se apos `checkRoomAssignment` a sala estiver ativa, buscar o nome.
 
-**Novo**:
-- Cards com hover lift (`translateY(-1px)` + sombra)
-- Indicador visual lateral: barra colorida a esquerda (verde para ativo, cinza para encerrado, laranja para pendente)
-- Preview da ultima mensagem com `line-clamp-1` e fonte italic
-- Data em formato relativo quando < 24h ("ha 2 horas") e absoluto quando > 24h
-- CSAT score com estrelas miniaturas preenchidas
-- Separacao visual entre chats ativos (topo, com destaque) e encerrados
-- Botao "Novo Chat" com estilo pill (mais arredondado) e icone `Plus`
+### Impacto
 
-## 5. Area de Mensagens (phase: chat)
-
-**Atual**: Bolhas basicas com cores solidas, timestamps pequenos.
-
-**Novo**:
-- **Bolhas do visitante**: cantos assimetricos (`rounded-2xl rounded-br-md`) para efeito de balao de fala moderno
-- **Bolhas do atendente**: `rounded-2xl rounded-bl-md` com fundo `bg-muted/60` e borda sutil `border border-border/50`
-- **Sistema**: pill centralizada com `backdrop-filter: blur(8px)` e fundo semi-transparente
-- **Agrupamento temporal**: quando mensagens consecutivas do mesmo remetente tem < 2 min de diferenca, omitir nome e reduzir gap (gap-1 em vez de gap-3)
-- **Timestamp**: mostrar apenas na ultima mensagem de cada grupo, com animacao hover para revelar em mensagens intermediarias
-- **Imagens**: preview com `rounded-xl` e overlay escuro no hover com icone de zoom
-- **Arquivos**: card com icone por tipo de arquivo, barra de progresso durante upload
-- **Typing indicator**: tres pontos com animacao mais suave (wave em vez de bounce)
-- **Scroll**: botao "Novas mensagens" flutuante quando usuario esta scrollado para cima
-- **Load more**: botao com estilo ghost e animacao de loading inline
-
-## 6. Barra de Input
-
-**Atual**: Input + botoes lado a lado com espacamento basico.
-
-**Novo**:
-- Container com `rounded-full` ou `rounded-2xl` e fundo `bg-muted/30` com borda interna
-- Input sem borda propria, integrado ao container
-- Botao de envio circular com gradiente `primaryColor`
-- Botao de anexo com tooltip
-- Preview de arquivo pendente como chip inline acima do input (com miniatura para imagens)
-- Transicao suave do botao enviar: opacidade reduzida quando desabilitado, scale ao clicar
-
-## 7. Telas de Estado (waiting, csat, closed)
-
-### Waiting
-- Animacao de ondas concentricas saindo do icone central (CSS puro)
-- Texto "Aguardando atendimento..." com animacao de reticencias
-- Progress bar indeterminada sutil no topo
-
-### CSAT
-- Estrelas com animacao de scale ao selecionar (`scale(1.2)` momentaneo)
-- Emoji correspondente ao score abaixo das estrelas (triste -> neutro -> feliz)
-- Textarea com contador de caracteres
-
-### Closed
-- Icone de check animado (draw SVG)
-- Mensagem de agradecimento com fade-in
-
-## 8. Responsividade e Micro-interacoes
-
-- Todos os botoes com `active:scale-95` para feedback tatil
-- Transicoes de fase com `animate-fade-in` (ja existente)
-- Focus rings visiveis e acessiveis em todos os elementos interativos
-- Suporte a tema claro (manter consistencia com identidade Journey)
-
----
-
-## Resumo Tecnico
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/pages/ChatWidget.tsx` | Redesign completo da camada de apresentacao (JSX + classes Tailwind). Nenhuma logica de negocio ou estado alterada |
-| `src/index.css` | Adicionar keyframes para animacoes novas (wave-dots, ripple, check-draw) |
-
-**Nenhuma funcionalidade sera removida ou alterada.** Todas as fases, handlers, realtime subscriptions e integracao com o embed permanecem identicos. Apenas classes CSS e estrutura JSX de apresentacao serao modificadas.
+- Apenas 1 arquivo modificado: `src/pages/ChatWidget.tsx`
+- Nenhuma funcionalidade removida ou alterada
+- Nenhuma mudanca no banco de dados
+- Adiciona ~15 linhas de codigo (3 blocos de fetch identicos ao padrao existente)
 
