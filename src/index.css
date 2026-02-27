@@ -169,6 +169,42 @@
 .animate-slide-up    { animation: slide-up 0.2s ease-out forwards; }
 .animate-scale-in    { animation: scale-in 0.18s ease-out forwards; }
 
+/* Widget chat — wave dots typing indicator */
+@keyframes wave-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+.animate-wave-dot { animation: wave-dot 1.4s ease-in-out infinite; }
+
+/* Widget chat — ripple (waiting state) */
+@keyframes ripple {
+  0%   { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.animate-ripple { animation: ripple 1.8s ease-out infinite; }
+
+/* Widget chat — check draw (closed state) */
+@keyframes check-draw {
+  0%   { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+.animate-check-draw { animation: check-draw 0.5s ease-out forwards; }
+
+/* Widget chat — indeterminate progress bar */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.animate-indeterminate { animation: indeterminate 1.5s ease-in-out infinite; }
+
+/* Widget chat — ellipsis trailing dots */
+@keyframes ellipsis {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+}
+
 .delay-0   { animation-delay: 0ms; }
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
