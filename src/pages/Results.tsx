@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Download } from "lucide-react";
 import { exportToCSV } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface Response {
   id: string;
@@ -116,18 +117,14 @@ const Results = () => {
 
   return (
     <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Resultados</h1>
-            <p className="text-sm text-muted-foreground mt-1">Visualize todas as respostas de NPS</p>
-          </div>
+        <PageHeader title="Resultados" subtitle="Visualize todas as respostas de NPS">
           {filteredResponses.length > 0 && (
             <Button onClick={handleExportCSV} variant="outline">
               <Download className="mr-2 h-4 w-4" />
               Exportar CSV
             </Button>
           )}
-        </div>
+        </PageHeader>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

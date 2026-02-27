@@ -331,13 +331,12 @@ const Contacts = () => {
 
   return (
     <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">{t("companies.title")}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("companies.subtitle")}</p>
           </div>
-
-          {canEdit && addDropdownContent}
+          {canEdit && <div className="shrink-0">{addDropdownContent}</div>}
         </div>
 
         {/* Search & Filters */}
@@ -356,7 +355,7 @@ const Contacts = () => {
 
           return (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
                 <div className="relative max-w-md flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -366,10 +365,18 @@ const Contacts = () => {
                     className="pl-10"
                   />
                 </div>
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
+                    <X className="h-4 w-4 mr-1" />
+                    {activeFilterCount} {t("companies.activeFilters")}
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap bg-muted/30 rounded-xl px-4 py-3">
+                <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                 {sectors.length > 0 && (
                   <Select value={sectorFilter} onValueChange={(v) => setSectorFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[180px]">
-                      <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
                       <SelectValue placeholder={t("companies.filterBySector")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -382,7 +389,7 @@ const Contacts = () => {
                 )}
                 {states.length > 0 && (
                   <Select value={stateFilter} onValueChange={(v) => { setStateFilter(v === "all" ? "" : v); setCityFilter(""); }}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
                       <SelectValue placeholder={t("companies.filterByState")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -395,7 +402,7 @@ const Contacts = () => {
                 )}
                 {cities.length > 0 && (
                   <Select value={cityFilter} onValueChange={(v) => setCityFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
                       <SelectValue placeholder={t("companies.filterByCity")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -408,7 +415,7 @@ const Contacts = () => {
                 )}
                 {csStatuses.length > 0 && (
                   <Select value={csStatusFilter} onValueChange={(v) => setCsStatusFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
                       <SelectValue placeholder={t("companies.filterByKanban")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -421,7 +428,7 @@ const Contacts = () => {
                 )}
                 {priorities.length > 0 && (
                   <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
                       <SelectValue placeholder={t("companies.filterByPriority")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -432,34 +439,32 @@ const Contacts = () => {
                     </SelectContent>
                   </Select>
                 )}
-                <Select value={healthFilter} onValueChange={(v) => setHealthFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder={t("companies.filterByHealth")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("companies.allHealthScores")}</SelectItem>
-                    <SelectItem value="healthy">{t("companies.health.healthy")}</SelectItem>
-                    <SelectItem value="warning">{t("companies.health.warning")}</SelectItem>
-                    <SelectItem value="critical">{t("companies.health.critical")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={npsFilter} onValueChange={(v) => setNpsFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder={t("companies.filterByNPS")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("companies.allNPS")}</SelectItem>
-                    <SelectItem value="promoter">{t("companies.nps.promoter")}</SelectItem>
-                    <SelectItem value="neutral">{t("companies.nps.neutral")}</SelectItem>
-                    <SelectItem value="detractor">{t("companies.nps.detractor")}</SelectItem>
-                    <SelectItem value="none">{t("companies.nps.noResponse")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {activeFilterCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
-                    <X className="h-4 w-4 mr-1" />
-                    {activeFilterCount} {t("companies.activeFilters")}
-                  </Button>
+                {companies.some(c => c.health_score != null) && (
+                  <Select value={healthFilter} onValueChange={(v) => setHealthFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[150px] h-8 text-xs">
+                      <SelectValue placeholder={t("companies.filterByHealth")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allHealthScores")}</SelectItem>
+                      <SelectItem value="healthy">{t("companies.health.healthy")}</SelectItem>
+                      <SelectItem value="warning">{t("companies.health.warning")}</SelectItem>
+                      <SelectItem value="critical">{t("companies.health.critical")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                {companies.some(c => c.last_nps_score != null) && (
+                  <Select value={npsFilter} onValueChange={(v) => setNpsFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                      <SelectValue placeholder={t("companies.filterByNPS")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("companies.allNPS")}</SelectItem>
+                      <SelectItem value="promoter">{t("companies.nps.promoter")}</SelectItem>
+                      <SelectItem value="neutral">{t("companies.nps.neutral")}</SelectItem>
+                      <SelectItem value="detractor">{t("companies.nps.detractor")}</SelectItem>
+                      <SelectItem value="none">{t("companies.nps.noResponse")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>

@@ -343,7 +343,7 @@ const AdminWorkspace = () => {
   if (isMobile) {
     return (
       <>
-        <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
+        <div className="-m-4 md:-m-6 lg:-m-8 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
           {mobileView === "list" && (
             <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
           )}
@@ -361,7 +361,7 @@ const AdminWorkspace = () => {
                     selectedRoom.status === "active" ? "bg-green-100 text-green-700" :
                     selectedRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
                     "bg-muted text-muted-foreground"
-                  }`}>{selectedRoom.status}</span>
+                  }`}>{selectedRoom.status === "active" ? "Ativo" : selectedRoom.status === "waiting" ? "Aguardando" : selectedRoom.status === "closed" ? "Encerrado" : selectedRoom.status}</span>
                   {renderDuration(selectedRoom)}
                 </div>
                 <div className="flex gap-1">
@@ -433,7 +433,7 @@ const AdminWorkspace = () => {
   // Desktop layout with resizable panels
   return (
     <>
-      <div className="-m-6 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
+      <div className="-m-4 md:-m-6 lg:-m-8 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left: Room list */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
@@ -469,7 +469,7 @@ const AdminWorkspace = () => {
                         effectiveRoom.status === "waiting" ? "bg-amber-100 text-amber-700" :
                         isPendingRoom ? "bg-amber-100 text-amber-700" :
                         "bg-muted text-muted-foreground"
-                      }`}>{isPendingRoom ? "pendente" : effectiveRoom.status}</span>
+                      }`}>{isPendingRoom ? "Pendente" : effectiveRoom.status === "active" ? "Ativo" : effectiveRoom.status === "waiting" ? "Aguardando" : effectiveRoom.status === "closed" ? "Encerrado" : effectiveRoom.status}</span>
                       {!isPendingRoom && renderDuration(selectedRoom)}
                       <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
                     </div>
@@ -551,7 +551,7 @@ const AdminWorkspace = () => {
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
-                <div className="h-full p-1.5 pr-3 pt-3 pb-3">
+                <div className="h-full p-1.5 pr-3 pt-3 pb-3 overflow-y-auto">
                   <VisitorInfoPanel roomId={effectiveRoom.id} visitorId={effectiveRoom.visitor_id} contactId={effectiveRoom.contact_id} companyContactId={effectiveRoom.company_contact_id} />
                 </div>
               </ResizablePanel>
