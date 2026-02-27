@@ -290,29 +290,6 @@
     document.body.appendChild(iframe);
     chatIframe = iframe;
 
-    var unreadBadge = null;
-
-    function updateUnreadBadge(count) {
-      if (count > 0 && iframe.style.width === "80px") {
-        if (!unreadBadge) {
-          unreadBadge = document.createElement("div");
-          unreadBadge.style.cssText =
-            "position:fixed;z-index:99999;min-width:22px;height:22px;border-radius:11px;" +
-            "background:#EF4444;color:#fff;font-size:12px;font-weight:700;display:flex;" +
-            "align-items:center;justify-content:center;padding:0 5px;box-shadow:0 2px 6px rgba(0,0,0,0.25);" +
-            "pointer-events:none;";
-          document.body.appendChild(unreadBadge);
-        }
-        unreadBadge.textContent = count > 9 ? "9+" : String(count);
-        // Position badge at top-right of FAB
-        unreadBadge.style.bottom = (20 + 60 - 8) + "px";
-        unreadBadge.style[position === "left" ? "left" : "right"] = (20 + 60 - 12) + "px";
-        unreadBadge.style.display = "flex";
-      } else if (unreadBadge) {
-        unreadBadge.style.display = "none";
-      }
-    }
-
     window.addEventListener("message", function (event) {
       if (event.data && event.data.type === "chat-toggle") {
         if (event.data.isOpen) {
@@ -320,16 +297,12 @@
           iframe.style.height = "700px";
           iframe.style.bottom = "0";
           iframe.style[position === "left" ? "left" : "right"] = "0";
-          if (unreadBadge) unreadBadge.style.display = "none";
         } else {
           iframe.style.width = "80px";
           iframe.style.height = "80px";
           iframe.style.bottom = "20px";
           iframe.style[position === "left" ? "left" : "right"] = "20px";
         }
-      }
-      if (event.data && event.data.type === "chat-unread-count") {
-        updateUnreadBadge(event.data.count);
       }
     });
   }

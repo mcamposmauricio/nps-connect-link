@@ -452,6 +452,7 @@ export type Database = {
           is_enabled: boolean | null
           message_content: string | null
           rule_type: string
+          sort_order: number | null
           tenant_id: string | null
           trigger_minutes: number | null
           updated_at: string | null
@@ -463,6 +464,7 @@ export type Database = {
           is_enabled?: boolean | null
           message_content?: string | null
           rule_type: string
+          sort_order?: number | null
           tenant_id?: string | null
           trigger_minutes?: number | null
           updated_at?: string | null
@@ -474,6 +476,7 @@ export type Database = {
           is_enabled?: boolean | null
           message_content?: string | null
           rule_type?: string
+          sort_order?: number | null
           tenant_id?: string | null
           trigger_minutes?: number | null
           updated_at?: string | null
