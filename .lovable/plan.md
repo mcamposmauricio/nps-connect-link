@@ -1,63 +1,100 @@
 
 
-# Correcoes de UX: Widget Scroll, Badge de Notificacao e Loading do Workspace
+# Reestruturacao das Mensagens Automaticas - Fluxo Sequencial Encadeado
 
-## Problema 1: Widget abre na primeira mensagem (scroll incorreto)
+## Conceito Central: Cadeia Sequencial
 
-**Causa raiz**: O efeito de scroll (linhas 480-489 do `ChatWidget.tsx`) depende apenas de `[messages]`. Quando o usuario minimiza e reabre o widget, ou navega entre telas (historico -> chat -> historico -> chat), as mensagens ja estao carregadas no state e nao disparam uma nova renderizacao. O scroll nao e reexecutado.
+As 4 regras do fluxo principal operam como uma **cadeia ordenada** onde cada etapa so dispara apos a anterior ter sido enviada e o tempo configurado ter passado sem resposta do cliente. O tempo de cada regra conta **a partir da mensagem da regra anterior**, nao a partir da ultima mensagem humana.
 
-**Solucao**: Adicionar um `scrollTrigger` que incrementa sempre que:
-- O widget e reaberto (`isOpen` muda de `false` para `true`)
-- A fase muda para `chat` ou `viewTranscript` (navegacao interna)
+```text
+[1] Boas-vindas (imediato ao entrar)
+         |
+         +-- cliente nao responde por X min apos ultima msg do atendente -->
+         |
+[2] Inatividade 1 --> envia msg + status = "waiting"
+         |
+         +-- cliente nao responde por Y min apos msg da regra 2 -->
+         |
+[3] Inatividade 2 --> envia msg (mantem "waiting")
+         |
+         +-- cliente nao responde por Z min apos msg da regra 3 -->
+         |
+[4] Auto-close --> envia msg + status = "closed" + resolution = "archived"
+```
 
-O efeito de scroll passara a depender de `[messages, scrollTrigger]`, garantindo que o scroll para o final sempre execute ao reentrar na conversa.
-
-**Arquivo**: `src/pages/ChatWidget.tsx`
-
----
-
-## Problema 2: FAB sem badge de mensagens nao lidas
-
-**Causa raiz**: O botao FAB (linhas 956-984) nao possui nenhum mecanismo de contagem de mensagens recebidas enquanto o widget esta minimizado. Mensagens do atendente chegam via realtime subscription (que continua ativa mesmo minimizado), mas nao ha state para contabilizar as nao lidas.
-
-**Solucao**:
-- Adicionar state `unreadCount` ao `ChatWidget`
-- No handler de realtime INSERT de mensagens (linha 362-379), quando `!isOpen` e a mensagem e do atendente, incrementar `unreadCount`
-- Quando o widget abre (`isOpen` muda para `true`), zerar `unreadCount`
-- Renderizar um badge vermelho com o numero sobre o FAB quando `unreadCount > 0`
-- Enviar `postMessage` para o iframe pai com o `unreadCount` atualizado, para que o embed script tambem possa exibir o badge
-
-No **embed script** (`nps-chat-embed.js`):
-- Escutar mensagem `chat-unread-count` do iframe
-- Criar/atualizar um badge vermelho no canto superior direito do iframe container quando minimizado
-
-**Arquivos**: `src/pages/ChatWidget.tsx`, `public/nps-chat-embed.js`
+**Regra de encadeamento**: A regra N so dispara se a regra N-1 ja foi enviada. O tempo da regra N conta a partir do `created_at` da mensagem de sistema da regra N-1 (exceto a regra 2, que conta a partir da ultima mensagem do atendente).
 
 ---
 
-## Problema 3: Workspace mostra loading excessivo ao trocar abas do navegador
+## Estrutura das 4 Regras
 
-**Causa raiz**: A funcao `fetchRooms` no `useChatRealtime.ts` usa `rooms.length` dentro de um `useCallback` com dependencia `[ownerUserId]`. Isso cria uma closure obsoleta onde `rooms.length` sempre vale `0` (valor inicial). Portanto, toda vez que `fetchRooms(true)` e chamado, a condicao `rooms.length === 0` e verdadeira e `setLoading(true)` e executado, mostrando o spinner.
-
-Alem disso, se o token de autenticacao e renovado quando o usuario volta para a aba (comportamento do Supabase `autoRefreshToken`), o `user?.id` pode piscar brevemente de `null` para o valor real, recriando `fetchRooms` e disparando o useEffect novamente com loading.
-
-**Solucao**:
-- Substituir a checagem `rooms.length === 0` por um `useRef` chamado `initialLoadDone`
-- `setLoading(true)` so executa quando `initialLoadDone.current === false`
-- Apos o primeiro fetch bem-sucedido, setar `initialLoadDone.current = true`
-- Isso garante que o spinner aparece **apenas uma vez** na vida do componente, e atualizacoes subsequentes (tab switch, token refresh) sao silenciosas
-
-**Arquivo**: `src/hooks/useChatRealtime.ts`
+| Ordem | rule_type | Gatilho | Tempo Default | Acao no Status | Texto Default |
+|-------|-----------|---------|---------------|----------------|---------------|
+| 1 | `welcome_message` | Imediato ao iniciar chat | Sem tempo | Nenhuma | "Recebemos sua mensagem! ..." |
+| 2 | `inactivity_warning` | Atendente falou, cliente nao respondeu | 10 min | waiting (pendente) | "Voce conseguiu ver minha ultima mensagem? ..." |
+| 3 | `inactivity_warning_2` (novo) | Regra 2 ja enviada, cliente nao respondeu | 10 min | Mantem waiting | "Voce ainda esta ai? ..." |
+| 4 | `auto_close` | Regra 3 ja enviada, cliente nao respondeu | 10 min | closed + archived | "Nao tivemos seu retorno..." |
 
 ---
 
-## Resumo de Arquivos
+## Mudancas por Arquivo
+
+### 1. `src/components/chat/AutoMessagesTab.tsx`
+
+- Adicionar novo tipo `inactivity_warning_2` na lista `AUTO_MESSAGE_TYPES`
+- Reorganizar grupos visuais:
+  - **"Fluxo Principal"** (4 regras com numeracao 1-4 e setas visuais entre elas indicando a sequencia)
+  - **"Outras Mensagens"** (queue_position, attendant_assigned, transfer_notice, attendant_absence, offline_message, post_service_csat, return_online -- todas inativas por padrao)
+- Defaults atualizados: `inactivity_warning` com 10 min, `inactivity_warning_2` com 10 min, `auto_close` com 10 min
+- Na UI do fluxo principal, mostrar visualmente a ordem (1 -> 2 -> 3 -> 4) com indicadores de seta/conector entre os cards
+
+### 2. `supabase/functions/process-chat-auto-rules/index.ts`
+
+Reescrever a logica de processamento para respeitar o encadeamento sequencial:
+
+- Adicionar `inactivity_warning_2` ao filtro de rule_types
+- Definir a **ordem de processamento**: `FLOW_ORDER = ["inactivity_warning", "inactivity_warning_2", "auto_close"]`
+- Para cada sala, processar as regras **na ordem da cadeia**, nao individualmente:
+  - **`inactivity_warning`**: Dispara se o atendente falou por ultimo, sala esta `active`, e o tempo desde a ultima msg do atendente >= `trigger_minutes`. Ao enviar, muda status da sala para `waiting`.
+  - **`inactivity_warning_2`**: Dispara **somente se** ja existe mensagem de sistema com `auto_rule === "inactivity_warning"` nesta sala, e o tempo desde essa mensagem de sistema >= `trigger_minutes` da regra 3, e nao houve resposta do cliente depois.
+  - **`auto_close`**: Dispara **somente se** ja existe mensagem de sistema com `auto_rule === "inactivity_warning_2"`, e o tempo desde essa mensagem >= `trigger_minutes` da regra 4, e nao houve resposta do cliente depois. Fecha sala como `closed` com `resolution_status: "archived"`.
+- Se o cliente respondeu em qualquer ponto (existe msg do visitor depois da ultima msg de sistema), a cadeia e **interrompida** -- nenhuma regra subsequente dispara.
+- Processar apenas **uma regra por sala por execucao** (a proxima elegivel na cadeia), evitando disparar 2 e 3 simultaneamente.
+
+### 3. `src/locales/pt-BR.ts` e `src/locales/en.ts`
+
+Adicionar traducoes:
+- `chat.autoMsg.mainFlowGroup` / `chat.autoMsg.otherGroup`
+- `chat.autoMsg.inactivity_warning_2.title` / `.description` / `.default`
+- Atualizar defaults de `welcome_message`, `inactivity_warning`, `auto_close` com os textos fornecidos
+- Atualizar descricoes para refletir as acoes de status (pendente, arquivado)
+
+---
+
+## Logica Detalhada da Edge Function (Encadeamento)
+
+Para cada sala, a funcao determina **em que ponto da cadeia a sala esta**:
+
+1. Buscar todas as mensagens de sistema com `auto_rule` in (`inactivity_warning`, `inactivity_warning_2`, `auto_close`) para a sala
+2. Buscar a ultima mensagem do visitor (se houver)
+3. Determinar o **ultimo passo executado**:
+   - Se nao ha nenhuma msg de sistema de cadeia -> proximo passo = `inactivity_warning`
+   - Se ha `inactivity_warning` e nao ha resposta do visitor depois -> proximo passo = `inactivity_warning_2`
+   - Se ha `inactivity_warning_2` e nao ha resposta do visitor depois -> proximo passo = `auto_close`
+   - Se o visitor respondeu depois da ultima msg de sistema -> cadeia resetada, nao dispara nada
+4. Verificar se o tempo desde a mensagem-gatilho (msg do atendente para regra 2, msg de sistema anterior para regras 3 e 4) >= `trigger_minutes`
+5. Executar apenas esse unico passo
+
+---
+
+## Resumo
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/ChatWidget.tsx` | scrollTrigger para scroll confiavel + unreadCount state + badge no FAB + postMessage para embed |
-| `public/nps-chat-embed.js` | Escutar `chat-unread-count` e renderizar badge no iframe |
-| `src/hooks/useChatRealtime.ts` | Usar ref `initialLoadDone` para evitar loading repetido |
+| `src/components/chat/AutoMessagesTab.tsx` | Novo tipo, 2 grupos (Fluxo Principal + Outras), numeracao visual com setas |
+| `supabase/functions/process-chat-auto-rules/index.ts` | Logica de cadeia sequencial encadeada, `inactivity_warning_2`, status waiting/archived |
+| `src/locales/pt-BR.ts` | Traducoes e defaults atualizados |
+| `src/locales/en.ts` | Equivalentes em ingles |
 
-**Nenhuma mudanca de banco de dados. Nenhuma nova dependencia.**
+Nenhuma migration de banco necessaria (`rule_type` e texto livre). Nenhuma nova dependencia.
 
