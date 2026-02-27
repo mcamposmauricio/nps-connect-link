@@ -1,240 +1,120 @@
 
-# Relatorio de Revisao de Design - Plataforma Journey CS
 
-## Resumo Executivo
+# Tema Escuro para Area Logada
 
-A plataforma Journey CS possui uma base funcional solida com modulos de NPS, Chat, Customer Success e Backoffice. Porem, ha oportunidades significativas de melhoria em consistencia visual, hierarquia de informacao, densidade de tela e padroes de interacao. Este relatorio organiza as melhorias por area e prioridade.
+## Resumo
 
----
-
-## 1. SIDEBAR E NAVEGACAO
-
-### Problemas Identificados
-- Logo com 80px de altura (`h-20`) ocupa espaco excessivo no header da sidebar
-- Grupos colapsaveis (NPS, Chat, Reports) usam `Collapsible` dentro de `SidebarMenuItem`, causando warning de DOM nesting (`li` dentro de `li`)
-- Labels de grupo com `text-[10px]` sao muito pequenas, prejudicando legibilidade
-- Item ativo usa borda esquerda de 3px (`border-l-[3px]`), mas o indicador visual e sutil demais em tema claro
-- Badges de contagem (chats ativos) usam `text-[9px]`, quase ilegivel
-- Footer com seletor de idioma e botao de logout tem interacao confusa (dropdown dentro de dropdown)
-
-### Melhorias Propostas
-- Reduzir logo para `h-10` (expandida) e `h-8` (colapsada), liberando ~60px verticais
-- Corrigir nesting de DOM removendo `Collapsible` de dentro de `SidebarMenuItem`
-- Aumentar labels de grupo para `text-[11px]` com `letter-spacing: 0.08em`
-- Substituir borda esquerda por fundo com opacidade mais forte (`bg-primary/12`) + borda esquerda `2px` com cor primaria
-- Badges minimas com `text-[10px]` e `min-w-[18px]` para garantir toque acessivel
-- Simplificar footer: avatar + nome com menu dropdown unico contendo idioma, perfil e logout
+Adicionar um tema escuro completo que sera o padrao **apenas para usuarios logados** (atendentes, admins, backoffice). Todas as rotas externas (widget, landing pages, auth, NPS response, embed, portal) permanecem no tema claro.
 
 ---
 
-## 2. HEADER E LAYOUT PRINCIPAL
+## Estrategia
 
-### Problemas Identificados
-- Header interno (`h-14`) contem apenas o `SidebarTrigger`, desperdicando espaco horizontal
-- Nao ha breadcrumbs, dificultando orientacao em paginas aninhadas (ex: Campanha > Detalhes)
-- Banner de impersonacao e multi-tenant empilham verticalmente sem limite, empurrando conteudo
-- Area de conteudo usa `p-6` fixo, sem responsividade para telas menores
-
-### Melhorias Propostas
-- Adicionar breadcrumbs ao header com nome da pagina atual e caminho de navegacao
-- Mover notificacoes/alertas globais para o header (ex: chats nao atribuidos)
-- Unificar banners de impersonacao e multi-tenant em uma unica barra compacta
-- Usar `p-4 md:p-6 lg:p-8` para padding responsivo
+Em vez de usar o `ThemeProvider` do `next-themes` (que aplica globalmente), o tema escuro sera controlado pela classe `dark` aplicada diretamente no wrapper do `SidebarLayout`. Isso garante isolamento total: paginas fora do layout protegido nunca recebem dark mode.
 
 ---
 
-## 3. PAGINA DE LOGIN (Auth.tsx)
+## 1. Variaveis CSS Dark (`src/index.css`)
 
-### Problemas Identificados
-- Usa `bg-dark-hero` (fundo escuro) enquanto o sistema e 100% tema claro — inconsistencia visual
-- Card usa `bg-card/80 backdrop-blur-xl` que faz sentido em dark mas parece lavado no claro
-- Nao ha ilustracao ou elemento visual que transmita a identidade do produto
-- Campos de formulario sem icones inline, contrastando com o widget redesenhado
+Adicionar um bloco `.dark` dentro do `@layer base` com todas as variaveis invertidas:
 
-### Melhorias Propostas
-- Trocar `bg-dark-hero` por um gradiente claro sutil (ex: `from-background to-muted/30`)
-- Card com `bg-card shadow-lg border` solido, sem backdrop-blur
-- Adicionar icones inline nos inputs (Mail, Lock) seguindo o padrao do widget
-- Adicionar ilustracao ou gradiente decorativo lateral para telas > 1024px (split layout)
+```text
+.dark {
+  --background: 224 47% 5%;          /* #0B0E18 */
+  --foreground: 220 15% 90%;         /* #E2E4EA */
 
----
+  --card: 222 22% 10%;               /* #151A26 */
+  --card-foreground: 220 15% 90%;
 
-## 4. DASHBOARD NPS (Dashboard.tsx)
+  --popover: 222 22% 10%;
+  --popover-foreground: 220 15% 90%;
 
-### Problemas Identificados
-- 909 linhas em um unico arquivo — componente monolitico dificil de manter
-- Filtro de modo de visualizacao (campanha/contato) usa `<select>` nativo, quebrando consistencia com `Select` do design system
-- 6 stat cards em uma linha, sem hierarquia — NPS Score deveria ter destaque visual
-- Dialog de detalhes do contato usa layout denso sem separacao clara de secoes
-- Grafico de pizza (NPS) repete informacao ja presente nos stat cards
-- Busca de contatos no dashboard e redundante com a pagina de Contatos
+  --primary: 14 100% 67%;            /* Growth Coral */
+  --primary-foreground: 0 0% 100%;
 
-### Melhorias Propostas
-- Extrair componentes: `NPSStatsGrid`, `NPSPieChart`, `RecentResponsesList`, `ContactSearchDialog`
-- Substituir `<select>` nativo pelo componente `Select` do design system
-- Destacar NPS Score com card maior (col-span-2) e cor condicional (verde/amarelo/vermelho)
-- Remover busca de contatos do dashboard, linkando para a pagina de Contatos
-- Adicionar sparkline ou mini-grafico de tendencia no card de NPS Score
+  --secondary: 222 18% 16%;
+  --secondary-foreground: 220 15% 85%;
 
----
+  --muted: 222 15% 14%;
+  --muted-foreground: 220 10% 55%;
 
-## 5. PAGINA DE CONTATOS (Contacts.tsx)
+  --accent: 207 80% 52%;
+  --accent-foreground: 0 0% 100%;
 
-### Problemas Identificados
-- 7 filtros em uma linha causam overflow horizontal em telas < 1440px
-- Filtros de Health Score e NPS aparecem mesmo quando nenhuma empresa tem esses dados
-- Cards de empresa mostram ID truncado com botao de copiar — informacao tecnica desnecessaria para maioria dos usuarios
-- Nao ha paginacao — todas as empresas carregam de uma vez
-- PageHeader nao usa o componente `PageHeader` (usa `<h1>` e `<p>` direto)
+  --destructive: 0 85% 55%;
+  --destructive-foreground: 0 0% 100%;
 
-### Melhorias Propostas
-- Agrupar filtros em um `FilterBar` colapsavel com botao "Mais filtros"
-- Esconder filtros de Health/NPS quando nenhuma empresa possui dados
-- Remover ID visivel do `CompanyCard`, mover para `CompanyDetailsSheet`
-- Implementar paginacao ou scroll infinito (limite de 50 por pagina)
-- Usar componente `PageHeader` consistentemente
+  --border: 222 15% 18%;
+  --input: 222 15% 18%;
+  --ring: 207 80% 52%;
 
----
+  --sidebar-background: 224 35% 7%;
+  --sidebar-foreground: 220 15% 85%;
+  --sidebar-primary: 207 80% 52%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 222 18% 14%;
+  --sidebar-accent-foreground: 220 15% 85%;
+  --sidebar-border: 222 15% 15%;
+  --sidebar-ring: 207 80% 52%;
+}
+```
 
-## 6. WORKSPACE DE CHAT (AdminWorkspace.tsx)
+As cores semanticas (success, warning, promoter, etc.) mantem os mesmos valores no dark pois ja sao cores absolutas com bom contraste em ambos os temas.
 
-### Problemas Identificados
-- 578 linhas — outro componente monolitico
-- Lista de salas e painel de chat divididos por `ResizablePanelGroup` sem larguras minimas, podendo colapsar paineis
-- Status de sala ("active", "waiting") exibido em ingles no badge
-- Toolbar de acoes (Transferir, Tags, Fechar) mistura botoes de tamanhos diferentes
-- Painel de informacoes do visitante (`VisitorInfoPanel`) nao tem scroll independente
-- Nao ha indicador visual de mensagens nao lidas na lista de salas
+## 2. Tailwind Config (`tailwind.config.ts`)
 
-### Melhorias Propostas
-- Definir `minSize` nos paineis (lista: min 280px, chat: min 400px, info: min 260px)
-- Traduzir status de sala para pt-BR nos badges
-- Padronizar toolbar com botoes `size="sm"` e icones consistentes
-- Adicionar scroll independente no `VisitorInfoPanel` com `overflow-y-auto`
-- Adicionar badge de "nao lido" com ponto azul na lista de salas
+Adicionar `darkMode: "class"` ao config para habilitar as variantes `dark:` do Tailwind:
 
----
+```text
+export default {
+  darkMode: "class",
+  content: [...],
+  ...
+}
+```
 
-## 7. KANBAN CS (CSDashboard + CSKanbanBoard)
+## 3. SidebarLayout - Aplicar Classe Dark (`src/components/SidebarLayout.tsx`)
 
-### Problemas Identificados
-- Colunas do Kanban nao tem altura maxima, causando scroll vertical extenso
-- Drag and drop nativo (sem biblioteca) pode falhar em touch/mobile
-- Cards do Kanban nao mostram informacao suficiente (falta MRR, CSM responsavel)
-- Nao ha filtro por CSM ou busca dentro do Kanban
+O wrapper principal do `SidebarLayout` recebera a classe `dark` por padrao. Opcionalmente, o usuario pode alternar via um toggle na sidebar/header, persistido em `localStorage`.
 
-### Melhorias Propostas
-- Limitar altura das colunas com `max-h-[calc(100vh-280px)]` e scroll interno
-- Adicionar busca inline acima do Kanban
-- Enriquecer cards com avatar do CSM, MRR e ultimo NPS em formato compacto
-- Adicionar filtro por CSM no header da pagina
+Mudancas:
+- Adicionar estado `isDark` inicializado de `localStorage` (default: `true`)
+- Aplicar `className={isDark ? "dark" : ""}` no div raiz do layout
+- As telas de loading e selecao de tenant dentro do SidebarLayout tambem receberao a classe
 
----
+## 4. Toggle de Tema na Sidebar (`src/components/AppSidebar.tsx`)
 
-## 8. PAGINA DE RESULTADOS (Results.tsx)
+Adicionar um botao de alternancia de tema no footer da sidebar, ao lado do logout:
+- Icone `Sun`/`Moon` com transicao suave
+- Tooltip "Tema claro" / "Tema escuro"
+- Persiste a preferencia em `localStorage("journey-theme")`
 
-### Problemas Identificados
-- Titulo usa `text-4xl font-bold` — inconsistente com `PageHeader` (que usa `text-2xl font-semibold`)
-- Cards de resposta nao tem agrupamento visual por tipo (promotor/neutro/detrator)
-- Nao ha paginacao — todas as respostas carregam de uma vez
-- Nao usa o componente `PageHeader`
+Para isso, criar um mini-contexto ou simplesmente usar um callback passado via props do SidebarLayout para a AppSidebar.
 
-### Melhorias Propostas
-- Usar `PageHeader` para consistencia
-- Adicionar abas ou filtros rapidos por tipo (Promotor/Neutro/Detrator)
-- Implementar paginacao com "Carregar mais" (20 por vez)
-- Adicionar indicador de contagem por tipo no topo
+## 5. ThemeProvider Global
+
+Manter o `ThemeProvider` do `next-themes` com `defaultTheme="light"` no `App.tsx` como fallback, mas ele nao controlara o dark mode do backoffice. As rotas publicas continuarao usando o tema light que vem do `:root`.
+
+## 6. Logos Condicionais
+
+O SidebarLayout ja usa `/logo-dark.svg` e `/logo-icon-dark.svg`. No tema escuro, trocar para `/logo-light.svg` e `/logo-icon-light.svg`:
+- Na sidebar: condicionar `src` baseado no estado `isDark`
+- No loading screen: idem
+
+## 7. Widget e Rotas Externas
+
+Nenhuma mudanca. O `ChatWidget`, `NPSResponse`, `NPSEmbed`, `UserPortal`, `Auth`, `LandingPage`, `ChatLandingPage` ficam fora do `SidebarLayout` e nunca recebem a classe `dark`. A regra CSS `html[data-embed]` para transparencia permanece inalterada.
 
 ---
 
-## 9. CONFIGURACOES (Settings.tsx)
+## Resumo de Arquivos
 
-### Problemas Identificados
-- Tabs com `hidden sm:inline` escondem labels em mobile, mostrando so icones sem tooltip
-- Apenas 3 abas — layout subutilizado
-- Nenhuma descricao ou ajuda contextual nas abas
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/index.css` | Adicionar bloco `.dark` com variaveis de tema escuro |
+| `tailwind.config.ts` | Adicionar `darkMode: "class"` |
+| `src/components/SidebarLayout.tsx` | Aplicar classe `dark` condicionalmente + estado persistido |
+| `src/components/AppSidebar.tsx` | Adicionar toggle Sun/Moon no footer |
 
-### Melhorias Propostas
-- Adicionar tooltips nos icones de tabs em mobile
-- Adicionar descricao breve abaixo de cada titulo de aba
-- Considerar layout de lista lateral para desktop (sidebar settings pattern)
-
----
-
-## 10. PERFIL (MyProfile.tsx)
-
-### Problemas Identificados
-- Card de status de chat e card de perfil sao componentes separados sem conexao visual
-- Titulo usa `text-2xl font-bold` — inconsistente com o resto (que usa `font-semibold`)
-- Botao "Salvar" no final da pagina, longe dos campos editados
-- Nao ha feedback de campos alterados (dirty state)
-
-### Melhorias Propostas
-- Unificar em um unico card com secoes separadas por `Separator`
-- Padronizar titulo com `PageHeader`
-- Adicionar botao "Salvar" fixo no topo quando ha alteracoes pendentes
-- Adicionar indicador visual de campos modificados
-
----
-
-## 11. COMPONENTES UI GLOBAIS
-
-### Problemas Identificados
-- `MetricCard` usa `border-white/[0.06]` — heranca de tema escuro, invisivel no claro
-- `Button` variants `outline` e `secondary` usam `border-white/15` e `bg-white/5` — inadequados para tema claro
-- Loading states inconsistentes: alguns usam `Loader2 animate-spin`, outros usam `border-b-2 border-primary` circular
-- Cards usam `shadow-sm` globalmente, sem variacao para cards interativos vs informativos
-- `PageHeader` e usado em ~60% das paginas; as demais usam markup manual diferente
-
-### Melhorias Propostas
-- Corrigir `MetricCard`: trocar `border-white/[0.06]` por `border-border`
-- Corrigir `Button` variants para tema claro:
-  - `outline`: `border-border bg-transparent hover:bg-muted/50`
-  - `secondary`: `bg-secondary text-secondary-foreground hover:bg-secondary/80`
-  - `ghost`: `hover:bg-muted/50`
-- Padronizar loading com componente `Spinner` reutilizavel
-- Usar `PageHeader` em TODAS as paginas internas
-- Cards interativos: `hover:shadow-md transition-shadow`; cards informativos: `shadow-sm` estatico
-
----
-
-## 12. RESPONSIVIDADE
-
-### Problemas Identificados
-- Sidebar colapsada usa icone de 80x80px — desproporcional
-- Kanban CS nao tem scroll horizontal em telas < 1024px
-- Filtros de Contacts transbordam horizontalmente
-- Workspace de chat em mobile perde acoes importantes (Tags, Transferir ficam em Sheet)
-- Tabelas do dashboard (AdminDashboard) nao tem scroll horizontal
-
-### Melhorias Propostas
-- Icone colapsado: `h-8 w-8`
-- Kanban: `overflow-x-auto` com `min-w-[200px]` por coluna
-- Filtros: drawer/popover "Filtros" em mobile
-- Tabelas: `overflow-x-auto` com `min-w-[600px]`
-
----
-
-## Prioridades de Implementacao
-
-| Prioridade | Area | Impacto |
-|-----------|------|---------|
-| Alta | Corrigir Button/MetricCard para tema claro | Visual quebrado em todo o sistema |
-| Alta | Padronizar PageHeader em todas as paginas | Consistencia visual |
-| Alta | Corrigir Auth.tsx (login) para tema claro | Primeira impressao do usuario |
-| Media | Sidebar: reduzir logo, corrigir nesting DOM | UX de navegacao |
-| Media | Contatos: agrupar filtros, paginacao | Usabilidade com volume de dados |
-| Media | Workspace: minSize paineis, traduzir status | UX do atendente |
-| Media | Dashboard NPS: extrair componentes, destacar NPS | Legibilidade e manutencao |
-| Baixa | Kanban: scroll colunas, filtro CSM | UX com muitas empresas |
-| Baixa | Responsividade geral | Usuarios mobile |
-| Baixa | Settings: tooltips mobile, layout lateral | Refinamento |
-
----
-
-## Resumo Tecnico
-
-**Arquivos impactados**: ~25 arquivos entre pages e components
-**Sem mudanca de banco de dados**: todas as melhorias sao puramente frontend
-**Abordagem**: implementar por prioridade, comecando pelas correcoes de tema claro nos componentes base (Button, MetricCard) que propagam para todo o sistema
+**Sem mudancas no banco de dados. Sem mudancas em rotas externas ou no widget.**
 
