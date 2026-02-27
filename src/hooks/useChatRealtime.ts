@@ -147,6 +147,7 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const selectedRoomIdRef = useRef<string | null>(null);
+  const initialLoadDone = useRef(false);
   // Capture options in a ref so callbacks always have fresh values
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -179,8 +180,8 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
   const fetchRooms = useCallback(
     async (showLoading = false) => {
       if (!ownerUserId) return;
-      // Only show loading spinner if we have no rooms yet (prevents flash on tab switch)
-      if (showLoading && rooms.length === 0) setLoading(true);
+      // Only show loading spinner on the very first load — never again
+      if (showLoading && !initialLoadDone.current) setLoading(true);
 
       let query = supabase
         .from("chat_rooms")
@@ -274,6 +275,7 @@ export function useChatRooms(ownerUserId: string | null, options?: { excludeClos
       });
 
       setRooms(enrichedRooms.sort(SORT_ROOMS));
+      initialLoadDone.current = true;
       if (showLoading) setLoading(false);
     },
     [ownerUserId]
