@@ -24,6 +24,8 @@ import {
   Inbox,
   Shield,
   Star,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -54,7 +56,12 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  isDark: boolean;
+  onToggleTheme: () => void;
+}
+
+export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -129,8 +136,8 @@ export function AppSidebar() {
     "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
   const groupLabelCls = "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70 px-2 py-1.5";
 
-  const logoSrc = "/logo-light.svg";
-  const iconSrc = "/logo-icon-light.svg";
+  const logoSrc = isDark ? "/logo-light.svg" : "/logo-dark.svg";
+  const iconSrc = isDark ? "/logo-icon-light.svg" : "/logo-icon-dark.svg";
 
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
@@ -471,6 +478,15 @@ export function AppSidebar() {
             </SidebarMenuButton>
           )}
           <div className="flex items-center gap-1 mt-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleTheme}
+              className="h-8 w-8 text-foreground/50 hover:text-foreground"
+              title={isDark ? "Tema claro" : "Tema escuro"}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">

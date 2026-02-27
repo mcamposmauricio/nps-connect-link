@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -7,7 +7,7 @@ import { SidebarDataProvider } from "@/contexts/SidebarDataContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function SidebarLayout() {
   const navigate = useNavigate();
@@ -15,6 +15,17 @@ export default function SidebarLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem("sidebar-open") !== "false"
   );
+  const [isDark, setIsDark] = useState(
+    () => localStorage.getItem("journey-theme") !== "light"
+  );
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("journey-theme", next ? "dark" : "light");
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!loading && !userDataLoading) {
@@ -26,7 +37,7 @@ export default function SidebarLayout() {
     }
   }, [user, loading, userDataLoading, tenantId, isAdmin, navigate, needsTenantSelection]);
 
-  // Polling for time-based auto rules (every 5 min) — runs globally while any admin is logged in
+  // Polling for time-based auto rules (every 5 min)
   useEffect(() => {
     if (!user) return;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -37,10 +48,10 @@ export default function SidebarLayout() {
       try {
         await supabase.functions.invoke("process-chat-auto-rules");
       } catch {
-        // silent – edge function may not be deployed yet
+        // silent
       }
       if (!cancelled) {
-        timeoutId = setTimeout(poll, 300_000); // 5 minutes
+        timeoutId = setTimeout(poll, 300_000);
       }
     };
 
@@ -52,10 +63,12 @@ export default function SidebarLayout() {
     };
   }, [user]);
 
+  const themeClass = isDark ? "dark" : "";
+
   if (loading || userDataLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <img src="/logo-icon-dark.svg" alt="Journey" className="h-16 w-16 animate-pulse" />
+      <div className={`${themeClass} min-h-screen flex flex-col items-center justify-center bg-background gap-4`}>
+        <img src={isDark ? "/logo-icon-light.svg" : "/logo-icon-dark.svg"} alt="Journey" className="h-16 w-16 animate-pulse" />
       </div>
     );
   }
@@ -63,11 +76,11 @@ export default function SidebarLayout() {
   // Tenant selection screen
   if (needsTenantSelection) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className={`${themeClass} min-h-screen flex items-center justify-center bg-background p-4`}>
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
-            <img src="/logo-dark.svg" alt="Journey" className="h-10 w-auto mx-auto mb-6" />
-            <h1 className="text-xl font-semibold">Selecione sua plataforma</h1>
+            <img src={isDark ? "/logo-light.svg" : "/logo-dark.svg"} alt="Journey" className="h-10 w-auto mx-auto mb-6" />
+            <h1 className="text-xl font-semibold text-foreground">Selecione sua plataforma</h1>
             <p className="text-sm text-muted-foreground mt-1">Você tem acesso a múltiplas plataformas</p>
           </div>
           <div className="space-y-3">
@@ -98,8 +111,8 @@ export default function SidebarLayout() {
           localStorage.setItem("sidebar-open", String(open));
         }}
       >
-        <div className="min-h-screen flex w-full">
-          <AppSidebar />
+        <div className={`${themeClass} min-h-screen flex w-full bg-background text-foreground`}>
+          <AppSidebar isDark={isDark} onToggleTheme={toggleTheme} />
           <main className="flex-1 flex flex-col">
             {/* Impersonation banner */}
             {isImpersonating && (
