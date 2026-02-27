@@ -1,46 +1,121 @@
 
 
-# Plano: Notificacoes Sonoras Parametrizaveis
+# Redesign do Widget de Chat - UI/UX Moderno
 
-## Problema
-1. O som de notificacao no workspace do atendente existe no codigo (`useChatRealtime.ts` linha 365) mas nao respeita a preferencia `sound_enabled` do `attendant_profiles` — toca sempre.
-2. A coluna `sound_enabled` ja existe na tabela `attendant_profiles` mas nunca e lida pelo frontend.
-3. O widget do cliente (ChatWidget) nao tem nenhum som de notificacao para novas mensagens recebidas.
-4. Nao existe toggle no perfil do atendente para ligar/desligar o som.
+## Visao Geral
 
-## Solucao
+Redesign visual completo do `ChatWidget.tsx` para uma experiencia moderna, mantendo 100% das funcionalidades existentes. O foco e em micro-interacoes, tipografia, espacamento e acabamento visual que transmitam profissionalismo.
 
-### 1. Toggle no Perfil do Atendente (`src/pages/MyProfile.tsx`)
-- Adicionar estado `soundEnabled` (default `true`)
-- No `fetchProfile`, ler `sound_enabled` do `attendantData`
-- Adicionar um Switch (componente ja existente em `ui/switch.tsx`) na card de "Status de Atendimento" com label "Notificacoes sonoras"
-- Ao alternar, salvar imediatamente no `attendant_profiles` (mesmo padrao do status)
+---
 
-### 2. Respeitar preferencia no Workspace (`src/hooks/useChatRealtime.ts`)
-- Adicionar parametro `soundEnabled: boolean` ao hook (ou receber via props/context)
-- Usar `useRef` para manter valor atualizado do `soundEnabled`
-- Condicionar o `new Audio(...).play()` (linha 365) a `soundEnabledRef.current === true`
-- O hook ja recebe props customizaveis — adicionar `soundEnabled`
+## 1. FAB (Floating Action Button)
 
-### 3. Passar `soundEnabled` do Workspace para o hook (`src/pages/AdminWorkspace.tsx`)
-- Ao buscar o `attendant_profiles` do usuario logado (ja feito para obter `attendantId`), tambem ler `sound_enabled`
-- Passar como prop para `useChatRealtime`
-- Escutar mudancas em tempo real no `attendant_profiles` para refletir toggle sem reload
+**Atual**: Circulo solido com icone `MessageSquare` estatico.
 
-### 4. Som no Widget do Cliente (`src/pages/ChatWidget.tsx`)
-- Adicionar som de notificacao quando uma nova mensagem do tipo `attendant` chegar no realtime do widget
-- Tocar sempre (sem toggle para o cliente — conforme requisito)
-- Usar o mesmo base64 audio curto ja usado no workspace, ou um tom mais suave
-- Condicionar para nao tocar se a aba estiver em foco e o widget aberto (evitar ruido)
+**Novo**:
+- Gradiente sutil usando `primaryColor` (base -> 10% mais escuro)
+- Sombra elevada com cor (`box-shadow: 0 4px 14px {primaryColor}40`)
+- Animacao de entrada `scale-in` ao carregar
+- Icone com transicao suave: `MessageSquare` quando fechado, `X` com rotacao ao abrir
+- Badge de mensagens nao lidas com animacao `pulse` (manter logica existente)
+- Hover: `scale(1.08)` + sombra expandida
 
-## Resumo de Mudancas
+## 2. Header
+
+**Atual**: Fundo solido `primaryColor` com icone + textos simples.
+
+**Novo**:
+- Gradiente no header: `linear-gradient(135deg, primaryColor, primaryColor-escurecido-15%)`
+- Avatar do atendente: quando `attendantName` existe, mostrar circulo com iniciais (ex: "MA" para "Maria Alves") ao lado do nome
+- Status indicator: bolinha verde pulsante ao lado do nome do atendente quando fase `chat`
+- Texto do subtitulo com animacao `fade-in` ao trocar de fase
+- Botao de fechar (X) com `backdrop-filter: blur` e borda semi-transparente
+- Cantos arredondados superiores maiores: `rounded-t-2xl`
+
+## 3. Formulario Inicial (phase: form)
+
+**Atual**: Labels + inputs padrao empilhados com botao ao final.
+
+**Novo**:
+- Ilustracao/icone decorativo no topo: icone `MessageSquare` grande com opacidade 8% como background decorativo
+- Inputs com icones inline (User, Mail, Phone) a esquerda dentro do campo
+- Labels flutuantes acima do input com tipografia `text-xs font-medium uppercase tracking-wide text-muted-foreground`
+- Botao "Iniciar Conversa" com icone `ArrowRight` e hover com deslocamento sutil (`translateX(2px)` no icone)
+- Espacamento vertical aumentado entre campos (gap-5)
+- Texto introdutorio com `text-sm leading-relaxed`
+
+## 4. Lista de Historico (phase: history)
+
+**Atual**: Cards com borda simples, icones pequenos, informacoes densas.
+
+**Novo**:
+- Cards com hover lift (`translateY(-1px)` + sombra)
+- Indicador visual lateral: barra colorida a esquerda (verde para ativo, cinza para encerrado, laranja para pendente)
+- Preview da ultima mensagem com `line-clamp-1` e fonte italic
+- Data em formato relativo quando < 24h ("ha 2 horas") e absoluto quando > 24h
+- CSAT score com estrelas miniaturas preenchidas
+- Separacao visual entre chats ativos (topo, com destaque) e encerrados
+- Botao "Novo Chat" com estilo pill (mais arredondado) e icone `Plus`
+
+## 5. Area de Mensagens (phase: chat)
+
+**Atual**: Bolhas basicas com cores solidas, timestamps pequenos.
+
+**Novo**:
+- **Bolhas do visitante**: cantos assimetricos (`rounded-2xl rounded-br-md`) para efeito de balao de fala moderno
+- **Bolhas do atendente**: `rounded-2xl rounded-bl-md` com fundo `bg-muted/60` e borda sutil `border border-border/50`
+- **Sistema**: pill centralizada com `backdrop-filter: blur(8px)` e fundo semi-transparente
+- **Agrupamento temporal**: quando mensagens consecutivas do mesmo remetente tem < 2 min de diferenca, omitir nome e reduzir gap (gap-1 em vez de gap-3)
+- **Timestamp**: mostrar apenas na ultima mensagem de cada grupo, com animacao hover para revelar em mensagens intermediarias
+- **Imagens**: preview com `rounded-xl` e overlay escuro no hover com icone de zoom
+- **Arquivos**: card com icone por tipo de arquivo, barra de progresso durante upload
+- **Typing indicator**: tres pontos com animacao mais suave (wave em vez de bounce)
+- **Scroll**: botao "Novas mensagens" flutuante quando usuario esta scrollado para cima
+- **Load more**: botao com estilo ghost e animacao de loading inline
+
+## 6. Barra de Input
+
+**Atual**: Input + botoes lado a lado com espacamento basico.
+
+**Novo**:
+- Container com `rounded-full` ou `rounded-2xl` e fundo `bg-muted/30` com borda interna
+- Input sem borda propria, integrado ao container
+- Botao de envio circular com gradiente `primaryColor`
+- Botao de anexo com tooltip
+- Preview de arquivo pendente como chip inline acima do input (com miniatura para imagens)
+- Transicao suave do botao enviar: opacidade reduzida quando desabilitado, scale ao clicar
+
+## 7. Telas de Estado (waiting, csat, closed)
+
+### Waiting
+- Animacao de ondas concentricas saindo do icone central (CSS puro)
+- Texto "Aguardando atendimento..." com animacao de reticencias
+- Progress bar indeterminada sutil no topo
+
+### CSAT
+- Estrelas com animacao de scale ao selecionar (`scale(1.2)` momentaneo)
+- Emoji correspondente ao score abaixo das estrelas (triste -> neutro -> feliz)
+- Textarea com contador de caracteres
+
+### Closed
+- Icone de check animado (draw SVG)
+- Mensagem de agradecimento com fade-in
+
+## 8. Responsividade e Micro-interacoes
+
+- Todos os botoes com `active:scale-95` para feedback tatil
+- Transicoes de fase com `animate-fade-in` (ja existente)
+- Focus rings visiveis e acessiveis em todos os elementos interativos
+- Suporte a tema claro (manter consistencia com identidade Journey)
+
+---
+
+## Resumo Tecnico
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/MyProfile.tsx` | Adicionar Switch de "Notificacoes sonoras" na card de atendimento |
-| `src/hooks/useChatRealtime.ts` | Aceitar param `soundEnabled`, condicionar audio a ele |
-| `src/pages/AdminWorkspace.tsx` | Ler `sound_enabled` do attendant e passar ao hook |
-| `src/pages/ChatWidget.tsx` | Tocar som quando mensagem do atendente chegar |
+| `src/pages/ChatWidget.tsx` | Redesign completo da camada de apresentacao (JSX + classes Tailwind). Nenhuma logica de negocio ou estado alterada |
+| `src/index.css` | Adicionar keyframes para animacoes novas (wave-dots, ripple, check-draw) |
 
-Nenhuma alteracao no banco de dados (coluna `sound_enabled` ja existe).
+**Nenhuma funcionalidade sera removida ou alterada.** Todas as fases, handlers, realtime subscriptions e integracao com o embed permanecem identicos. Apenas classes CSS e estrutura JSX de apresentacao serao modificadas.
 
