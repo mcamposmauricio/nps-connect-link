@@ -118,8 +118,8 @@ const Results = () => {
     <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Resultados</h1>
-            <p className="text-muted-foreground">Visualize todas as respostas de NPS</p>
+            <h1 className="text-2xl font-semibold">Resultados</h1>
+            <p className="text-sm text-muted-foreground mt-1">Visualize todas as respostas de NPS</p>
           </div>
           {filteredResponses.length > 0 && (
             <Button onClick={handleExportCSV} variant="outline">

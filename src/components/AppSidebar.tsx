@@ -127,14 +127,14 @@ export function AppSidebar() {
   // Active item style — subtle bg + Metric Blue left border
   const activeItemCls =
     "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
-  const groupLabelCls = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-2 py-1.5";
+  const groupLabelCls = "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70 px-2 py-1.5";
 
   const logoSrc = "/logo-light.svg";
   const iconSrc = "/logo-icon-light.svg";
 
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-2 py-6">
+      <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
         <button
         onClick={() => {
             if (isAdmin) navigate("/admin/dashboard");
@@ -146,9 +146,9 @@ export function AppSidebar() {
           className="flex items-center justify-center gap-3 min-w-0 w-full"
         >
           {collapsed ? (
-            <img src={iconSrc} alt="Journey" className="h-20 w-20 object-contain flex-shrink-0" />
+            <img src={iconSrc} alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
           ) : (
-            <img src={logoSrc} alt="Journey" className="h-20 w-auto object-contain max-w-[200px]" />
+            <img src={logoSrc} alt="Journey" className="h-10 w-auto object-contain max-w-[200px]" />
           )}
         </button>
         {isImpersonating && !collapsed && (
@@ -281,7 +281,7 @@ export function AppSidebar() {
                                 >
                                   <Inbox className="h-4 w-4" />
                                   <span>{t("chat.workspace.station")}</span>
-                                  <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{totalActiveChats}</Badge>
+                                  <Badge variant="accent" className="ml-auto text-[10px] min-w-[18px] h-4 px-1 text-center">{totalActiveChats}</Badge>
                                 </SidebarMenuButton>
                                 <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={(e) => { e.stopPropagation(); handleWorkspaceOpen(!workspaceOpen); }}>
                                   {workspaceOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -297,7 +297,7 @@ export function AppSidebar() {
                                   >
                                     <Inbox className="h-3.5 w-3.5" />
                                     <span className="truncate">Não Atribuído</span>
-                                    {unassignedCount > 0 && <Badge variant="destructive" className="ml-auto text-[9px] h-4 px-1">{unassignedCount}</Badge>}
+                                    {unassignedCount > 0 && <Badge variant="destructive" className="ml-auto text-[10px] min-w-[18px] h-4 px-1 text-center">{unassignedCount}</Badge>}
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
                                 {teamAttendants.map((att) => (
@@ -310,7 +310,7 @@ export function AppSidebar() {
                                     >
                                       <span className={`h-2 w-2 rounded-full shrink-0 ${att.status === "online" ? "bg-green-500" : att.status === "busy" ? "bg-amber-500" : "bg-gray-400"}`} />
                                       <span className="truncate">{att.user_id === user?.id ? `${t("chat.workspace.you")} ${att.display_name}` : att.display_name}</span>
-                                      <Badge variant="accent" className="ml-auto text-[9px] h-4 px-1">{att.active_count}</Badge>
+                                      <Badge variant="accent" className="ml-auto text-[10px] min-w-[18px] h-4 px-1 text-center">{att.active_count}</Badge>
                                     </SidebarMenuButton>
                                   </SidebarMenuItem>
                                 ))}
@@ -438,7 +438,7 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-white/[0.06] p-3">
+      <SidebarFooter className="border-t border-border p-3">
         <div className="flex flex-col gap-1">
           <SidebarMenuButton
             onClick={() => navigate("/profile")}
