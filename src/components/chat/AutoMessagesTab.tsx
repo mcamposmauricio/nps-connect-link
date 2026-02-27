@@ -20,6 +20,8 @@ import {
   Sunrise,
   UserX,
   Save,
+  ArrowDown,
+  Archive,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,30 +39,25 @@ interface AutoMessageTypeConfig {
   hasMinutes: boolean;
   defaultEnabled: boolean;
   defaultMinutes?: number;
-  group: "session" | "time" | "special";
+  group: "main_flow" | "other";
+  flowStep?: number;
 }
 
 const AUTO_MESSAGE_TYPES: AutoMessageTypeConfig[] = [
-  // Session group
-  { rule_type: "welcome_message", icon: MessageSquare, hasMinutes: false, defaultEnabled: true, group: "session" },
-  { rule_type: "queue_position", icon: ListOrdered, hasMinutes: false, defaultEnabled: false, group: "session" },
-  { rule_type: "attendant_assigned", icon: UserCheck, hasMinutes: false, defaultEnabled: true, group: "session" },
-  { rule_type: "transfer_notice", icon: ArrowRightLeft, hasMinutes: false, defaultEnabled: false, group: "session" },
-  // Time group
-  { rule_type: "inactivity_warning", icon: Clock, hasMinutes: true, defaultEnabled: false, defaultMinutes: 5, group: "time" },
-  { rule_type: "auto_close", icon: XCircle, hasMinutes: true, defaultEnabled: false, defaultMinutes: 30, group: "time" },
-  { rule_type: "attendant_absence", icon: UserX, hasMinutes: true, defaultEnabled: false, defaultMinutes: 5, group: "time" },
-  // Special group
-  { rule_type: "offline_message", icon: WifiOff, hasMinutes: false, defaultEnabled: true, group: "special" },
-  { rule_type: "post_service_csat", icon: Star, hasMinutes: false, defaultEnabled: false, group: "special" },
-  { rule_type: "return_online", icon: Sunrise, hasMinutes: false, defaultEnabled: false, group: "special" },
+  // Main Flow (sequential chain)
+  { rule_type: "welcome_message", icon: MessageSquare, hasMinutes: false, defaultEnabled: true, group: "main_flow", flowStep: 1 },
+  { rule_type: "inactivity_warning", icon: Clock, hasMinutes: true, defaultEnabled: true, defaultMinutes: 10, group: "main_flow", flowStep: 2 },
+  { rule_type: "inactivity_warning_2", icon: Clock, hasMinutes: true, defaultEnabled: true, defaultMinutes: 10, group: "main_flow", flowStep: 3 },
+  { rule_type: "auto_close", icon: Archive, hasMinutes: true, defaultEnabled: true, defaultMinutes: 10, group: "main_flow", flowStep: 4 },
+  // Other messages
+  { rule_type: "queue_position", icon: ListOrdered, hasMinutes: false, defaultEnabled: false, group: "other" },
+  { rule_type: "attendant_assigned", icon: UserCheck, hasMinutes: false, defaultEnabled: false, group: "other" },
+  { rule_type: "transfer_notice", icon: ArrowRightLeft, hasMinutes: false, defaultEnabled: false, group: "other" },
+  { rule_type: "attendant_absence", icon: UserX, hasMinutes: true, defaultEnabled: false, defaultMinutes: 5, group: "other" },
+  { rule_type: "offline_message", icon: WifiOff, hasMinutes: false, defaultEnabled: false, group: "other" },
+  { rule_type: "post_service_csat", icon: Star, hasMinutes: false, defaultEnabled: false, group: "other" },
+  { rule_type: "return_online", icon: Sunrise, hasMinutes: false, defaultEnabled: false, group: "other" },
 ];
-
-const GROUP_LABELS: Record<string, string> = {
-  session: "chat.autoMsg.sessionGroup",
-  time: "chat.autoMsg.timeGroup",
-  special: "chat.autoMsg.specialGroup",
-};
 
 const AutoMessagesTab = () => {
   const { t } = useLanguage();
@@ -82,7 +79,6 @@ const AutoMessagesTab = () => {
     const existing = rulesData ?? [];
     const existingTypes = new Set(existing.map((r) => r.rule_type));
 
-    // Seed missing types
     const toInsert = AUTO_MESSAGE_TYPES.filter((t) => !existingTypes.has(t.rule_type));
 
     if (toInsert.length > 0) {
@@ -162,11 +158,81 @@ const AutoMessagesTab = () => {
     );
   }
 
-  const groups: Array<{ key: string; types: AutoMessageTypeConfig[] }> = [
-    { key: "session", types: AUTO_MESSAGE_TYPES.filter((t) => t.group === "session") },
-    { key: "time", types: AUTO_MESSAGE_TYPES.filter((t) => t.group === "time") },
-    { key: "special", types: AUTO_MESSAGE_TYPES.filter((t) => t.group === "special") },
-  ];
+  const mainFlowTypes = AUTO_MESSAGE_TYPES.filter((t) => t.group === "main_flow");
+  const otherTypes = AUTO_MESSAGE_TYPES.filter((t) => t.group === "other");
+
+  const renderRuleCard = (cfg: AutoMessageTypeConfig, showFlowStep: boolean) => {
+    const rule = getRuleForType(cfg.rule_type);
+    if (!rule) return null;
+    const Icon = cfg.icon;
+    const isDisabled = !rule.is_enabled;
+
+    return (
+      <div
+        key={rule.id}
+        className="rounded-lg border border-border/50 p-4 space-y-3"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {showFlowStep && cfg.flowStep && (
+              <div className="flex items-center justify-center rounded-full bg-primary text-primary-foreground w-7 h-7 text-xs font-bold shrink-0 mt-0.5">
+                {cfg.flowStep}
+              </div>
+            )}
+            <div className="rounded-md bg-primary/10 p-2 mt-0.5">
+              <Icon className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">{t(`chat.autoMsg.${cfg.rule_type}.title`)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t(`chat.autoMsg.${cfg.rule_type}.description`)}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={rule.is_enabled}
+            onCheckedChange={(v) => toggleRule(rule, v)}
+          />
+        </div>
+
+        {/* Fields */}
+        <div className={`space-y-3 transition-opacity ${isDisabled ? "opacity-40 pointer-events-none" : ""}`}>
+          {cfg.hasMinutes && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("chat.autoMsg.minutesLabel")}</Label>
+              <Input
+                type="number"
+                min={5}
+                value={getLocalValue(rule, "trigger_minutes") ?? ""}
+                onChange={(e) => setLocalEdit(rule.id, "trigger_minutes", Math.max(5, Number(e.target.value) || 5))}
+                className="w-[120px]"
+              />
+              <p className="text-[11px] text-muted-foreground">{t("chat.autoMsg.minutesMin")}</p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t("chat.settings.macros.content")}</Label>
+            <Textarea
+              value={(getLocalValue(rule, "message_content") as string) ?? ""}
+              onChange={(e) => setLocalEdit(rule.id, "message_content", e.target.value)}
+              rows={3}
+            />
+          </div>
+          {hasUnsavedChanges(rule.id) && (
+            <Button
+              size="sm"
+              onClick={() => saveRule(rule)}
+              disabled={savingId === rule.id}
+            >
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+              {savingId === rule.id ? t("chat.settings.rules.savingRule") : t("common.save")}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card>
@@ -175,82 +241,34 @@ const AutoMessagesTab = () => {
         <CardDescription>{t("chat.settings.rules.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
-        {groups.map((group) => (
-          <div key={group.key} className="space-y-4">
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              {t(GROUP_LABELS[group.key])}
-            </p>
-            <div className="space-y-3">
-              {group.types.map((cfg) => {
-                const rule = getRuleForType(cfg.rule_type);
-                if (!rule) return null;
-                const Icon = cfg.icon;
-                const isDisabled = !rule.is_enabled;
-
-                return (
-                  <div
-                    key={rule.id}
-                    className="rounded-lg border border-border/50 p-4 space-y-3"
-                  >
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="rounded-md bg-primary/10 p-2 mt-0.5">
-                          <Icon className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{t(`chat.autoMsg.${cfg.rule_type}.title`)}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {t(`chat.autoMsg.${cfg.rule_type}.description`)}
-                          </p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={rule.is_enabled}
-                        onCheckedChange={(v) => toggleRule(rule, v)}
-                      />
-                    </div>
-
-                    {/* Fields */}
-                    <div className={`space-y-3 transition-opacity ${isDisabled ? "opacity-40 pointer-events-none" : ""}`}>
-                      {cfg.hasMinutes && (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">{t("chat.autoMsg.minutesLabel")}</Label>
-                          <Input
-                            type="number"
-                            min={5}
-                            value={getLocalValue(rule, "trigger_minutes") ?? ""}
-                            onChange={(e) => setLocalEdit(rule.id, "trigger_minutes", Math.max(5, Number(e.target.value) || 5))}
-                            className="w-[120px]"
-                          />
-                          <p className="text-[11px] text-muted-foreground">{t("chat.autoMsg.minutesMin")}</p>
-                        </div>
-                      )}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t("chat.settings.macros.content")}</Label>
-                        <Textarea
-                          value={(getLocalValue(rule, "message_content") as string) ?? ""}
-                          onChange={(e) => setLocalEdit(rule.id, "message_content", e.target.value)}
-                          rows={2}
-                        />
-                      </div>
-                      {hasUnsavedChanges(rule.id) && (
-                        <Button
-                          size="sm"
-                          onClick={() => saveRule(rule)}
-                          disabled={savingId === rule.id}
-                        >
-                          <Save className="h-3.5 w-3.5 mr-1.5" />
-                          {savingId === rule.id ? t("chat.settings.rules.savingRule") : t("common.save")}
-                        </Button>
-                      )}
-                    </div>
+        {/* Main Flow Group */}
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            {t("chat.autoMsg.mainFlowGroup")}
+          </p>
+          <div className="space-y-0">
+            {mainFlowTypes.map((cfg, index) => (
+              <div key={cfg.rule_type}>
+                {renderRuleCard(cfg, true)}
+                {index < mainFlowTypes.length - 1 && (
+                  <div className="flex justify-center py-1">
+                    <ArrowDown className="h-5 w-5 text-muted-foreground/50" />
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* Other Messages Group */}
+        <div className="space-y-4">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            {t("chat.autoMsg.otherGroup")}
+          </p>
+          <div className="space-y-3">
+            {otherTypes.map((cfg) => renderRuleCard(cfg, false))}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
