@@ -1146,6 +1146,9 @@ export default {
   "chat.teams.deleteConfirm": "Excluir Time?",
   "chat.teams.deleteDesc": "Esta ação não pode ser desfeita. Todos os vínculos de atendentes serão removidos.",
   "chat.teams.addMember": "Adicionar time",
+  "chat.teams.default": "Padrão",
+  "chat.teams.defaultTeam": "Time Padrão",
+  "chat.teams.cannotDeleteDefault": "O time padrão não pode ser excluído",
 
   // Chat Categories
   "chat.categories.title": "Regras de Atendimento",
@@ -1175,6 +1178,9 @@ export default {
   "chat.categories.priorityNormal": "Normal",
   "chat.categories.priorityHigh": "Alta",
   "chat.categories.priorityCritical": "Crítica",
+  "chat.categories.default": "Padrão",
+  "chat.categories.defaultQueue": "Fila Padrão",
+  "chat.categories.cannotDeleteDefault": "A fila padrão não pode ser excluída",
 
   // Unified Add Button
   "companies.add": "Adicionar",

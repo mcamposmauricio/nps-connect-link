@@ -1123,6 +1123,9 @@ export default {
   "chat.teams.deleteConfirm": "Delete Team?",
   "chat.teams.deleteDesc": "This action cannot be undone. All attendant links will be removed.",
   "chat.teams.addMember": "Add team",
+  "chat.teams.default": "Default",
+  "chat.teams.defaultTeam": "Default Team",
+  "chat.teams.cannotDeleteDefault": "The default team cannot be deleted",
 
   // Chat Categories
   "chat.categories.title": "Service Rules",
@@ -1152,6 +1155,9 @@ export default {
   "chat.categories.priorityNormal": "Normal",
   "chat.categories.priorityHigh": "High",
   "chat.categories.priorityCritical": "Critical",
+  "chat.categories.default": "Default",
+  "chat.categories.defaultQueue": "Default Queue",
+  "chat.categories.cannotDeleteDefault": "The default queue cannot be deleted",
 
   // Unified Add Button
   "companies.add": "Add",

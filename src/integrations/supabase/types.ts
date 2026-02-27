@@ -1070,6 +1070,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          is_default: boolean
           name: string
           tenant_id: string | null
           user_id: string
@@ -1079,6 +1080,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_default?: boolean
           name: string
           tenant_id?: string | null
           user_id: string
@@ -1088,6 +1090,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_default?: boolean
           name?: string
           tenant_id?: string | null
           user_id?: string
@@ -1292,6 +1295,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          is_default: boolean
           name: string
           tenant_id: string | null
           user_id: string
@@ -1300,6 +1304,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_default?: boolean
           name: string
           tenant_id?: string | null
           user_id: string
@@ -1308,6 +1313,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_default?: boolean
           name?: string
           tenant_id?: string | null
           user_id?: string

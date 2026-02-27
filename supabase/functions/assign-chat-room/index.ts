@@ -108,7 +108,20 @@ Deno.serve(async (req) => {
         .eq("id", room.contact_id)
         .maybeSingle();
 
-      if (contact?.service_category_id) {
+      // Resolve category: use contact's or fallback to tenant default
+      let categoryId = contact?.service_category_id;
+      if (!categoryId) {
+        const { data: defaultCat } = await supabase
+          .from("chat_service_categories")
+          .select("id")
+          .eq("tenant_id", room.tenant_id)
+          .eq("is_default", true)
+          .limit(1)
+          .maybeSingle();
+        categoryId = defaultCat?.id;
+      }
+
+      if (categoryId) {
         // Get category-team links with enabled configs
         const { data: catTeams } = await supabase
           .from("chat_category_teams")
@@ -117,7 +130,7 @@ Deno.serve(async (req) => {
             team_id,
             chat_assignment_configs!inner(enabled, online_only, capacity_limit, allow_over_capacity)
           `)
-          .eq("category_id", contact.service_category_id);
+          .eq("category_id", categoryId);
 
         if (catTeams && catTeams.length > 0) {
           for (const ct of catTeams) {
