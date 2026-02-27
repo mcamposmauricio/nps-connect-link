@@ -1,100 +1,125 @@
 
 
-# Melhorias no Widget de Chat e Workspace
+# Categoria Padrao e Time Padrao por Tenant
 
-## 1. Estilo visual diferenciado para mensagens automaticas no Widget
+## Objetivo
 
-**Arquivo**: `src/pages/ChatWidget.tsx`
-
-Atualmente as mensagens de sistema aparecem como pilulas cinzas centralizadas. Sera aplicado um estilo com fundo amarelo claro (`bg-amber-50 border border-amber-200/60 text-amber-800`) para que se destaquem visualmente das trocas normais entre atendente e visitante.
+Cada tenant tera automaticamente uma **"Fila Padrao"** (categoria de servico) e um **"Time Padrao"** (time de atendentes) criados como entidades reais no banco e visiveis na UI. Essas entidades nao podem ser excluidas. Empresas sem categoria e atendentes sem time serao vinculados a elas automaticamente.
 
 ---
 
-## 2. Encerrar como pendente: mover para lista de pendentes do atendente
+## 1. Migracao de Banco de Dados
 
-**Arquivo**: `supabase/functions/process-chat-auto-rules/index.ts`
+Adicionar coluna `is_default boolean NOT NULL DEFAULT false` em ambas as tabelas:
 
-O `inactivity_warning` ja muda o status para `waiting`. Mas o comportamento correto e: a sala sai da lista ativa do atendente e vai para pendentes, mantendo o `attendant_id` para que, quando o cliente retomar, volte para o mesmo atendente.
+```sql
+ALTER TABLE public.chat_service_categories ADD COLUMN is_default boolean NOT NULL DEFAULT false;
+ALTER TABLE public.chat_teams ADD COLUMN is_default boolean NOT NULL DEFAULT false;
+```
 
-**Arquivo**: `src/pages/ChatWidget.tsx`
-
-Quando o visitante envia uma mensagem em um chat com status `closed` e `resolution_status = "pending"`, o chat ja pode ser reaberto via `handleReopenChat`. Confirmar que o fluxo de reopen usa o `attendant_id` original da sala (ja implementado, precisa apenas verificar).
-
-A Edge Function `process-chat-auto-rules` no passo `inactivity_warning` ja muda para `waiting` -- ajustar para mudar para `closed` com `resolution_status: "pending"` em vez de `waiting`, para que saia da fila ativa e va para pendentes conforme solicitado.
-
----
-
-## 3. CSAT apenas para chats resolvidos (nao pendentes/arquivados)
-
-**Arquivo**: `src/pages/ChatWidget.tsx` (linha ~448)
-
-Atualmente, quando a sala muda para `closed`, o widget sempre vai para `phase = "csat"`. Alterar para verificar o `resolution_status`:
-- Se `resolution_status === "resolved"` -> mostrar CSAT
-- Se `resolution_status === "pending"` ou `"archived"` -> pular direto para historico ou `closed`
-
-Isso requer buscar o `resolution_status` no payload do Realtime (ja disponivel pois a tabela usa `REPLICA IDENTITY FULL`).
+Nenhum dado existente sera alterado -- as entidades padrao serao criadas sob demanda pela UI.
 
 ---
 
-## 4. Checks de entregue e visualizado no Widget
+## 2. CategoriesTab.tsx -- Auto-criacao da Fila Padrao
 
-**Arquivo**: `src/pages/ChatWidget.tsx`
+No `fetchAll`, apos carregar categorias, incluir `is_default` no select. Se nenhuma categoria com `is_default = true` existir para o tenant, criar automaticamente:
 
-Adicionar indicadores visuais junto ao timestamp das mensagens do visitante:
-- Um check unico (&#10003;) = entregue (mensagem inserida no banco com sucesso)
-- Duplo check (&#10003;&#10003;) = visualizado pelo atendente
+- Nome: "Fila Padrao"
+- Cor: `#6B7280` (cinza)
+- `is_default: true`
 
-**Implementacao**:
-- Entregue: marcar quando a mensagem otimista e substituida pela real (confirmacao do Realtime INSERT)
-- Visualizado: usar um campo `read_at` na tabela `chat_messages` ou um campo `last_read_at` na sala. Quando o atendente abre/visualiza a conversa, gravar o timestamp. No widget, comparar `msg.created_at` com `last_read_at` da sala para determinar se mostra check duplo.
+Essa categoria aparecera **sempre no topo** da lista com um badge "Padrao" ao lado do nome. Na UI:
 
-**Migracao de banco**: Adicionar coluna `attendant_last_read_at` em `chat_rooms` para rastrear ate onde o atendente leu.
-
-**Arquivo**: `src/pages/AdminWorkspace.tsx` - Ao selecionar uma sala, atualizar `attendant_last_read_at` com o timestamp atual.
+- O botao de **excluir** sera desabilitado para a categoria padrao (com tooltip explicativo)
+- O nome pode ser editado normalmente
+- O campo `is_default` nunca e alterado pela UI
 
 ---
 
-## 5. Macros com navegacao fluida por teclado
+## 3. TeamsTab.tsx -- Auto-criacao do Time Padrao
 
-**Arquivo**: `src/components/chat/ChatInput.tsx`
+Mesma logica: no `fetchTeams`, incluir `is_default` no select. Se nenhum time com `is_default = true` existir, criar automaticamente:
 
-Problemas atuais:
-- O componente `Command` do cmdk ja suporta navegacao por setas e Enter, porem o macro popup e controlado manualmente e pode nao receber foco corretamente
-- O filtro por `/` nao filtra pelo conteudo digitado apos a barra
+- Nome: "Time Padrao"
+- `is_default: true`
 
-Melhorias:
-- Quando `macrosOpen = true`, capturar as teclas no textarea: setas (up/down) e Enter delegam para o Command
-- Filtrar macros pelo texto apos `/` (ex: `/ola` filtra macros com "ola" no titulo ou shortcut)
-- Enter seleciona a macro destacada e insere o conteudo no textarea
-- Escape fecha o popup de macros
-- Remover o `CommandInput` separado (o textarea ja serve como input de busca)
+O time padrao aparece no topo da lista com badge "Padrao". Nao pode ser excluido (botao desabilitado). Nome editavel.
 
 ---
 
-## 6. CloseRoomDialog: nota apenas para Resolvido
+## 4. AttendantsTab.tsx -- Atribuicao automatica ao Time Padrao
 
-**Arquivo**: `src/components/chat/CloseRoomDialog.tsx`
+Quando um atendente e habilitado para chat (`toggleChatEnabled` com `enabled = true`):
 
-Reestruturar o dialog para ter 3 botoes claros:
-- **Resolvido**: abre campo de nota + tags (como hoje)
-- **Com Pendencia**: fecha imediatamente sem pedir nota
-- **Arquivar**: fecha imediatamente sem pedir nota
+1. Aguardar a criacao do `attendant_profile` pelo trigger do banco
+2. Verificar se o atendente ja pertence a algum time
+3. Se nao pertencer a nenhum, adiciona-lo automaticamente ao time com `is_default = true` do tenant
 
-A nota e o seletor de tags so aparecem se o usuario escolher "Resolvido" primeiro. "Pendencia" e "Arquivar" executam a acao diretamente.
-
-Atualizar a interface `onConfirm` para aceitar `"resolved" | "pending" | "archived"`.
+Isso garante que todo atendente novo ja tenha pelo menos um time associado, tornando-o elegivel para o motor de roteamento desde o inicio.
 
 ---
 
-## Arquivos a modificar
+## 5. Roteamento -- Fallback para Categoria Padrao
+
+### DB Function `assign_chat_room`
+
+No trecho onde verifica `v_contact.service_category_id IS NULL` e retorna sem atribuir (linha `IF NOT FOUND OR v_contact.service_category_id IS NULL THEN RETURN NEW; END IF;`):
+
+- Em vez de retornar, buscar a categoria com `is_default = true` e `tenant_id = v_tenant_id`
+- Usar o `id` dessa categoria para o roteamento via `chat_category_teams`
+- Se nao existir categoria padrao, manter comportamento atual (sala fica em waiting)
+
+### Edge Function `assign-chat-room/index.ts`
+
+Mesma logica: quando `contact.service_category_id` for `null`, buscar a categoria `is_default = true` do tenant da sala e usar para verificar atendentes elegiveis.
+
+---
+
+## 6. Traducoes
+
+### pt-BR.ts
+- `chat.categories.default`: "Padrao"
+- `chat.categories.defaultQueue`: "Fila Padrao"
+- `chat.categories.cannotDeleteDefault`: "A fila padrao nao pode ser excluida"
+- `chat.teams.default`: "Padrao"
+- `chat.teams.defaultTeam`: "Time Padrao"
+- `chat.teams.cannotDeleteDefault`: "O time padrao nao pode ser excluido"
+
+### en.ts
+- Equivalentes em ingles
+
+---
+
+## Fluxo Resumido
+
+```text
+Tenant abre a aba "Categorias" pela primeira vez
+  -> Sistema cria "Fila Padrao" (is_default=true) automaticamente
+  -> Aparece na UI como primeiro item com badge "Padrao"
+
+Tenant abre a aba "Times" pela primeira vez
+  -> Sistema cria "Time Padrao" (is_default=true) automaticamente
+  -> Aparece na UI como primeiro item com badge "Padrao"
+
+Atendente habilitado para chat sem time
+  -> Automaticamente adicionado ao "Time Padrao"
+
+Empresa sem service_category_id no roteamento
+  -> Motor usa "Fila Padrao" para buscar times e atendentes elegiveis
+```
+
+---
+
+## Resumo de Arquivos
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/ChatWidget.tsx` | Estilo amarelo para msgs sistema; CSAT condicional por resolution_status; checks entregue/visualizado; subscrever attendant_last_read_at |
-| `src/components/chat/CloseRoomDialog.tsx` | 3 botoes; nota apenas para resolvido; adicionar opcao "Arquivar" |
-| `src/components/chat/ChatInput.tsx` | Macros: filtro por texto pos-barra, navegacao por setas/Enter, foco automatico |
-| `src/pages/AdminWorkspace.tsx` | Atualizar `attendant_last_read_at` ao abrir sala; ajustar handleConfirmClose para 3 status |
-| `supabase/functions/process-chat-auto-rules/index.ts` | Passo inactivity_warning fecha como pending (nao waiting) |
-| `src/components/chat/ChatMessageList.tsx` | Estilo amarelo claro para msgs de sistema no admin |
-| Migration SQL | Adicionar `attendant_last_read_at timestamptz` em `chat_rooms` |
+| Migration SQL | `ADD COLUMN is_default boolean DEFAULT false` em `chat_service_categories` e `chat_teams`; atualizar funcao `assign_chat_room` com fallback |
+| `supabase/functions/assign-chat-room/index.ts` | Fallback para categoria padrao quando `service_category_id IS NULL` |
+| `src/components/chat/CategoriesTab.tsx` | Select `is_default`; auto-criar categoria padrao; badge "Padrao"; bloquear exclusao |
+| `src/components/chat/TeamsTab.tsx` | Select `is_default`; auto-criar time padrao; badge "Padrao"; bloquear exclusao |
+| `src/components/chat/AttendantsTab.tsx` | Ao habilitar atendente sem time, adiciona-lo ao time padrao |
+| `src/locales/pt-BR.ts` | Novas traducoes |
+| `src/locales/en.ts` | Equivalentes em ingles |
 
