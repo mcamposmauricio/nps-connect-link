@@ -1,86 +1,63 @@
 
 
-# Revisao de Design UI/UX do Popup de Banners
+# Correcoes de UX: Widget Scroll, Badge de Notificacao e Loading do Workspace
 
-## Problemas Identificados
+## Problema 1: Widget abre na primeira mensagem (scroll incorreto)
 
-### 1. Fundo branco no dark mode
-O dialog esta com fundo branco puro, quebrando completamente com o tema escuro da plataforma. Labels, inputs e separadores estao todos em estilo "light", criando um contraste visual desagradavel.
+**Causa raiz**: O efeito de scroll (linhas 480-489 do `ChatWidget.tsx`) depende apenas de `[messages]`. Quando o usuario minimiza e reabre o widget, ou navega entre telas (historico -> chat -> historico -> chat), as mensagens ja estao carregadas no state e nao disparam uma nova renderizacao. O scroll nao e reexecutado.
 
-### 2. Preview desconectado do scroll
-Quando o usuario rola o formulario para baixo, o preview desaparece do viewport. O preview deveria ficar fixo (sticky) para que o usuario veja as mudancas em tempo real enquanto edita qualquer campo.
+**Solucao**: Adicionar um `scrollTrigger` que incrementa sempre que:
+- O widget e reaberto (`isOpen` muda de `false` para `true`)
+- A fase muda para `chat` ou `viewTranscript` (navegacao interna)
 
-### 3. Seletores de tipo sem feedback de cor
-Os 5 botoes de tipo (Informacao, Alerta, Sucesso, Promocao, Atualizacao) sao todos cinza/neutros. Ao selecionar um tipo, a cor de fundo do banner deveria mudar automaticamente para uma cor sugerida (azul para info, amarelo para alerta, etc.), dando feedback visual imediato.
+O efeito de scroll passara a depender de `[messages, scrollTrigger]`, garantindo que o scroll para o final sempre execute ao reentrar na conversa.
 
-### 4. Color pickers primitivos
-Os inputs `type="color"` nativos do browser sao minusculos e pouco intuitivos. Substituir por uma paleta de cores pre-definidas (presets) com opcao de cor customizada, similar ao que ja existe no BannerRichEditor.
-
-### 5. Secoes sem hierarquia visual clara
-As SectionLabels sao muito discretas (10px uppercase). Cada secao deveria ter um container visual mais claro, talvez com um icone representativo e um background sutil para separar os blocos.
-
-### 6. Footer do dialog sem contexto
-Os botoes "Cancel" e "Save" ficam isolados no fundo. O botao Save deveria mostrar um estado diferente quando ha mudancas pendentes e indicar claramente "Criar Banner" vs "Salvar Alteracoes".
-
-### 7. Layout mobile
-Em telas menores o grid `md:grid-cols-2` colapsa, jogando o preview para baixo do formulario inteiro, tornando-o inutil.
+**Arquivo**: `src/pages/ChatWidget.tsx`
 
 ---
 
-## Melhorias Propostas
+## Problema 2: FAB sem badge de mensagens nao lidas
 
-### A. Corrigir cores para dark mode
-- Remover quaisquer classes de fundo branco explicitas do `DialogContent`
-- Garantir que todos os inputs, labels e separadores usem tokens semanticos (`bg-background`, `border-border`, etc.)
-- O preview mockup interno tambem precisa respeitar o tema
+**Causa raiz**: O botao FAB (linhas 956-984) nao possui nenhum mecanismo de contagem de mensagens recebidas enquanto o widget esta minimizado. Mensagens do atendente chegam via realtime subscription (que continua ativa mesmo minimizado), mas nao ha state para contabilizar as nao lidas.
 
-### B. Preview sticky
-- Aplicar `sticky top-0` na coluna do preview para que ele acompanhe o scroll do formulario
-- Isso garante que qualquer alteracao (tipo, cor, texto, link) seja visivel instantaneamente
+**Solucao**:
+- Adicionar state `unreadCount` ao `ChatWidget`
+- No handler de realtime INSERT de mensagens (linha 362-379), quando `!isOpen` e a mensagem e do atendente, incrementar `unreadCount`
+- Quando o widget abre (`isOpen` muda para `true`), zerar `unreadCount`
+- Renderizar um badge vermelho com o numero sobre o FAB quando `unreadCount > 0`
+- Enviar `postMessage` para o iframe pai com o `unreadCount` atualizado, para que o embed script tambem possa exibir o badge
 
-### C. Cores automaticas por tipo
-- Ao clicar em um tipo, aplicar automaticamente a cor de fundo e texto sugerida:
-  - Info: #3B82F6 (azul) / branco
-  - Alerta: #F59E0B (amber) / branco  
-  - Sucesso: #10B981 (verde) / branco
-  - Promocao: #8B5CF6 (roxo) / branco
-  - Atualizacao: #06B6D4 (cyan) / branco
-- O usuario ainda pode customizar depois
+No **embed script** (`nps-chat-embed.js`):
+- Escutar mensagem `chat-unread-count` do iframe
+- Criar/atualizar um badge vermelho no canto superior direito do iframe container quando minimizado
 
-### D. Paleta de cores com presets
-- Substituir `<input type="color">` por uma grade de cores pre-definidas (8-10 cores populares)
-- Manter um pequeno input de cor customizada para casos especificos
-- Mostrar o circulo de cor selecionada de forma mais proeminente
-
-### E. Secoes com cards visuais
-- Agrupar cada secao em um bloco com `rounded-lg bg-muted/30 p-4` e um icone ao lado do titulo
-- Usar icones: Palette (aparencia), Link (interacao), Calendar (agendamento), Target (segmentacao)
-
-### F. Footer melhorado
-- Texto do botao contextual: "Criar Banner" para novo, "Salvar Alteracoes" para edicao
-- Botao desabilitado ate que titulo e conteudo estejam preenchidos (ja existe, manter)
-- Adicionar indicador sutil de campos obrigatorios
-
-### G. Layout responsivo melhorado
-- Em mobile: mostrar preview como um accordion/collapsible no topo, colapsado por padrao
-- Em desktop: manter grid 2 colunas com preview sticky
+**Arquivos**: `src/pages/ChatWidget.tsx`, `public/nps-chat-embed.js`
 
 ---
 
-## Detalhes Tecnicos
+## Problema 3: Workspace mostra loading excessivo ao trocar abas do navegador
 
-### Arquivos a modificar
+**Causa raiz**: A funcao `fetchRooms` no `useChatRealtime.ts` usa `rooms.length` dentro de um `useCallback` com dependencia `[ownerUserId]`. Isso cria uma closure obsoleta onde `rooms.length` sempre vale `0` (valor inicial). Portanto, toda vez que `fetchRooms(true)` e chamado, a condicao `rooms.length === 0` e verdadeira e `setLoading(true)` e executado, mostrando o spinner.
+
+Alem disso, se o token de autenticacao e renovado quando o usuario volta para a aba (comportamento do Supabase `autoRefreshToken`), o `user?.id` pode piscar brevemente de `null` para o valor real, recriando `fetchRooms` e disparando o useEffect novamente com loading.
+
+**Solucao**:
+- Substituir a checagem `rooms.length === 0` por um `useRef` chamado `initialLoadDone`
+- `setLoading(true)` so executa quando `initialLoadDone.current === false`
+- Apos o primeiro fetch bem-sucedido, setar `initialLoadDone.current = true`
+- Isso garante que o spinner aparece **apenas uma vez** na vida do componente, e atualizacoes subsequentes (tab switch, token refresh) sao silenciosas
+
+**Arquivo**: `src/hooks/useChatRealtime.ts`
+
+---
+
+## Resumo de Arquivos
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/AdminBanners.tsx` | Redesign do dialog interno: sticky preview, secoes com cards, paleta de cores, cores auto por tipo, footer contextual, layout mobile |
-| `src/components/chat/BannerPreview.tsx` | Ajustar mock content para respeitar tema (usar tokens semanticos) |
+| `src/pages/ChatWidget.tsx` | scrollTrigger para scroll confiavel + unreadCount state + badge no FAB + postMessage para embed |
+| `public/nps-chat-embed.js` | Escutar `chat-unread-count` e renderizar badge no iframe |
+| `src/hooks/useChatRealtime.ts` | Usar ref `initialLoadDone` para evitar loading repetido |
 
-### Abordagem
-- O `DialogContent` ja usa `max-w-3xl max-h-[90vh] overflow-y-auto`. Mover o overflow para apenas a coluna do formulario, mantendo preview fora do scroll
-- Criar constante `TYPE_DEFAULT_COLORS` mapeando cada tipo para bg/text colors sugeridas
-- Usar `Collapsible` do radix para preview mobile
-- Paleta de cores: grid de circulos clicaveis + input hex, reutilizando pattern do `BannerRichEditor`
-
-Nenhuma mudanca de banco de dados. Nenhuma nova dependencia.
+**Nenhuma mudanca de banco de dados. Nenhuma nova dependencia.**
 
