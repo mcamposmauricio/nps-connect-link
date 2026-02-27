@@ -790,6 +790,12 @@ export default {
   "chat.autoMsg.minutesLabel": "Tempo (minutos)",
   "chat.autoMsg.minutesMin": "Mínimo: 5 minutos",
   "chat.autoMsg.flowStepLabel": "Etapa",
+  "chat.autoMsg.active": "Ativa",
+  "chat.autoMsg.inactive": "Inativa",
+  "chat.autoMsg.saveAll": "Salvar tudo",
+  "chat.autoMsg.moveUp": "Mover para cima",
+  "chat.autoMsg.moveDown": "Mover para baixo",
+  "chat.autoMsg.pendingChanges": "Alterações pendentes",
 
   "chat.autoMsg.welcome_message.title": "Boas-vindas",
   "chat.autoMsg.welcome_message.description": "Enviada automaticamente quando o visitante inicia uma nova conversa",

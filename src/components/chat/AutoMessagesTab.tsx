@@ -5,6 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +19,6 @@ import {
   MessageSquare,
   WifiOff,
   Clock,
-  XCircle,
   ListOrdered,
   UserCheck,
   ArrowRightLeft,
@@ -20,8 +26,10 @@ import {
   Sunrise,
   UserX,
   Save,
-  ArrowDown,
   Archive,
+  ChevronUp,
+  ChevronDown,
+  SaveAll,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +39,7 @@ interface AutoRule {
   is_enabled: boolean;
   trigger_minutes: number | null;
   message_content: string | null;
+  sort_order?: number;
 }
 
 interface AutoMessageTypeConfig {
@@ -59,12 +68,15 @@ const AUTO_MESSAGE_TYPES: AutoMessageTypeConfig[] = [
   { rule_type: "return_online", icon: Sunrise, hasMinutes: false, defaultEnabled: false, group: "other" },
 ];
 
+const MAIN_FLOW_TYPES = ["welcome_message", "inactivity_warning", "inactivity_warning_2", "auto_close"];
+
 const AutoMessagesTab = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [rules, setRules] = useState<AutoRule[]>([]);
   const [localEdits, setLocalEdits] = useState<Record<string, { message_content?: string; trigger_minutes?: number | null }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchAndSeed = useCallback(async () => {
@@ -135,6 +147,21 @@ const AutoMessagesTab = () => {
     setSavingId(null);
   };
 
+  const saveAllChanges = async () => {
+    setSavingAll(true);
+    const editEntries = Object.entries(localEdits);
+    for (const [ruleId, edits] of editEntries) {
+      const updates: Record<string, any> = {};
+      if (edits.message_content !== undefined) updates.message_content = edits.message_content;
+      if (edits.trigger_minutes !== undefined) updates.trigger_minutes = Math.max(5, edits.trigger_minutes ?? 5);
+      await supabase.from("chat_auto_rules").update(updates).eq("id", ruleId);
+      setRules((prev) => prev.map((r) => r.id === ruleId ? { ...r, ...updates } : r));
+    }
+    setLocalEdits({});
+    toast({ title: t("chat.settings.rules.savedRule") });
+    setSavingAll(false);
+  };
+
   const getLocalValue = (rule: AutoRule, field: "message_content" | "trigger_minutes") => {
     const edit = localEdits[rule.id];
     if (edit && field in edit) return edit[field as keyof typeof edit];
@@ -149,6 +176,47 @@ const AutoMessagesTab = () => {
   };
 
   const hasUnsavedChanges = (ruleId: string) => !!localEdits[ruleId];
+  const hasAnyUnsavedChanges = Object.keys(localEdits).length > 0;
+
+  // Reorder main flow rules
+  const getOrderedMainFlowTypes = (): string[] => {
+    // Use sort_order from rules if available, otherwise use default order
+    const mainRules = MAIN_FLOW_TYPES.map((rt) => getRuleForType(rt)).filter(Boolean) as AutoRule[];
+    const hasSortOrder = mainRules.some((r) => (r.sort_order ?? 0) > 0);
+    if (hasSortOrder) {
+      mainRules.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      return mainRules.map((r) => r.rule_type);
+    }
+    return MAIN_FLOW_TYPES;
+  };
+
+  const moveMainFlowRule = async (ruleType: string, direction: "up" | "down") => {
+    const ordered = getOrderedMainFlowTypes();
+    const idx = ordered.indexOf(ruleType);
+    if (direction === "up" && idx <= 0) return;
+    if (direction === "down" && idx >= ordered.length - 1) return;
+
+    const newOrdered = [...ordered];
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    [newOrdered[idx], newOrdered[swapIdx]] = [newOrdered[swapIdx], newOrdered[idx]];
+
+    // Update sort_order for all main flow rules
+    const updates = newOrdered.map((rt, i) => {
+      const rule = getRuleForType(rt);
+      return rule ? { id: rule.id, sort_order: i + 1 } : null;
+    }).filter(Boolean) as { id: string; sort_order: number }[];
+
+    for (const u of updates) {
+      await supabase.from("chat_auto_rules").update({ sort_order: u.sort_order }).eq("id", u.id);
+    }
+
+    setRules((prev) =>
+      prev.map((r) => {
+        const upd = updates.find((u) => u.id === r.id);
+        return upd ? { ...r, sort_order: upd.sort_order } : r;
+      })
+    );
+  };
 
   if (loading) {
     return (
@@ -158,116 +226,186 @@ const AutoMessagesTab = () => {
     );
   }
 
-  const mainFlowTypes = AUTO_MESSAGE_TYPES.filter((t) => t.group === "main_flow");
+  const orderedMainFlow = getOrderedMainFlowTypes();
   const otherTypes = AUTO_MESSAGE_TYPES.filter((t) => t.group === "other");
 
-  const renderRuleCard = (cfg: AutoMessageTypeConfig, showFlowStep: boolean) => {
+  const renderRuleAccordionItem = (cfg: AutoMessageTypeConfig, flowStep?: number, flowIndex?: number, flowTotal?: number) => {
     const rule = getRuleForType(cfg.rule_type);
     if (!rule) return null;
     const Icon = cfg.icon;
     const isDisabled = !rule.is_enabled;
+    const isMainFlow = cfg.group === "main_flow";
 
     return (
-      <div
-        key={rule.id}
-        className="rounded-lg border border-border/50 p-4 space-y-3"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            {showFlowStep && cfg.flowStep && (
-              <div className="flex items-center justify-center rounded-full bg-primary text-primary-foreground w-7 h-7 text-xs font-bold shrink-0 mt-0.5">
-                {cfg.flowStep}
+      <AccordionItem key={rule.id} value={rule.id} className="border border-border/50 rounded-lg mb-0 overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-0">
+          {/* Reorder buttons for main flow */}
+          {isMainFlow && flowIndex !== undefined && flowTotal !== undefined && (
+            <div className="flex flex-col gap-0.5 mr-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                disabled={flowIndex === 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveMainFlowRule(cfg.rule_type, "up");
+                }}
+                title={t("chat.autoMsg.moveUp")}
+              >
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                disabled={flowIndex === flowTotal - 1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveMainFlowRule(cfg.rule_type, "down");
+                }}
+                title={t("chat.autoMsg.moveDown")}
+              >
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          <AccordionTrigger className="flex-1 hover:no-underline py-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {flowStep && (
+                <div className="flex items-center justify-center rounded-full bg-primary text-primary-foreground w-6 h-6 text-xs font-bold shrink-0">
+                  {flowStep}
+                </div>
+              )}
+              <div className="rounded-md bg-primary/10 p-1.5">
+                <Icon className="h-4 w-4 text-primary" />
               </div>
-            )}
-            <div className="rounded-md bg-primary/10 p-2 mt-0.5">
-              <Icon className="h-4 w-4 text-primary" />
+              <span className="font-medium text-sm text-left flex-1 min-w-0 truncate">
+                {t(`chat.autoMsg.${cfg.rule_type}.title`)}
+              </span>
+              <Badge
+                variant={rule.is_enabled ? "promoter" : "secondary"}
+                className="text-[10px] px-1.5 py-0 h-5 shrink-0"
+              >
+                {rule.is_enabled ? t("chat.autoMsg.active") : t("chat.autoMsg.inactive")}
+              </Badge>
+              {hasUnsavedChanges(rule.id) && (
+                <div className="w-2 h-2 rounded-full bg-warning shrink-0" title={t("chat.autoMsg.pendingChanges")} />
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">{t(`chat.autoMsg.${cfg.rule_type}.title`)}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t(`chat.autoMsg.${cfg.rule_type}.description`)}
-              </p>
-            </div>
-          </div>
+          </AccordionTrigger>
+
           <Switch
             checked={rule.is_enabled}
             onCheckedChange={(v) => toggleRule(rule, v)}
+            className="ml-2 shrink-0"
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
 
-        {/* Fields */}
-        <div className={`space-y-3 transition-opacity ${isDisabled ? "opacity-40 pointer-events-none" : ""}`}>
-          {cfg.hasMinutes && (
+        <AccordionContent className="px-4 pb-4 pt-0">
+          <p className="text-xs text-muted-foreground mb-3">
+            {t(`chat.autoMsg.${cfg.rule_type}.description`)}
+          </p>
+          <div className={`space-y-3 transition-opacity ${isDisabled ? "opacity-40 pointer-events-none" : ""}`}>
+            {cfg.hasMinutes && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("chat.autoMsg.minutesLabel")}</Label>
+                <Input
+                  type="number"
+                  min={5}
+                  value={getLocalValue(rule, "trigger_minutes") ?? ""}
+                  onChange={(e) => setLocalEdit(rule.id, "trigger_minutes", Math.max(5, Number(e.target.value) || 5))}
+                  className="w-[120px]"
+                />
+                <p className="text-[11px] text-muted-foreground">{t("chat.autoMsg.minutesMin")}</p>
+              </div>
+            )}
             <div className="space-y-1.5">
-              <Label className="text-xs">{t("chat.autoMsg.minutesLabel")}</Label>
-              <Input
-                type="number"
-                min={5}
-                value={getLocalValue(rule, "trigger_minutes") ?? ""}
-                onChange={(e) => setLocalEdit(rule.id, "trigger_minutes", Math.max(5, Number(e.target.value) || 5))}
-                className="w-[120px]"
+              <Label className="text-xs">{t("chat.settings.macros.content")}</Label>
+              <Textarea
+                value={(getLocalValue(rule, "message_content") as string) ?? ""}
+                onChange={(e) => setLocalEdit(rule.id, "message_content", e.target.value)}
+                rows={3}
               />
-              <p className="text-[11px] text-muted-foreground">{t("chat.autoMsg.minutesMin")}</p>
             </div>
-          )}
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t("chat.settings.macros.content")}</Label>
-            <Textarea
-              value={(getLocalValue(rule, "message_content") as string) ?? ""}
-              onChange={(e) => setLocalEdit(rule.id, "message_content", e.target.value)}
-              rows={3}
-            />
+            {hasUnsavedChanges(rule.id) && (
+              <Button
+                size="sm"
+                onClick={() => saveRule(rule)}
+                disabled={savingId === rule.id}
+              >
+                <Save className="h-3.5 w-3.5 mr-1.5" />
+                {savingId === rule.id ? t("chat.settings.rules.savingRule") : t("common.save")}
+              </Button>
+            )}
           </div>
-          {hasUnsavedChanges(rule.id) && (
-            <Button
-              size="sm"
-              onClick={() => saveRule(rule)}
-              disabled={savingId === rule.id}
-            >
-              <Save className="h-3.5 w-3.5 mr-1.5" />
-              {savingId === rule.id ? t("chat.settings.rules.savingRule") : t("common.save")}
-            </Button>
-          )}
-        </div>
-      </div>
+        </AccordionContent>
+      </AccordionItem>
     );
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("chat.settings.rules.title")}</CardTitle>
-        <CardDescription>{t("chat.settings.rules.description")}</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">{t("chat.settings.rules.title")}</CardTitle>
+            <CardDescription>{t("chat.settings.rules.description")}</CardDescription>
+          </div>
+          {hasAnyUnsavedChanges && (
+            <Button
+              size="sm"
+              onClick={saveAllChanges}
+              disabled={savingAll}
+              className="shrink-0"
+            >
+              <SaveAll className="h-3.5 w-3.5 mr-1.5" />
+              {savingAll ? t("chat.settings.rules.savingRule") : t("chat.autoMsg.saveAll")}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-8">
-        {/* Main Flow Group */}
-        <div className="space-y-2">
+        {/* Main Flow Group with Timeline */}
+        <div className="space-y-3">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             {t("chat.autoMsg.mainFlowGroup")}
           </p>
-          <div className="space-y-0">
-            {mainFlowTypes.map((cfg, index) => (
-              <div key={cfg.rule_type}>
-                {renderRuleCard(cfg, true)}
-                {index < mainFlowTypes.length - 1 && (
-                  <div className="flex justify-center py-1">
-                    <ArrowDown className="h-5 w-5 text-muted-foreground/50" />
+          <div className="relative pl-4">
+            {/* Vertical timeline line */}
+            <div className="absolute left-[7px] top-4 bottom-4 w-0.5 bg-border" />
+            <Accordion type="multiple" className="space-y-2">
+              {orderedMainFlow.map((ruleType, index) => {
+                const cfg = AUTO_MESSAGE_TYPES.find((t) => t.rule_type === ruleType);
+                if (!cfg) return null;
+                return (
+                  <div key={ruleType} className="relative">
+                    {/* Timeline dot */}
+                    <div className="absolute -left-4 top-4 z-10">
+                      <div className="w-[15px] h-[15px] rounded-full bg-primary border-2 border-background flex items-center justify-center">
+                        <span className="text-[8px] font-bold text-primary-foreground">{index + 1}</span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      {renderRuleAccordionItem(cfg, index + 1, index, orderedMainFlow.length)}
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
+            </Accordion>
           </div>
         </div>
 
         {/* Other Messages Group */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             {t("chat.autoMsg.otherGroup")}
           </p>
-          <div className="space-y-3">
-            {otherTypes.map((cfg) => renderRuleCard(cfg, false))}
-          </div>
+          <Accordion type="multiple" className="space-y-2">
+            {otherTypes.map((cfg) => renderRuleAccordionItem(cfg))}
+          </Accordion>
         </div>
       </CardContent>
     </Card>
