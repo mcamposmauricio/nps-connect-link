@@ -782,15 +782,30 @@ export default {
   "chat.settings.rules.savedRule": "Mensagem salva com sucesso",
 
   // Auto Message Types
+  "chat.autoMsg.mainFlowGroup": "Fluxo Principal",
+  "chat.autoMsg.otherGroup": "Outras Mensagens",
   "chat.autoMsg.sessionGroup": "Mensagens de Sessão",
   "chat.autoMsg.timeGroup": "Mensagens de Tempo",
   "chat.autoMsg.specialGroup": "Mensagens Especiais",
   "chat.autoMsg.minutesLabel": "Tempo (minutos)",
   "chat.autoMsg.minutesMin": "Mínimo: 5 minutos",
+  "chat.autoMsg.flowStepLabel": "Etapa",
 
   "chat.autoMsg.welcome_message.title": "Boas-vindas",
   "chat.autoMsg.welcome_message.description": "Enviada automaticamente quando o visitante inicia uma nova conversa",
-  "chat.autoMsg.welcome_message.default": "Bem-vindo! Em instantes um atendente irá te atender.",
+  "chat.autoMsg.welcome_message.default": "Recebemos sua mensagem! 😊\n\nEm alguns minutos, um dos nossos agentes vai dar sequência no atendimento.",
+
+  "chat.autoMsg.inactivity_warning.title": "Inatividade 1",
+  "chat.autoMsg.inactivity_warning.description": "Enviada após o atendente falar e o cliente não responder. Muda o status para pendente.",
+  "chat.autoMsg.inactivity_warning.default": "Você conseguiu ver minha última mensagem? 😊\n\nFico aguardando para dar sequência no atendimento.",
+
+  "chat.autoMsg.inactivity_warning_2.title": "Inatividade 2",
+  "chat.autoMsg.inactivity_warning_2.description": "Segunda mensagem enviada ao cliente que continua sem responder após a primeira notificação. Mantém pendente.",
+  "chat.autoMsg.inactivity_warning_2.default": "Você ainda está aí? Vi que ainda não tivemos retorno. 👀\n\nVamos deixar a conversa aberta por mais alguns minutinhos, tudo bem? Depois disso ela será encerrada automaticamente.",
+
+  "chat.autoMsg.auto_close.title": "Arquivamento",
+  "chat.autoMsg.auto_close.description": "Envia mensagem de encerramento e arquiva a conversa automaticamente.",
+  "chat.autoMsg.auto_close.default": "Não tivemos seu retorno, então vamos encerrar a conversa por enquanto. 😊\n\nE fique de olho na pesquisa de satisfação que chega em seguida!",
 
   "chat.autoMsg.queue_position.title": "Fila de Espera",
   "chat.autoMsg.queue_position.description": "Notifica o visitante sobre sua posição na fila quando todos os atendentes estão ocupados",
@@ -803,14 +818,6 @@ export default {
   "chat.autoMsg.transfer_notice.title": "Aviso de Transferência",
   "chat.autoMsg.transfer_notice.description": "Notifica o visitante quando a conversa é transferida para outro atendente ou time",
   "chat.autoMsg.transfer_notice.default": "Sua conversa foi transferida para outro atendente. Em instantes você será atendido.",
-
-  "chat.autoMsg.inactivity_warning.title": "Aviso de Inatividade",
-  "chat.autoMsg.inactivity_warning.description": "Enviada ao visitante após X minutos sem nenhuma resposta na conversa",
-  "chat.autoMsg.inactivity_warning.default": "Notamos que não houve interação recente. Ainda precisa de ajuda?",
-
-  "chat.autoMsg.auto_close.title": "Fechamento Automático",
-  "chat.autoMsg.auto_close.description": "Encerra a conversa automaticamente após X minutos de inatividade total",
-  "chat.autoMsg.auto_close.default": "Esta conversa foi encerrada automaticamente por inatividade. Caso precise, inicie uma nova conversa.",
 
   "chat.autoMsg.attendant_absence.title": "Ausência do Atendente",
   "chat.autoMsg.attendant_absence.description": "Enviada se o atendente atribuído não responde dentro de X minutos",

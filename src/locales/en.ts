@@ -761,15 +761,30 @@ export default {
   "chat.settings.rules.savedRule": "Message saved successfully",
 
   // Auto Message Types
+  "chat.autoMsg.mainFlowGroup": "Main Flow",
+  "chat.autoMsg.otherGroup": "Other Messages",
   "chat.autoMsg.sessionGroup": "Session Messages",
   "chat.autoMsg.timeGroup": "Time-based Messages",
   "chat.autoMsg.specialGroup": "Special Messages",
   "chat.autoMsg.minutesLabel": "Time (minutes)",
   "chat.autoMsg.minutesMin": "Minimum: 5 minutes",
+  "chat.autoMsg.flowStepLabel": "Step",
 
   "chat.autoMsg.welcome_message.title": "Welcome",
   "chat.autoMsg.welcome_message.description": "Automatically sent when a visitor starts a new conversation",
-  "chat.autoMsg.welcome_message.default": "Welcome! An agent will be with you shortly.",
+  "chat.autoMsg.welcome_message.default": "We received your message! 😊\n\nOne of our agents will follow up shortly.",
+
+  "chat.autoMsg.inactivity_warning.title": "Inactivity 1",
+  "chat.autoMsg.inactivity_warning.description": "Sent after the agent speaks and the customer doesn't respond. Changes status to pending.",
+  "chat.autoMsg.inactivity_warning.default": "Did you get a chance to see my last message? 😊\n\nI'm waiting to continue the conversation.",
+
+  "chat.autoMsg.inactivity_warning_2.title": "Inactivity 2",
+  "chat.autoMsg.inactivity_warning_2.description": "Second message sent to the customer who remains unresponsive after the first notification. Keeps pending.",
+  "chat.autoMsg.inactivity_warning_2.default": "Are you still there? We noticed there hasn't been a reply yet. 👀\n\nWe'll keep the conversation open for a few more minutes, okay? After that it will be closed automatically.",
+
+  "chat.autoMsg.auto_close.title": "Archive",
+  "chat.autoMsg.auto_close.description": "Sends a closing message and archives the conversation automatically.",
+  "chat.autoMsg.auto_close.default": "We didn't receive a response, so we're closing this conversation for now. 😊\n\nKeep an eye out for the satisfaction survey coming up next!",
 
   "chat.autoMsg.queue_position.title": "Queue Position",
   "chat.autoMsg.queue_position.description": "Notifies the visitor about their queue position when all agents are busy",
@@ -782,14 +797,6 @@ export default {
   "chat.autoMsg.transfer_notice.title": "Transfer Notice",
   "chat.autoMsg.transfer_notice.description": "Notifies the visitor when the conversation is transferred to another agent or team",
   "chat.autoMsg.transfer_notice.default": "Your conversation has been transferred to another agent. You will be assisted shortly.",
-
-  "chat.autoMsg.inactivity_warning.title": "Inactivity Warning",
-  "chat.autoMsg.inactivity_warning.description": "Sent to the visitor after X minutes without any response in the conversation",
-  "chat.autoMsg.inactivity_warning.default": "We noticed there has been no recent interaction. Do you still need help?",
-
-  "chat.autoMsg.auto_close.title": "Auto Close",
-  "chat.autoMsg.auto_close.description": "Automatically closes the conversation after X minutes of total inactivity",
-  "chat.autoMsg.auto_close.default": "This conversation has been automatically closed due to inactivity. If you need help, please start a new conversation.",
 
   "chat.autoMsg.attendant_absence.title": "Agent Absence",
   "chat.autoMsg.attendant_absence.description": "Sent if the assigned agent does not respond within X minutes",
