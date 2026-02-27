@@ -9,7 +9,6 @@
   var baseUrl = script.src.replace(/\/nps-chat-embed\.js.*$/, "");
   var supabaseUrl = "https://mfmkxpdufcbwydixbbbe.supabase.co";
 
-  // Resolved visitor data
   var resolvedToken = null;
   var resolvedName = null;
   var resolvedEmail = null;
@@ -20,16 +19,21 @@
   var resolvedNeedsForm = false;
   var resolvedHasHistory = false;
 
-  // Dynamic field definitions from backend
   var fieldDefinitions = [];
   var widgetSettings = {};
-
-  // Accumulated visitor props
   var visitorProps = {};
   var chatIframe = null;
 
-  // Reserved keys that map to specific params (not custom_data)
   var RESERVED_KEYS = ["name", "email", "phone", "company_id", "company_name", "user_id"];
+
+  // --- Banner Type SVG Icons ---
+  var BANNER_ICONS = {
+    info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+    warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+    success: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+    promo: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+    update: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
+  };
 
   // --- Banner Logic ---
   var bannerContainer = null;
@@ -50,7 +54,14 @@
       banner.bg_color + ";color:" + banner.text_color + ";";
 
     var contentDiv = document.createElement("div");
-    contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;";
+    contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;";
+
+    // Type icon
+    var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
+    var iconSpan = document.createElement("span");
+    iconSpan.innerHTML = iconHtml;
+    iconSpan.style.cssText = "flex-shrink:0;opacity:0.9;display:flex;align-items:center;";
+    contentDiv.appendChild(iconSpan);
 
     var text = document.createElement("span");
     text.style.cssText = "max-height:3em;overflow:hidden;display:block;line-height:1.4;flex:1;word-break:break-word;";
@@ -113,6 +124,8 @@
     closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
     closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
     closeBtn.onclick = function () {
+      // Permanent dismiss
+      dismissBanner(banner.assignment_id);
       div.remove();
       if (bannerContainer && bannerContainer.children.length === 0) bannerContainer.remove();
     };
@@ -127,6 +140,14 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ assignment_id: assignmentId, vote: vote }),
+    }).catch(function () {});
+  }
+
+  function dismissBanner(assignmentId) {
+    fetch(supabaseUrl + "/functions/v1/dismiss-banner", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignment_id: assignmentId }),
     }).catch(function () {});
   }
 
@@ -146,6 +167,7 @@
       .then(function (data) {
         if (data.banners && data.banners.length > 0) {
           createBannerContainer();
+          // Banners already sorted by priority from backend
           data.banners.forEach(function (banner) {
             bannerContainer.appendChild(renderBanner(banner));
           });
@@ -204,7 +226,6 @@
 
     var payload = buildResolverPayload(visitorProps);
 
-    // Only call if we have at least api_key
     fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -256,7 +277,6 @@
 
     if (apiKey) iframeSrc += "&apiKey=" + encodeURIComponent(apiKey);
 
-    // Pass resolver flags
     if (resolvedAutoStart) iframeSrc += "&autoStart=true";
     if (resolvedNeedsForm) iframeSrc += "&needsForm=true";
     if (resolvedHasHistory) iframeSrc += "&hasHistory=true";
@@ -297,7 +317,6 @@
         }
       }
 
-      // Forward to iframe
       if (chatIframe && chatIframe.contentWindow) {
         chatIframe.contentWindow.postMessage(
           { type: "nps-chat-update", props: visitorProps },
@@ -305,7 +324,6 @@
         );
       }
 
-      // If visitor already resolved, send updated data to backend in background
       if (resolvedToken && apiKey) {
         var payload = buildResolverPayload(visitorProps);
         fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
@@ -317,7 +335,7 @@
     },
   };
 
-  // Init: fetch config -> resolve visitor -> load banners + chat
+  // Init
   function init() {
     fetchWidgetConfig(function () {
       resolveVisitor(function () {
