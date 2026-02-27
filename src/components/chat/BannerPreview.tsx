@@ -1,4 +1,5 @@
-import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare } from "lucide-react";
+import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface BannerPreviewProps {
   content: string;
@@ -9,22 +10,52 @@ interface BannerPreviewProps {
   linkUrl?: string;
   linkLabel?: string;
   hasVoting: boolean;
+  bannerType?: string;
+  startsAt?: string;
+  expiresAt?: string;
 }
 
-const BannerPreview = ({ content, contentHtml, textAlign = "left", bgColor, textColor, linkUrl, linkLabel, hasVoting }: BannerPreviewProps) => {
+const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
+  info: Info,
+  warning: AlertTriangle,
+  success: CheckCircle,
+  promo: Megaphone,
+  update: Sparkles,
+};
+
+const BannerPreview = ({ content, contentHtml, textAlign = "left", bgColor, textColor, linkUrl, linkLabel, hasVoting, bannerType = "info", startsAt, expiresAt }: BannerPreviewProps) => {
+  const TypeIcon = BANNER_TYPE_ICONS[bannerType] ?? Info;
+
+  const getScheduleBadge = () => {
+    if (!startsAt && !expiresAt) return null;
+    const now = new Date();
+    if (startsAt && new Date(startsAt) > now) {
+      return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>Agendado</Badge>;
+    }
+    if (expiresAt) {
+      const diff = Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff > 0 && diff <= 7) {
+        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>Expira em {diff}d</Badge>;
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
-      {/* Banner - full width bar at top */}
+      {/* Banner */}
       <div
         className="px-4 py-3 text-sm relative flex items-center justify-between gap-3"
         style={{ backgroundColor: bgColor, color: textColor }}
       >
-        <div className="flex-1 flex items-center gap-3 flex-wrap" style={{ textAlign: textAlign as any }}>
+        <div className="flex-1 flex items-center gap-2.5 flex-wrap" style={{ textAlign: textAlign as any }}>
+          <TypeIcon className="h-4 w-4 flex-shrink-0 opacity-90" />
           {contentHtml ? (
             <span dangerouslySetInnerHTML={{ __html: contentHtml }} style={{ maxHeight: "3em", overflow: "hidden", display: "block", lineHeight: "1.4", flex: 1, wordBreak: "break-word" }} />
           ) : (
-            <span>{content || "Texto do banner aqui..."}</span>
+            <span className="flex-1">{content || "Texto do banner aqui..."}</span>
           )}
+          {getScheduleBadge()}
           {linkUrl && (
             <span className="inline-flex items-center gap-1 text-xs underline opacity-90" style={{ color: textColor }}>
               {linkLabel || "Saiba mais"}

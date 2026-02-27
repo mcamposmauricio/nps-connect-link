@@ -494,6 +494,7 @@ export type Database = {
           banner_id: string
           contact_id: string
           created_at: string | null
+          dismissed_at: string | null
           id: string
           is_active: boolean | null
           tenant_id: string | null
@@ -505,6 +506,7 @@ export type Database = {
           banner_id: string
           contact_id: string
           created_at?: string | null
+          dismissed_at?: string | null
           id?: string
           is_active?: boolean | null
           tenant_id?: string | null
@@ -516,6 +518,7 @@ export type Database = {
           banner_id?: string
           contact_id?: string
           created_at?: string | null
+          dismissed_at?: string | null
           id?: string
           is_active?: boolean | null
           tenant_id?: string | null
@@ -549,15 +552,21 @@ export type Database = {
       }
       chat_banners: {
         Row: {
+          banner_type: string
           bg_color: string | null
           content: string
           content_html: string | null
           created_at: string | null
+          expires_at: string | null
           has_voting: boolean | null
           id: string
           is_active: boolean | null
           link_label: string | null
           link_url: string | null
+          max_views: number | null
+          priority: number
+          starts_at: string | null
+          target_all: boolean
           tenant_id: string | null
           text_align: string
           text_color: string | null
@@ -566,15 +575,21 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          banner_type?: string
           bg_color?: string | null
           content: string
           content_html?: string | null
           created_at?: string | null
+          expires_at?: string | null
           has_voting?: boolean | null
           id?: string
           is_active?: boolean | null
           link_label?: string | null
           link_url?: string | null
+          max_views?: number | null
+          priority?: number
+          starts_at?: string | null
+          target_all?: boolean
           tenant_id?: string | null
           text_align?: string
           text_color?: string | null
@@ -583,15 +598,21 @@ export type Database = {
           user_id: string
         }
         Update: {
+          banner_type?: string
           bg_color?: string | null
           content?: string
           content_html?: string | null
           created_at?: string | null
+          expires_at?: string | null
           has_voting?: boolean | null
           id?: string
           is_active?: boolean | null
           link_label?: string | null
           link_url?: string | null
+          max_views?: number | null
+          priority?: number
+          starts_at?: string | null
+          target_all?: boolean
           tenant_id?: string | null
           text_align?: string
           text_color?: string | null

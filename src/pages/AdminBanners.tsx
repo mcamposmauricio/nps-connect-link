@@ -1,19 +1,31 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionLabel } from "@/components/ui/section-label";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell } from "lucide-react";
+import { cn } from "@/lib/utils";
 import BannerPreview from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
+
+type BannerType = "info" | "warning" | "success" | "promo" | "update";
 
 interface Banner {
   id: string;
@@ -28,6 +40,12 @@ interface Banner {
   has_voting: boolean;
   is_active: boolean;
   created_at: string;
+  banner_type: BannerType;
+  starts_at: string | null;
+  expires_at: string | null;
+  priority: number;
+  target_all: boolean;
+  max_views: number | null;
 }
 
 interface Assignment {
@@ -36,6 +54,7 @@ interface Assignment {
   is_active: boolean;
   views_count: number;
   vote: string | null;
+  dismissed_at: string | null;
   contact_name?: string;
   contact_email?: string;
 }
@@ -45,6 +64,22 @@ interface Contact {
   name: string;
   email: string;
 }
+
+const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; color: string }[] = [
+  { value: "info", label: "Informação", icon: Info, color: "text-blue-500" },
+  { value: "warning", label: "Alerta", icon: AlertTriangle, color: "text-amber-500" },
+  { value: "success", label: "Sucesso", icon: CheckCircle, color: "text-emerald-500" },
+  { value: "promo", label: "Promoção", icon: Megaphone, color: "text-purple-500" },
+  { value: "update", label: "Atualização", icon: Sparkles, color: "text-cyan-500" },
+];
+
+const getBannerStatus = (banner: Banner): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
+  if (!banner.is_active) return { label: "Inativo", variant: "secondary" };
+  const now = new Date();
+  if (banner.starts_at && new Date(banner.starts_at) > now) return { label: "Agendado", variant: "outline" };
+  if (banner.expires_at && new Date(banner.expires_at) <= now) return { label: "Expirado", variant: "destructive" };
+  return { label: "Ativo", variant: "default" };
+};
 
 const AdminBanners = () => {
   const { t } = useLanguage();
@@ -61,7 +96,7 @@ const AdminBanners = () => {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [assignmentCounts, setAssignmentCounts] = useState<Record<string, { total: number; views: number; upVotes: number; downVotes: number }>>({});
 
-  const [form, setForm] = useState({
+  const defaultForm = {
     title: "",
     content: "",
     content_html: "",
@@ -72,16 +107,23 @@ const AdminBanners = () => {
     link_label: "",
     has_voting: false,
     is_active: true,
-  });
+    banner_type: "info" as BannerType,
+    starts_at: null as Date | null,
+    expires_at: null as Date | null,
+    priority: 5,
+    target_all: false,
+    max_views: null as number | null,
+  };
+
+  const [form, setForm] = useState(defaultForm);
 
   const fetchBanners = useCallback(async () => {
     const { data } = await supabase
       .from("chat_banners")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("priority", { ascending: false });
     setBanners((data as any) ?? []);
 
-    // Fetch assignment counts
     if (data && data.length > 0) {
       const { data: allAssignments } = await supabase
         .from("chat_banner_assignments")
@@ -119,22 +161,40 @@ const AdminBanners = () => {
         link_label: banner.link_label ?? "",
         has_voting: banner.has_voting,
         is_active: banner.is_active,
+        banner_type: (banner.banner_type as BannerType) || "info",
+        starts_at: banner.starts_at ? new Date(banner.starts_at) : null,
+        expires_at: banner.expires_at ? new Date(banner.expires_at) : null,
+        priority: banner.priority ?? 5,
+        target_all: banner.target_all ?? false,
+        max_views: banner.max_views ?? null,
       });
     } else {
       setEditingBanner(null);
-      setForm({
-        title: "",
-        content: "",
-        content_html: "",
-        text_align: "left",
-        bg_color: "#3B82F6",
-        text_color: "#FFFFFF",
-        link_url: "",
-        link_label: "",
-        has_voting: false,
-        is_active: true,
-      });
+      setForm({ ...defaultForm });
     }
+    setBannerDialog(true);
+  };
+
+  const duplicateBanner = (banner: Banner) => {
+    setEditingBanner(null);
+    setForm({
+      title: banner.title + " (cópia)",
+      content: banner.content,
+      content_html: banner.content_html ?? "",
+      text_align: (banner.text_align as "left" | "center" | "right") || "left",
+      bg_color: banner.bg_color,
+      text_color: banner.text_color,
+      link_url: banner.link_url ?? "",
+      link_label: banner.link_label ?? "",
+      has_voting: banner.has_voting,
+      is_active: false,
+      banner_type: (banner.banner_type as BannerType) || "info",
+      starts_at: null,
+      expires_at: null,
+      priority: banner.priority ?? 5,
+      target_all: banner.target_all ?? false,
+      max_views: banner.max_views ?? null,
+    });
     setBannerDialog(true);
   };
 
@@ -153,6 +213,12 @@ const AdminBanners = () => {
       link_label: form.link_label || null,
       has_voting: form.has_voting,
       is_active: form.is_active,
+      banner_type: form.banner_type,
+      starts_at: form.starts_at?.toISOString() ?? null,
+      expires_at: form.expires_at?.toISOString() ?? null,
+      priority: form.priority,
+      target_all: form.target_all,
+      max_views: form.max_views,
     };
 
     if (editingBanner) {
@@ -167,6 +233,7 @@ const AdminBanners = () => {
   };
 
   const deleteBanner = async (id: string) => {
+    await supabase.from("chat_banner_assignments").delete().eq("banner_id", id);
     await supabase.from("chat_banners").delete().eq("id", id);
     toast({ title: t("common.delete") });
     fetchBanners();
@@ -182,11 +249,7 @@ const AdminBanners = () => {
 
     const enriched = (assignData ?? []).map((a: any) => {
       const contact = (contactsData ?? []).find((c) => c.id === a.contact_id);
-      return {
-        ...a,
-        contact_name: contact?.name ?? "—",
-        contact_email: contact?.email ?? "—",
-      };
+      return { ...a, contact_name: contact?.name ?? "—", contact_email: contact?.email ?? "—" };
     });
 
     setAssignments(enriched);
@@ -209,22 +272,19 @@ const AdminBanners = () => {
       return;
     }
 
-    const rows = newContactIds.map((contact_id) => ({
-      banner_id: selectedBanner.id,
-      contact_id,
-      tenant_id: null, // trigger will set it
-    }));
-
-    // We need tenant_id — get it from banner
     const { data: bannerData } = await supabase
       .from("chat_banners")
       .select("tenant_id")
       .eq("id", selectedBanner.id)
       .single();
 
-    const withTenant = rows.map((r) => ({ ...r, tenant_id: (bannerData as any)?.tenant_id }));
+    const rows = newContactIds.map((contact_id) => ({
+      banner_id: selectedBanner.id,
+      contact_id,
+      tenant_id: (bannerData as any)?.tenant_id,
+    }));
 
-    await supabase.from("chat_banner_assignments").insert(withTenant as any);
+    await supabase.from("chat_banner_assignments").insert(rows as any);
     toast({ title: `${newContactIds.length} contatos atribuídos` });
     openAssignDialog(selectedBanner);
     fetchBanners();
@@ -239,22 +299,20 @@ const AdminBanners = () => {
   const filteredContacts = contacts.filter(
     (c) =>
       c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
-      c.email.toLowerCase().includes(contactSearch.toLowerCase())
+      (c.email ?? "").toLowerCase().includes(contactSearch.toLowerCase())
   );
+
+  const getTypeConfig = (type: string) => BANNER_TYPES.find((t) => t.value === type) ?? BANNER_TYPES[0];
 
   return (
     <>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{t("banners.title")}</h1>
-            <p className="text-muted-foreground">{t("banners.subtitle")}</p>
-          </div>
+        <PageHeader title={t("banners.title")} subtitle={t("banners.subtitle")}>
           <Button onClick={() => openBannerDialog()}>
             <Plus className="h-4 w-4 mr-2" />
             {t("banners.create")}
           </Button>
-        </div>
+        </PageHeader>
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -262,64 +320,118 @@ const AdminBanners = () => {
           </div>
         ) : banners.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              {t("banners.noBanners")}
+            <CardContent className="py-16 text-center space-y-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <Bell className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-medium text-lg">{t("banners.noBanners")}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{t("banners.emptyDescription")}</p>
+              </div>
+              <Button onClick={() => openBannerDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("banners.createFirst")}
+              </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {banners.map((banner) => {
               const counts = assignmentCounts[banner.id] ?? { total: 0, views: 0, upVotes: 0, downVotes: 0 };
+              const typeConfig = getTypeConfig(banner.banner_type);
+              const TypeIcon = typeConfig.icon;
+              const status = getBannerStatus(banner);
+              const totalVotes = counts.upVotes + counts.downVotes;
+              const favorability = totalVotes > 0 ? Math.round((counts.upVotes / totalVotes) * 100) : null;
+
               return (
                 <Card key={banner.id}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
-                      {/* Color swatch */}
+                      {/* Type icon + color stripe */}
                       <div
-                        className="w-12 h-12 rounded-lg flex-shrink-0"
+                        className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center"
                         style={{ backgroundColor: banner.bg_color }}
-                      />
+                      >
+                        <TypeIcon className="h-5 w-5" style={{ color: banner.text_color }} />
+                      </div>
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium">{banner.title}</h3>
-                          <Badge variant={banner.is_active ? "default" : "secondary"}>
-                            {banner.is_active ? t("banners.active") : t("banners.inactive")}
-                          </Badge>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                          {banner.target_all && (
+                            <Badge variant="outline" className="text-xs">{t("banners.allClients")}</Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs capitalize">{typeConfig.label}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{banner.content}</p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {counts.total} {t("banners.clients")}
-                          </span>
+                          {!banner.target_all && (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {counts.total} {t("banners.clients")}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1">
                             <Eye className="h-3 w-3" />
                             {counts.views} views
                           </span>
-                          {banner.has_voting && (
+                          {banner.has_voting && favorability !== null && (
+                            <span className="flex items-center gap-1">
+                              <ThumbsUp className="h-3 w-3" />
+                              {favorability}% ({totalVotes})
+                            </span>
+                          )}
+                          {banner.has_voting && favorability === null && (
                             <>
-                              <span className="flex items-center gap-1">
-                                <ThumbsUp className="h-3 w-3" />
-                                {counts.upVotes}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <ThumbsDown className="h-3 w-3" />
-                                {counts.downVotes}
-                              </span>
+                              <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{counts.upVotes}</span>
+                              <span className="flex items-center gap-1"><ThumbsDown className="h-3 w-3" />{counts.downVotes}</span>
                             </>
                           )}
+                          {(banner.starts_at || banner.expires_at) && (
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3" />
+                              {banner.starts_at ? format(new Date(banner.starts_at), "dd/MM") : "—"}
+                              {" → "}
+                              {banner.expires_at ? format(new Date(banner.expires_at), "dd/MM") : "∞"}
+                            </span>
+                          )}
+                          <span className="text-muted-foreground/50">P{banner.priority}</span>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAssignDialog(banner)}>
-                          <Users className="h-4 w-4" />
+                        {!banner.target_all && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAssignDialog(banner)} title={t("banners.assignments")}>
+                            <Users className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => duplicateBanner(banner)} title={t("banners.duplicate")}>
+                          <Copy className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openBannerDialog(banner)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openBannerDialog(banner)} title={t("banners.edit")}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteBanner(banner.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("banners.confirmDelete")}</AlertDialogTitle>
+                              <AlertDialogDescription>{t("banners.confirmDeleteDesc")}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteBanner(banner.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                {t("common.delete")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </CardContent>
@@ -332,17 +444,48 @@ const AdminBanners = () => {
 
       {/* Banner Create/Edit Dialog */}
       <Dialog open={bannerDialog} onOpenChange={setBannerDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingBanner ? t("banners.edit") : t("banners.create")}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Form */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t("banners.titleLabel")}</Label>
-                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno do banner" />
+            <div className="space-y-5">
+              {/* Section 1: Type + Title */}
+              <SectionLabel>{t("banners.sectionIdentification")}</SectionLabel>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>{t("banners.typeLabel")}</Label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {BANNER_TYPES.map((bt) => {
+                      const Icon = bt.icon;
+                      return (
+                        <button
+                          key={bt.value}
+                          type="button"
+                          onClick={() => setForm({ ...form, banner_type: bt.value })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-colors",
+                            form.banner_type === bt.value ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
+                          )}
+                        >
+                          <Icon className={cn("h-4 w-4", bt.color)} />
+                          <span className="truncate">{bt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("banners.titleLabel")}</Label>
+                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno do banner" />
+                </div>
               </div>
+
+              <Separator />
+
+              {/* Section 2: Content */}
+              <SectionLabel>{t("banners.sectionContent")}</SectionLabel>
               <div className="space-y-2">
                 <Label>{t("banners.contentLabel")}</Label>
                 <BannerRichEditor
@@ -353,6 +496,11 @@ const AdminBanners = () => {
                   placeholder="Texto visível no widget (emojis OK)"
                 />
               </div>
+
+              <Separator />
+
+              {/* Section 3: Appearance */}
+              <SectionLabel>{t("banners.sectionAppearance")}</SectionLabel>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("banners.bgColor")}</Label>
@@ -369,21 +517,97 @@ const AdminBanners = () => {
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>{t("banners.linkUrl")}</Label>
-                <Input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="https://..." />
+
+              <Separator />
+
+              {/* Section 4: Link + Voting */}
+              <SectionLabel>{t("banners.sectionInteraction")}</SectionLabel>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>{t("banners.linkUrl")}</Label>
+                  <Input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="https://..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("banners.linkLabel")}</Label>
+                  <Input value={form.link_label} onChange={(e) => setForm({ ...form, link_label: e.target.value })} placeholder="Saiba mais" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={form.has_voting} onCheckedChange={(v) => setForm({ ...form, has_voting: v })} />
+                  <Label>{t("banners.enableVoting")}</Label>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>{t("banners.linkLabel")}</Label>
-                <Input value={form.link_label} onChange={(e) => setForm({ ...form, link_label: e.target.value })} placeholder="Saiba mais" />
+
+              <Separator />
+
+              {/* Section 5: Scheduling */}
+              <SectionLabel>{t("banners.sectionSchedule")}</SectionLabel>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>{t("banners.startsAt")}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.starts_at && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.starts_at ? format(form.starts_at, "dd/MM/yyyy") : "Imediato"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={form.starts_at ?? undefined} onSelect={(d) => setForm({ ...form, starts_at: d ?? null })} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("banners.expiresAt")}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.expires_at && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.expires_at ? format(form.expires_at, "dd/MM/yyyy") : "Sem limite"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={form.expires_at ?? undefined} onSelect={(d) => setForm({ ...form, expires_at: d ?? null })} className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Switch checked={form.has_voting} onCheckedChange={(v) => setForm({ ...form, has_voting: v })} />
-                <Label>{t("banners.enableVoting")}</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>{t("banners.priority")}</Label>
+                  <Select value={String(form.priority)} onValueChange={(v) => setForm({ ...form, priority: Number(v) })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n} {n === 10 ? "(máx)" : n === 1 ? "(mín)" : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("banners.maxViews")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.max_views ?? ""}
+                    onChange={(e) => setForm({ ...form, max_views: e.target.value ? Number(e.target.value) : null })}
+                    placeholder="Ilimitado"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
-                <Label>{t("banners.activeLabel")}</Label>
+
+              <Separator />
+
+              {/* Section 6: Segmentation */}
+              <SectionLabel>{t("banners.sectionSegmentation")}</SectionLabel>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v })} />
+                  <Label>{t("banners.targetAll")}</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+                  <Label>{t("banners.activeLabel")}</Label>
+                </div>
               </div>
             </div>
 
@@ -399,6 +623,9 @@ const AdminBanners = () => {
                 linkUrl={form.link_url || undefined}
                 linkLabel={form.link_label || undefined}
                 hasVoting={form.has_voting}
+                bannerType={form.banner_type}
+                startsAt={form.starts_at?.toISOString()}
+                expiresAt={form.expires_at?.toISOString()}
               />
             </div>
           </div>
@@ -416,7 +643,6 @@ const AdminBanners = () => {
             <DialogTitle>{t("banners.assignments")} — {selectedBanner?.title}</DialogTitle>
           </DialogHeader>
 
-          {/* Add contacts */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">{t("banners.addClients")}</CardTitle>
@@ -424,19 +650,11 @@ const AdminBanners = () => {
             <CardContent className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={contactSearch}
-                  onChange={(e) => setContactSearch(e.target.value)}
-                  placeholder={t("banners.searchClient")}
-                  className="pl-9"
-                />
+                <Input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder={t("banners.searchClient")} className="pl-9" />
               </div>
               <div className="max-h-40 overflow-y-auto border rounded-md">
                 {filteredContacts.map((c) => (
-                  <label
-                    key={c.id}
-                    className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer text-sm"
-                  >
+                  <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer text-sm">
                     <input
                       type="checkbox"
                       checked={selectedContacts.has(c.id)}
@@ -462,7 +680,6 @@ const AdminBanners = () => {
             </CardContent>
           </Card>
 
-          {/* Current assignments */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">{t("banners.currentAssignments")} ({assignments.length})</CardTitle>
@@ -492,7 +709,7 @@ const AdminBanners = () => {
                         <TableCell>{a.views_count}</TableCell>
                         <TableCell>
                           {a.vote === "up" ? (
-                            <ThumbsUp className="h-4 w-4 text-green-500" />
+                            <ThumbsUp className="h-4 w-4 text-emerald-500" />
                           ) : a.vote === "down" ? (
                             <ThumbsDown className="h-4 w-4 text-destructive" />
                           ) : (
