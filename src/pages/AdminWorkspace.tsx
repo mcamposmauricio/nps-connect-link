@@ -62,6 +62,7 @@ const AdminWorkspace = () => {
   const { messages, loading: messagesLoading, hasMore, loadingMore, loadMore } = useChatMessages(selectedRoomId);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [visitorLastReadAt, setVisitorLastReadAt] = useState<string | null>(null);
 
   // Polling moved to SidebarLayout for reliability (runs even without Workspace open)
 
@@ -105,10 +106,15 @@ const AdminWorkspace = () => {
     setSelectedRoomRef(selectedRoomId);
   }, [selectedRoomId, setSelectedRoomRef]);
 
-  // Typing indicator via Realtime Broadcast
+  // Typing indicator via Realtime Broadcast + visitor_last_read_at tracking
   useEffect(() => {
-    if (!selectedRoomId) { setTypingUser(null); return; }
+    if (!selectedRoomId) { setTypingUser(null); setVisitorLastReadAt(null); return; }
     setTypingUser(null);
+
+    // Fetch initial visitor_last_read_at
+    supabase.from("chat_rooms").select("visitor_last_read_at").eq("id", selectedRoomId).maybeSingle().then(({ data }) => {
+      if (data) setVisitorLastReadAt((data as any).visitor_last_read_at ?? null);
+    });
 
     const channel = supabase
       .channel(`typing-${selectedRoomId}`)
@@ -122,7 +128,21 @@ const AdminWorkspace = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Subscribe to room updates for visitor_last_read_at changes
+    const roomChannel = supabase
+      .channel(`workspace-room-read-${selectedRoomId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_rooms", filter: `id=eq.${selectedRoomId}` }, (payload) => {
+        const room = payload.new as any;
+        if (room.visitor_last_read_at) {
+          setVisitorLastReadAt(room.visitor_last_read_at);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(roomChannel);
+    };
   }, [selectedRoomId, user?.id]);
 
   // Filter rooms based on viewing context
@@ -419,7 +439,7 @@ const AdminWorkspace = () => {
                 </div>
               </div>
               <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} />
+                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} visitorLastReadAt={visitorLastReadAt} />
               </div>
               {selectedRoom.status !== "closed" && (
                 <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>
@@ -532,7 +552,7 @@ const AdminWorkspace = () => {
                     </div>
                   </div>
                   <div className="flex-1 overflow-auto">
-                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} />
+                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} visitorLastReadAt={visitorLastReadAt} />
                   </div>
                   {effectiveRoom.status !== "closed" && (
                     <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>

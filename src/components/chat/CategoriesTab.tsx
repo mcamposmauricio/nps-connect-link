@@ -82,6 +82,29 @@ const CategoriesTab = () => {
           .single();
         if (newCat) {
           allCats = [newCat as Category, ...allCats];
+          // Auto-link to default team if it exists
+          const { data: defaultTeam } = await supabase
+            .from("chat_teams")
+            .select("id, tenant_id")
+            .eq("is_default", true)
+            .limit(1)
+            .maybeSingle();
+          if (defaultTeam) {
+            // Check if link already exists
+            const { data: existingLink } = await supabase
+              .from("chat_category_teams")
+              .select("id")
+              .eq("category_id", (newCat as Category).id)
+              .eq("team_id", defaultTeam.id)
+              .maybeSingle();
+            if (!existingLink) {
+              await supabase.from("chat_category_teams").insert({
+                category_id: (newCat as Category).id,
+                team_id: defaultTeam.id,
+                tenant_id: defaultTeam.tenant_id,
+              } as any);
+            }
+          }
         }
       }
     }
