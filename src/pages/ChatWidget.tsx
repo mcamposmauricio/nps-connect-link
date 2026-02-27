@@ -73,6 +73,7 @@ const ChatWidget = () => {
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingBroadcast = useRef<number>(0);
+  const [attendantLastReadAt, setAttendantLastReadAt] = useState<string | null>(null);
   const [widgetConfig, setWidgetConfig] = useState<{
     show_outside_hours_banner: boolean;
     outside_hours_title: string;
@@ -446,8 +447,22 @@ const ChatWidget = () => {
             setAttendantName(att?.display_name ?? null);
           }
         } else if (room.status === "closed") {
-          setPhase("csat");
+          const resStatus = room.resolution_status;
+          if (resStatus === "resolved") {
+            setPhase("csat");
+          } else {
+            // pending or archived — skip CSAT
+            if (isResolvedVisitor) {
+              handleBackToHistory();
+            } else {
+              setPhase("closed");
+            }
+          }
           setAttendantName(null);
+        }
+        // Track attendant_last_read_at updates for read receipts
+        if (room.attendant_last_read_at) {
+          setAttendantLastReadAt(room.attendant_last_read_at);
         }
       })
       .subscribe();
@@ -1386,9 +1401,9 @@ const ChatWidget = () => {
                   mainContent = lines.slice(i).join("\n");
                 }
 
-                return msg.sender_type === "system" ? (
+              return msg.sender_type === "system" ? (
                   <div key={msg.id} className="flex justify-center my-3">
-                    <p className="text-[11px] text-muted-foreground bg-muted/40 backdrop-blur-sm rounded-full px-3 py-1 text-center max-w-[85%]">
+                    <p className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200/60 backdrop-blur-sm rounded-full px-3 py-1.5 text-center max-w-[85%]">
                       {mainContent || msg.content}
                     </p>
                   </div>
@@ -1427,8 +1442,22 @@ const ChatWidget = () => {
                         : <p className="whitespace-pre-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderTextWithLinks(mainContent || msg.content, msg.sender_type === "visitor")}</p>
                       }
                       {isLastInGroup && (
-                        <p className="text-[10px] opacity-40 mt-1 text-right">
+                        <p className="text-[10px] opacity-40 mt-1 text-right flex items-center justify-end gap-1">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {msg.sender_type === "visitor" && !msg.id.startsWith("optimistic-") && (
+                            <span className="inline-flex items-center">
+                              {attendantLastReadAt && msg.created_at <= attendantLastReadAt ? (
+                                <svg width="16" height="10" viewBox="0 0 16 10" fill="none" className="opacity-70">
+                                  <path d="M1 5l3 3L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <path d="M6 5l3 3L14 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              ) : (
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
+                                  <path d="M1 5l3 3L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              )}
+                            </span>
+                          )}
                         </p>
                       )}
                     </div>

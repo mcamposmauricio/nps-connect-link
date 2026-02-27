@@ -199,10 +199,14 @@ Deno.serve(async (req) => {
 
         // Status changes per step
         if (nextStep === "inactivity_warning") {
-          // Move to waiting (pending)
+          // Close as pending — room leaves active list but keeps attendant_id
           await supabase
             .from("chat_rooms")
-            .update({ status: "waiting" })
+            .update({
+              status: "closed",
+              resolution_status: "pending",
+              closed_at: new Date().toISOString(),
+            })
             .eq("id", room.id);
         } else if (nextStep === "auto_close") {
           // Close + archive

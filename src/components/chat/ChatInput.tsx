@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -127,7 +127,54 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
+  const commandListRef = useRef<HTMLDivElement>(null);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // When macros popup is open, delegate navigation keys
+    if (macrosOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMacrosOpen(false);
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        // Dispatch the key event to the cmdk Command component
+        const cmdList = commandListRef.current;
+        if (cmdList) {
+          const items = cmdList.querySelectorAll("[cmdk-item]");
+          const selectedItem = cmdList.querySelector("[data-selected='true']") as HTMLElement | null;
+          const itemsArr = Array.from(items) as HTMLElement[];
+          let currentIdx = selectedItem ? itemsArr.indexOf(selectedItem) : -1;
+          
+          if (e.key === "ArrowDown") currentIdx = Math.min(currentIdx + 1, itemsArr.length - 1);
+          else currentIdx = Math.max(currentIdx - 1, 0);
+          
+          // Deselect all, select target
+          itemsArr.forEach(item => item.setAttribute("data-selected", "false"));
+          if (itemsArr[currentIdx]) {
+            itemsArr[currentIdx].setAttribute("data-selected", "true");
+            itemsArr[currentIdx].scrollIntoView({ block: "nearest" });
+          }
+        }
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const cmdList = commandListRef.current;
+        if (cmdList) {
+          const selected = cmdList.querySelector("[data-selected='true']") as HTMLElement | null;
+          if (selected) {
+            selected.click();
+            return;
+          }
+        }
+        // If no macro selected, close and send
+        setMacrosOpen(false);
+        handleSend();
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -152,9 +199,9 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
       }).catch(() => {});
     }
 
-    if (v === "/" && macros.length > 0) {
+    if (v.startsWith("/") && macros.length > 0) {
       setMacrosOpen(true);
-    } else if (!v.startsWith("/")) {
+    } else {
       setMacrosOpen(false);
     }
   };
@@ -228,30 +275,35 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
         </div>
       )}
 
-      {macrosOpen && macros.length > 0 && (
-        <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto">
-          <Command>
-            <CommandInput placeholder="Buscar macro..." className="h-8 text-xs" />
-            <CommandList>
-              <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
-              <CommandGroup>
-                {macros.map((macro) => (
-                  <CommandItem key={macro.id} onSelect={() => handleSelectMacro(macro)} className="text-xs cursor-pointer">
-                    <div className="flex items-center gap-2 w-full">
-                      <Zap className="h-3 w-3 text-primary shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium">{macro.title}</span>
-                        {macro.shortcut && <span className="ml-1 text-muted-foreground">/{macro.shortcut}</span>}
-                        <p className="text-muted-foreground truncate text-[10px]">{macro.content.slice(0, 60)}</p>
+      {macrosOpen && macros.length > 0 && (() => {
+        const filterText = value.startsWith("/") ? value.slice(1).toLowerCase() : "";
+        const filtered = filterText
+          ? macros.filter(m => m.title.toLowerCase().includes(filterText) || (m.shortcut && m.shortcut.toLowerCase().includes(filterText)))
+          : macros;
+        return (
+          <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={commandListRef}>
+            <Command shouldFilter={false}>
+              <CommandList>
+                <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
+                <CommandGroup>
+                  {filtered.map((macro, idx) => (
+                    <CommandItem key={macro.id} onSelect={() => handleSelectMacro(macro)} className="text-xs cursor-pointer" data-selected={idx === 0 ? "true" : "false"}>
+                      <div className="flex items-center gap-2 w-full">
+                        <Zap className="h-3 w-3 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium">{macro.title}</span>
+                          {macro.shortcut && <span className="ml-1 text-muted-foreground">/{macro.shortcut}</span>}
+                          <p className="text-muted-foreground truncate text-[10px]">{macro.content.slice(0, 60)}</p>
+                        </div>
                       </div>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
-      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </div>
+        );
+      })()}
 
       <div className="flex gap-2 items-end">
         <Button
