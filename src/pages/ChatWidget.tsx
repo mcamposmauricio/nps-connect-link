@@ -91,6 +91,9 @@ const ChatWidget = () => {
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [scrollTrigger, setScrollTrigger] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const isOpenRef = useRef(isOpen);
 
   const isRight = position !== "left";
 
@@ -100,8 +103,17 @@ const ChatWidget = () => {
 
   // Notify parent iframe about open/close state for dynamic resizing
   useEffect(() => {
+    isOpenRef.current = isOpen;
     if (isEmbed) {
       window.parent.postMessage({ type: "chat-toggle", isOpen }, "*");
+    }
+    // When widget opens, reset unread and trigger scroll
+    if (isOpen) {
+      setUnreadCount(0);
+      setScrollTrigger(prev => prev + 1);
+      if (isEmbed) {
+        window.parent.postMessage({ type: "chat-unread-count", count: 0 }, "*");
+      }
     }
   }, [isOpen, isEmbed]);
 
@@ -368,6 +380,16 @@ const ChatWidget = () => {
               audio.volume = 0.25;
               audio.play().catch(() => {});
             } catch {}
+            // Track unread when widget is minimized
+            if (!isOpenRef.current) {
+              setUnreadCount(prev => {
+                const next = prev + 1;
+                if (isEmbed) {
+                  window.parent.postMessage({ type: "chat-unread-count", count: next }, "*");
+                }
+                return next;
+              });
+            }
           }
           setMessages((prev) => {
             // Remove any optimistic version of this message to prevent duplicates
@@ -477,6 +499,13 @@ const ChatWidget = () => {
     return () => { supabase.removeChannel(channel); };
   }, [visitorId, phase, fetchHistory]);
 
+  // Trigger scroll when phase changes to chat/viewTranscript
+  useEffect(() => {
+    if (phase === "chat" || phase === "viewTranscript") {
+      setScrollTrigger(prev => prev + 1);
+    }
+  }, [phase]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -486,7 +515,7 @@ const ChatWidget = () => {
         el.scrollTop = el.scrollHeight;
       });
     });
-  }, [messages]);
+  }, [messages, scrollTrigger]);
 
   const checkRoomAssignment = async (rId: string) => {
     try {
@@ -965,21 +994,47 @@ const ChatWidget = () => {
           background: "transparent",
         }}
       >
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`${buttonShape === "square" ? "rounded-lg" : "rounded-full"} flex items-center justify-center transition-all duration-300 hover:scale-[1.08] animate-scale-in active:scale-95`}
-          style={{
-            width: "60px",
-            height: "60px",
-            background: `linear-gradient(135deg, ${primaryColor}, ${darkenColor(primaryColor, 10)})`,
-            color: "#fff",
-            border: "none",
-            cursor: "pointer",
-            boxShadow: `0 4px 14px ${primaryColor}40`,
-          }}
-        >
-          <MessageSquare className="h-7 w-7 transition-transform duration-300" />
-        </button>
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <button
+            onClick={() => setIsOpen(true)}
+            className={`${buttonShape === "square" ? "rounded-lg" : "rounded-full"} flex items-center justify-center transition-all duration-300 hover:scale-[1.08] animate-scale-in active:scale-95`}
+            style={{
+              width: "60px",
+              height: "60px",
+              background: `linear-gradient(135deg, ${primaryColor}, ${darkenColor(primaryColor, 10)})`,
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: `0 4px 14px ${primaryColor}40`,
+            }}
+          >
+            <MessageSquare className="h-7 w-7 transition-transform duration-300" />
+          </button>
+          {unreadCount > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                minWidth: "22px",
+                height: "22px",
+                borderRadius: "11px",
+                background: "#EF4444",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 5px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                animation: "scale-in 0.2s ease-out",
+              }}
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </div>
       </div>
     );
   }
