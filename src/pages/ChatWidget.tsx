@@ -286,14 +286,26 @@ const ChatWidget = () => {
           setVisitorId(visitor.id);
           const { data: room } = await supabase
             .from("chat_rooms")
-            .select("id, status")
+            .select("id, status, attendant_id")
             .eq("visitor_id", visitor.id)
             .in("status", ["waiting", "active"])
             .maybeSingle();
 
           if (room) {
             setRoomId(room.id);
-            setPhase(room.status === "active" ? "chat" : "waiting");
+            if (room.status === "active") {
+              setPhase("chat");
+              if (room.attendant_id) {
+                const { data: att } = await supabase
+                  .from("attendant_profiles")
+                  .select("display_name")
+                  .eq("id", room.attendant_id)
+                  .maybeSingle();
+                setAttendantName(att?.display_name ?? null);
+              }
+            } else {
+              setPhase("waiting");
+            }
           }
         }
       }
@@ -432,7 +444,7 @@ const ChatWidget = () => {
         schema: "public",
         table: "chat_rooms",
         filter: `visitor_id=eq.${visitorId}`,
-      }, (payload) => {
+      }, async (payload) => {
         const newRoom = payload.new as any;
         // If not currently in an active conversation, auto-enter the new proactive chat
         if (phase !== "chat" && phase !== "waiting" && phase !== "csat") {
@@ -440,7 +452,19 @@ const ChatWidget = () => {
           setMessages([]);
           setCsatScore(0);
           setCsatComment("");
-          setPhase(newRoom.status === "active" ? "chat" : "waiting");
+          if (newRoom.status === "active") {
+            setPhase("chat");
+            if (newRoom.attendant_id) {
+              const { data: att } = await supabase
+                .from("attendant_profiles")
+                .select("display_name")
+                .eq("id", newRoom.attendant_id)
+                .maybeSingle();
+              setAttendantName(att?.display_name ?? null);
+            }
+          } else {
+            setPhase("waiting");
+          }
           postMsg("chat-ready");
         }
         // If viewing history, refresh the list
@@ -536,6 +560,12 @@ const ChatWidget = () => {
       setCsatScore(0);
       setCsatComment("");
       if (newRoom.status === "active" && newRoom.attendant_id) {
+        const { data: att } = await supabase
+          .from("attendant_profiles")
+          .select("display_name")
+          .eq("id", newRoom.attendant_id)
+          .maybeSingle();
+        setAttendantName(att?.display_name ?? null);
         setPhase("chat");
       } else {
         setPhase("waiting");
@@ -699,6 +729,12 @@ const ChatWidget = () => {
       if (room) {
         setRoomId(room.id);
         if (room.status === "active" && room.attendant_id) {
+          const { data: att } = await supabase
+            .from("attendant_profiles")
+            .select("display_name")
+            .eq("id", room.attendant_id)
+            .maybeSingle();
+          setAttendantName(att?.display_name ?? null);
           setPhase("chat");
         } else {
           setPhase("waiting");
@@ -749,6 +785,12 @@ const ChatWidget = () => {
     if (room) {
       setRoomId(room.id);
       if (room.status === "active" && room.attendant_id) {
+        const { data: att } = await supabase
+          .from("attendant_profiles")
+          .select("display_name")
+          .eq("id", room.attendant_id)
+          .maybeSingle();
+        setAttendantName(att?.display_name ?? null);
         setPhase("chat");
       } else {
         setPhase("waiting");
