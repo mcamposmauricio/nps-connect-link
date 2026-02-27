@@ -117,8 +117,13 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
               </div>
             )}
             <div
-              className={`flex ${msg.sender_type === "visitor" ? "justify-start" : "justify-end"} group`}
+              className={`flex ${msg.sender_type === "system" ? "justify-center" : msg.sender_type === "visitor" ? "justify-start" : "justify-end"} group`}
             >
+              {msg.sender_type === "system" ? (
+                <p className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200/60 rounded-full px-3 py-1.5 text-center max-w-[85%] my-1">
+                  {mainContent || msg.content}
+                </p>
+              ) : (
               <div
                 className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
                   msg.is_internal
@@ -168,6 +173,7 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
                 </p>
               </div>
 
+              )}
               {/* Reply button for visitor messages */}
               {msg.sender_type === "visitor" && onReply && !msg.is_internal && (
                 <button

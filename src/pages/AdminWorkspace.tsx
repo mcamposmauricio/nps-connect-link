@@ -194,6 +194,8 @@ const AdminWorkspace = () => {
     markRoomAsRead(id);
     setReplyTarget(null);
     if (isMobile) setMobileView("chat");
+    // Update attendant_last_read_at for read receipts in widget
+    supabase.from("chat_rooms").update({ attendant_last_read_at: new Date().toISOString() }).eq("id", id).then(() => {});
   };
 
   const handleAssignRoom = async (roomId: string) => {
@@ -259,7 +261,7 @@ const AdminWorkspace = () => {
     setCloseDialogOpen(true);
   };
 
-  const handleConfirmClose = async (resolutionStatus: "resolved" | "pending", note?: string) => {
+  const handleConfirmClose = async (resolutionStatus: "resolved" | "pending" | "archived", note?: string) => {
     if (!closingRoomId || !user) return;
     if (note) {
       await supabase.from("chat_messages").insert({
@@ -271,7 +273,8 @@ const AdminWorkspace = () => {
       status: "closed", resolution_status: resolutionStatus, closed_at: new Date().toISOString(),
     }).eq("id", closingRoomId);
     setClosingRoomId(null);
-    toast.success(resolutionStatus === "resolved" ? "Conversa encerrada como resolvida" : "Conversa encerrada com pendência");
+    const msgs: Record<string, string> = { resolved: "Conversa encerrada como resolvida", pending: "Conversa encerrada com pendência", archived: "Conversa arquivada" };
+    toast.success(msgs[resolutionStatus] ?? "Conversa encerrada");
   };
 
   const handleReassign = async (attendantId: string, attendantName: string) => {

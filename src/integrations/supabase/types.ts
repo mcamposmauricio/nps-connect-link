@@ -966,6 +966,7 @@ export type Database = {
         Row: {
           assigned_at: string | null
           attendant_id: string | null
+          attendant_last_read_at: string | null
           closed_at: string | null
           company_contact_id: string | null
           contact_id: string | null
@@ -986,6 +987,7 @@ export type Database = {
         Insert: {
           assigned_at?: string | null
           attendant_id?: string | null
+          attendant_last_read_at?: string | null
           closed_at?: string | null
           company_contact_id?: string | null
           contact_id?: string | null
@@ -1006,6 +1008,7 @@ export type Database = {
         Update: {
           assigned_at?: string | null
           attendant_id?: string | null
+          attendant_last_read_at?: string | null
           closed_at?: string | null
           company_contact_id?: string | null
           contact_id?: string | null
