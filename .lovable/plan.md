@@ -1,68 +1,81 @@
 
-# Auto-vinculacao Fila/Time Padrao + Checks apenas no Workspace
+# Correcoes e Melhorias no Widget de Chat
 
-## Problema 1: Fila Padrao e Time Padrao nao estao vinculados automaticamente
+## 1. Botao "Retomar conversa" na visualizacao de transcript pendente
 
-Quando o sistema cria a "Fila Padrao" e o "Time Padrao" automaticamente, eles existem como entidades isoladas. Nao ha um registro em `chat_category_teams` conectando os dois, entao o motor de roteamento nao consegue encaminhar chats pela fila padrao para o time padrao.
+**Problema:** Ao clicar em um chat pendente na lista de historico, o usuario ve o transcript mas so tem "Voltar ao historico" sem opcao de retomar.
 
-### Solucao
+**Solucao:** No `ChatWidget.tsx`, na fase `viewTranscript`, verificar se o room visualizado tem `resolution_status === "pending"`. Se sim, exibir dois botoes: "Retomar conversa" e "Voltar ao historico".
 
-Alterar `CategoriesTab.tsx`: apos criar a categoria padrao, verificar se o time padrao ja existe. Se sim, criar automaticamente o registro em `chat_category_teams` vinculando a categoria padrao ao time padrao.
-
-Alterar `TeamsTab.tsx`: apos criar o time padrao, verificar se a categoria padrao ja existe. Se sim, criar automaticamente o registro em `chat_category_teams` vinculando-os.
-
-Dessa forma, independente de qual aba o usuario abrir primeiro, a vinculacao sera criada assim que ambas as entidades existirem.
+**Arquivo:** `src/pages/ChatWidget.tsx` (linhas ~1628-1634 - footer do viewTranscript)
+- Guardar `resolution_status` no estado ao abrir transcript via `handleViewTranscript`
+- Renderizar botao "Retomar conversa" ao lado do "Voltar ao historico" quando pendente
 
 ---
 
-## Problema 2: Checks de entregue/lido estao no Widget (lado do visitante)
+## 2. Foto e nome do atendente no header do widget
 
-Atualmente o widget exibe checks de entregue (1 check) e lido (2 checks) nas mensagens do visitante. O pedido e remover esses checks do widget e mover para o workspace do atendente.
+**Problema:** O header ja mostra iniciais e nome do atendente em fase "chat", mas apenas no subtitulo. O pedido e deixar mais evidente a identificacao.
 
-### Solucao
+**Solucao:** O header ja implementa isso (linhas ~1098-1116). Porem, o subtitulo mostra `attendantName ?? "Chat ativo"` de forma generica. Vou:
+- Exibir o nome do atendente de forma mais proeminente no subtitulo (ex: "Voce esta falando com [Nome]")
+- Garantir que so aparece para chats ativos com atendente atribuido (ja e o caso com a condicao `phase === "chat" && attendantName`)
 
-**Remover do Widget (`ChatWidget.tsx`):**
-- Remover o estado `attendantLastReadAt` e toda a logica de rastreamento de `attendant_last_read_at` no canal Realtime
-- Remover os SVGs de check/check duplo da renderizacao das mensagens do visitante (linhas ~1447-1460)
-
-**Adicionar no Workspace (`ChatMessageList.tsx`):**
-- Adicionar nova prop `visitorLastReadAt` ao componente
-- Nas mensagens do atendente (`sender_type !== "visitor"` e `!= "system"`), exibir:
-  - Um check unico = entregue (mensagem existe no banco, confirmada)
-  - Check duplo = visitante visualizou (comparando `msg.created_at` com `visitorLastReadAt`)
-- Os checks aparecem ao lado do timestamp, apenas nas mensagens do atendente
-
-**Rastrear leitura do visitante (`chat_rooms` + Widget):**
-- Adicionar coluna `visitor_last_read_at timestamptz` na tabela `chat_rooms` via migration
-- No `ChatWidget.tsx`, quando o visitante esta com o chat aberto e recebe/visualiza mensagens, atualizar `visitor_last_read_at` com o timestamp atual
-- No `AdminWorkspace.tsx`, passar o valor de `visitor_last_read_at` da sala selecionada para o `ChatMessageList` via prop, e subscrever atualizacoes Realtime desse campo
+**Arquivo:** `src/pages/ChatWidget.tsx` (linha ~1114-1115)
 
 ---
 
-## Arquivos a modificar
+## 3. Mensagem de boas-vindas automatica
+
+**Problema:** A regra `welcome_message` existe no banco e esta habilitada, mas nenhum codigo a processa. Ela deve ser enviada imediatamente quando um novo chat room e criado.
+
+**Solucao:** No `process-chat-auto-rules` edge function, adicionar processamento para `welcome_message`:
+- Buscar rooms recem-criados (status "waiting") que ainda nao receberam uma mensagem de sistema com `auto_rule: "welcome_message"`
+- Se a regra esta habilitada para o tenant, enviar a mensagem automatica imediatamente
+- Nao depende de `trigger_minutes` (e imediata)
+
+**Arquivo:** `supabase/functions/process-chat-auto-rules/index.ts`
+- Adicionar `welcome_message` na query de regras
+- Para rooms em "waiting" sem mensagem de boas-vindas, inserir a mensagem
+
+---
+
+## 4. Checks de entregue/lido no workspace
+
+**Problema:** O check duplo so aparece quando o visitante responde, nao quando visualiza. O `visitor_last_read_at` so e atualizado em momentos especificos.
+
+**Solucao:** No `ChatWidget.tsx`, garantir que `visitor_last_read_at` e atualizado:
+- Quando o widget e aberto e ha mensagens (ja existe parcialmente)
+- Quando novas mensagens chegam enquanto o widget esta aberto (ja existe)
+- Quando o usuario abre/navega para a fase "chat" (adicionar)
+- Quando o usuario faz scroll e ve mensagens
+
+O problema principal e que o update so acontece no evento de INSERT de mensagem e no UPDATE de room. Vou adicionar o update tambem:
+- Na abertura do widget (`isOpen` muda para true e fase e "chat")
+- Na mudanca de fase para "chat"
+- Na inicializacao quando o widget carrega com um room ativo
+
+**Arquivo:** `src/pages/ChatWidget.tsx`
+
+---
+
+## 5. Quebra de linha no input do widget
+
+**Problema:** O input do chat no widget e um `<input>` HTML simples que nao suporta quebra de linha. O visitante nao consegue enviar mensagens com multiplas linhas.
+
+**Solucao:** Substituir o `<input>` por `<textarea>` no input da fase "chat" e da fase "waiting":
+- Usar `textarea` com auto-resize (altura dinamica baseada no conteudo)
+- Shift+Enter para quebra de linha, Enter para enviar
+- Manter o mesmo visual (rounded, sem borda, transparente)
+- Limitar altura maxima para ~4 linhas
+
+**Arquivo:** `src/pages/ChatWidget.tsx` (linhas ~1592-1614 para fase chat, ~1341-1346 para fase waiting)
+
+---
+
+## Resumo de arquivos
 
 | Arquivo | Mudanca |
 |---------|---------|
-| Migration SQL | Adicionar `visitor_last_read_at timestamptz` em `chat_rooms` |
-| `src/components/chat/CategoriesTab.tsx` | Apos criar categoria padrao, vincular ao time padrao via `chat_category_teams` |
-| `src/components/chat/TeamsTab.tsx` | Apos criar time padrao, vincular a categoria padrao via `chat_category_teams` |
-| `src/pages/ChatWidget.tsx` | Remover checks de entregue/lido; adicionar update de `visitor_last_read_at` quando visitante visualiza mensagens |
-| `src/components/chat/ChatMessageList.tsx` | Adicionar prop `visitorLastReadAt`; renderizar checks nas mensagens do atendente |
-| `src/pages/AdminWorkspace.tsx` | Passar `visitor_last_read_at` da sala para ChatMessageList; subscrever updates Realtime |
-
----
-
-## Fluxo resultante
-
-```text
-Categoria Padrao criada -> Verifica se Time Padrao existe -> Se sim, cria chat_category_teams
-Time Padrao criado -> Verifica se Categoria Padrao existe -> Se sim, cria chat_category_teams
-
-Novo atendente habilitado -> Vai para Time Padrao (ja implementado)
-Nova empresa sem categoria -> Roteada pela Fila Padrao (ja implementado)
-Fila Padrao + Time Padrao vinculados -> Roteamento funciona automaticamente
-
-Widget: Visitante envia mensagem -> Sem checks visuais
-Widget: Visitante abre/le chat -> Atualiza visitor_last_read_at
-Workspace: Atendente ve mensagens proprias com 1 check (entregue) ou 2 checks (visitante leu)
-```
+| `src/pages/ChatWidget.tsx` | Botao retomar em viewTranscript; header com nome atendente; textarea multiline; fix visitor_last_read_at |
+| `supabase/functions/process-chat-auto-rules/index.ts` | Processar regra welcome_message para rooms novos |
