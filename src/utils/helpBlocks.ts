@@ -251,3 +251,13 @@ export function extractArticleMetadata(htmlString: string): { title: string; sub
   const bodyBlocks = htmlToBlocks(doc.body.innerHTML);
   return { title, subtitle, bodyBlocks };
 }
+
+// ─── Editor Schema → HTML (supports both legacy blocks and new HTML format) ──
+export function editorSchemaToHtml(schema: any): string {
+  if (!schema) return '';
+  // New format: { html: "..." }
+  if (typeof schema.html === 'string') return schema.html;
+  // Legacy format: { blocks: [...] }
+  if (Array.isArray(schema.blocks) && schema.blocks.length > 0) return blocksToHtml(schema.blocks);
+  return '';
+}
