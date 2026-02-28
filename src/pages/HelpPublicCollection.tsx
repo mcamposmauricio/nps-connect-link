@@ -22,19 +22,35 @@ export default function HelpPublicCollection() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const helpBase = tenantSlug ? `/${tenantSlug}/help` : "/help";
+
   useEffect(() => {
-    if (tenantSlug && collectionSlug) loadData();
+    if (collectionSlug) loadData();
   }, [tenantSlug, collectionSlug]);
 
   const loadData = async () => {
-    // Find tenant
-    const { data: tenant } = await supabase.from("tenants").select("id").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
-    if (!tenant) { setLoading(false); return; }
+    let tenantIdResolved: string | null = null;
+
+    if (tenantSlug) {
+      const { data: tenant } = await supabase.from("tenants").select("id").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
+      if (!tenant) { setLoading(false); return; }
+      tenantIdResolved = tenant.id;
+    } else {
+      // Resolve tenant from help_site_settings
+      const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
+      if (site) tenantIdResolved = site.tenant_id;
+      else {
+        const { data: art } = await supabase.from("help_articles").select("tenant_id").eq("status", "published").limit(1).maybeSingle();
+        if (art) tenantIdResolved = art.tenant_id;
+      }
+    }
+
+    if (!tenantIdResolved) { setLoading(false); return; }
 
     // Find collection
     const { data: col } = await supabase.from("help_collections")
       .select("id, name, description, icon")
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", tenantIdResolved)
       .eq("slug", collectionSlug!)
       .eq("status", "active")
       .maybeSingle();
@@ -44,7 +60,7 @@ export default function HelpPublicCollection() {
     // Get articles
     const { data: arts } = await supabase.from("help_articles")
       .select("id, title, subtitle, slug")
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", tenantIdResolved)
       .eq("collection_id", col.id)
       .eq("status", "published")
       .order("published_at", { ascending: false });
@@ -61,7 +77,7 @@ export default function HelpPublicCollection() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-8">
-          <Link to={`/${tenantSlug}/help`} className="hover:text-foreground">Help Center</Link>
+          <Link to={helpBase} className="hover:text-foreground">Help Center</Link>
           <ChevronRight className="h-3 w-3" />
           <span className="text-foreground">{collection.name}</span>
         </nav>
@@ -77,7 +93,7 @@ export default function HelpPublicCollection() {
         ) : (
           <div className="space-y-2">
             {articles.map(art => (
-              <Link key={art.id} to={`/${tenantSlug}/help/a/${art.slug}`} className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+              <Link key={art.id} to={`${helpBase}/a/${art.slug}`} className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <p className="font-medium">{art.title}</p>
                 {art.subtitle && <p className="text-sm text-muted-foreground mt-0.5">{art.subtitle}</p>}
               </Link>

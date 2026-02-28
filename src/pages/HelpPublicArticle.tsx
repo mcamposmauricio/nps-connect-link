@@ -25,24 +25,34 @@ export default function HelpPublicArticle() {
   const contentRef = useRef<HTMLDivElement>(null);
   const trackedRef = useRef(false);
 
+  const helpBase = tenantSlug ? `/${tenantSlug}/help` : "/help";
+
   useEffect(() => {
-    if (tenantSlug && articleSlug) loadArticle();
+    if (articleSlug) loadArticle();
   }, [tenantSlug, articleSlug]);
 
   const loadArticle = async () => {
-    // Find tenant
-    const { data: tenant } = await supabase.from("tenants").select("id").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
-    if (!tenant) { setLoading(false); return; }
+    let tenantIdResolved: string | null = null;
 
-    // Find article
-    const { data: art } = await supabase.from("help_articles")
+    if (tenantSlug) {
+      const { data: tenant } = await supabase.from("tenants").select("id").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
+      if (!tenant) { setLoading(false); return; }
+      tenantIdResolved = tenant.id;
+    }
+
+    // Find article - with or without tenant filter
+    let query = supabase.from("help_articles")
       .select("id, title, subtitle, slug, status, current_version_id, collection_id, tenant_id")
-      .eq("tenant_id", tenant.id)
-      .eq("slug", articleSlug!)
-      .maybeSingle();
+      .eq("slug", articleSlug!);
+    
+    if (tenantIdResolved) {
+      query = query.eq("tenant_id", tenantIdResolved);
+    }
+
+    const { data: art } = await query.maybeSingle();
 
     if (!art || art.status === "archived") {
-      navigate(`/${tenantSlug}/help`, { replace: true });
+      navigate(helpBase, { replace: true });
       return;
     }
 
@@ -81,7 +91,6 @@ export default function HelpPublicArticle() {
     const sessionId = sessionStorage.getItem("help_session_id") || crypto.randomUUID();
     sessionStorage.setItem("help_session_id", sessionId);
 
-    // Insert page_view
     await supabase.from("help_article_events").insert({
       tenant_id: article.tenant_id,
       article_id: article.id,
@@ -91,7 +100,6 @@ export default function HelpPublicArticle() {
       event_meta: { referrer: document.referrer, url: window.location.href },
     });
 
-    // Check unique_view (24h window)
     const dayAgo = new Date(Date.now() - 86400000).toISOString();
     const { data: existing } = await supabase.from("help_article_events")
       .select("id")
@@ -160,11 +168,11 @@ export default function HelpPublicArticle() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-8 flex-wrap">
-          <Link to={`/${tenantSlug}/help`} className="hover:text-foreground">Help Center</Link>
+          <Link to={helpBase} className="hover:text-foreground">Help Center</Link>
           {collectionName && collectionSlug && (
             <>
               <ChevronRight className="h-3 w-3" />
-              <Link to={`/${tenantSlug}/help/c/${collectionSlug}`} className="hover:text-foreground">{collectionName}</Link>
+              <Link to={`${helpBase}/c/${collectionSlug}`} className="hover:text-foreground">{collectionName}</Link>
             </>
           )}
           <ChevronRight className="h-3 w-3" />

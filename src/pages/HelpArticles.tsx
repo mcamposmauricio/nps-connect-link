@@ -132,11 +132,24 @@ export default function HelpArticles() {
     loadData();
   };
 
+  const publicHelpUrl = `${window.location.origin}/help`;
+
   return (
     <div className="space-y-6 p-6">
       <PageHeader title={t("help.articles")} subtitle={t("help.title")}>
         <Button onClick={() => navigate("/help/articles/new")}><Plus className="h-4 w-4 mr-2" />{t("help.newArticle")}</Button>
       </PageHeader>
+
+      {/* Link to public Help Center */}
+      <a
+        href={publicHelpUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 px-4 py-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground w-fit"
+      >
+        <ExternalLink className="h-4 w-4" />
+        Abrir Help Center público
+      </a>
 
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
