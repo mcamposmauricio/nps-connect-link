@@ -403,8 +403,8 @@ const ChatWidget = () => {
             if (withoutOptimistic.some((m) => m.id === msg.id)) return withoutOptimistic;
             return [...withoutOptimistic, msg];
           });
-          // Update visitor_last_read_at when visitor sees a new message while widget is open
-          if (isOpenRef.current) {
+          // Update visitor_last_read_at only when widget is open AND message is from attendant/system
+          if (isOpenRef.current && isOpen && (msg.sender_type === "attendant" || msg.sender_type === "system")) {
             supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId!).then(() => {});
           }
         }
@@ -468,10 +468,7 @@ const ChatWidget = () => {
           }
           setAttendantName(null);
         }
-        // Update visitor_last_read_at when visitor sees messages
-        if (room.status === "active" || phase === "chat") {
-          supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId).then(() => {});
-        }
+        // visitor_last_read_at is now only updated on widget open and new message arrival
       })
       .subscribe();
 
@@ -556,6 +553,7 @@ const ChatWidget = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.assigned) {
+          setAttendantName(data.attendant_name ?? null);
           setPhase("chat");
         } else if (data.outside_hours) {
           setOutsideHours(true);
