@@ -9,10 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileText, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { Upload, FileText, AlertTriangle, CheckCircle, Loader2, FolderOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { extractArticleMetadata, blocksToHtml } from "@/utils/helpBlocks";
 import { slugify, ensureUniqueSlug } from "@/utils/helpSlug";
+
+const repoFiles: Record<string, string> = import.meta.glob(
+  ['/artigos 1/*.html', '/artigos 2/*.html'],
+  { query: '?raw', import: 'default', eager: true }
+) as any;
 
 interface ImportItem {
   fileName: string;
@@ -36,6 +41,38 @@ export default function HelpImport() {
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
   const [importResults, setImportResults] = useState({ success: 0, warnings: 0 });
+  const [loadingRepo, setLoadingRepo] = useState(false);
+
+  const handleRepoImport = () => {
+    setLoadingRepo(true);
+    try {
+      const parsed: ImportItem[] = [];
+      for (const [path, html] of Object.entries(repoFiles)) {
+        const parts = path.split('/');
+        const fileName = parts[parts.length - 1];
+        const collectionName = parts.length >= 3 ? parts[parts.length - 2] : '';
+        const { title, subtitle, bodyBlocks } = extractArticleMetadata(html);
+        const warnings: string[] = [];
+        if (!title) warnings.push("Sem título (h1)");
+        if (!subtitle) warnings.push("Sem subtítulo (h4)");
+        parsed.push({
+          fileName,
+          title: title || fileName.replace(/\.html?$/, ''),
+          subtitle,
+          blocksCount: bodyBlocks.length,
+          warnings,
+          rawHtml: html,
+          editorSchema: { blocks: bodyBlocks },
+          htmlSnapshot: blocksToHtml(bodyBlocks),
+          collectionName,
+        });
+      }
+      setItems(parsed);
+      setImported(false);
+    } finally {
+      setLoadingRepo(false);
+    }
+  };
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -159,9 +196,15 @@ export default function HelpImport() {
                 className="hidden"
                 onChange={e => handleFiles(e.target.files)}
               />
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                <FileText className="h-4 w-4 mr-2" />Selecionar arquivos
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <FileText className="h-4 w-4 mr-2" />Selecionar arquivos
+                </Button>
+                <Button variant="outline" onClick={handleRepoImport} disabled={loadingRepo}>
+                  {loadingRepo ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FolderOpen className="h-4 w-4 mr-2" />}
+                  Importar do repositório ({Object.keys(repoFiles).length})
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
