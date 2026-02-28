@@ -20,13 +20,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch active time-based rules (chain + attendant_absence)
+    // Fetch active time-based rules (chain + attendant_absence + welcome_message)
     const { data: rules, error: rulesErr } = await supabase
       .from("chat_auto_rules")
       .select("id, rule_type, trigger_minutes, message_content, tenant_id")
-      .in("rule_type", ["inactivity_warning", "inactivity_warning_2", "auto_close", "attendant_absence"])
-      .eq("is_enabled", true)
-      .not("trigger_minutes", "is", null);
+      .in("rule_type", ["inactivity_warning", "inactivity_warning_2", "auto_close", "attendant_absence", "welcome_message"])
+      .eq("is_enabled", true);
 
     if (rulesErr) throw rulesErr;
     if (!rules || rules.length === 0) {
@@ -49,16 +48,74 @@ Deno.serve(async (req) => {
       // Build maps for chain rules and attendant_absence
       const chainRules = new Map<string, (typeof tenantRules)[0]>();
       let absenceRule: (typeof tenantRules)[0] | null = null;
+      let welcomeRule: (typeof tenantRules)[0] | null = null;
 
       for (const rule of tenantRules) {
         if (FLOW_ORDER.includes(rule.rule_type as any)) {
           chainRules.set(rule.rule_type, rule);
         } else if (rule.rule_type === "attendant_absence") {
           absenceRule = rule;
+        } else if (rule.rule_type === "welcome_message") {
+          welcomeRule = rule;
         }
       }
 
-      // Fetch active/waiting rooms for this tenant
+      // === WELCOME MESSAGE (immediate, independent) ===
+      if (welcomeRule && welcomeRule.message_content) {
+        const welcomeQuery = supabase
+          .from("chat_rooms")
+          .select("id")
+          .eq("status", "waiting");
+
+        if (tenantId !== "__none__") {
+          welcomeQuery.eq("tenant_id", tenantId);
+        }
+
+        const { data: waitingRooms } = await welcomeQuery;
+        if (waitingRooms && waitingRooms.length > 0) {
+          const waitingRoomIds = waitingRooms.map((r) => r.id);
+
+          // Check which rooms already have a welcome_message
+          const { data: existingWelcome } = await supabase
+            .from("chat_messages")
+            .select("room_id")
+            .in("room_id", waitingRoomIds)
+            .eq("sender_type", "system")
+            .containedBy("metadata", { auto_rule: "welcome_message" } as any);
+
+          // Use a simpler approach: fetch system messages with metadata filter
+          const { data: systemMsgs } = await supabase
+            .from("chat_messages")
+            .select("room_id, metadata")
+            .in("room_id", waitingRoomIds)
+            .eq("sender_type", "system");
+
+          const roomsWithWelcome = new Set<string>();
+          if (systemMsgs) {
+            for (const sm of systemMsgs) {
+              if ((sm.metadata as any)?.auto_rule === "welcome_message") {
+                roomsWithWelcome.add(sm.room_id);
+              }
+            }
+          }
+
+          for (const wr of waitingRooms) {
+            if (!roomsWithWelcome.has(wr.id)) {
+              await supabase.from("chat_messages").insert({
+                room_id: wr.id,
+                sender_type: "system",
+                sender_name: "Sistema",
+                content: welcomeRule.message_content,
+                message_type: "text",
+                metadata: { auto_rule: "welcome_message" },
+              });
+              totalProcessed++;
+            }
+          }
+        }
+      }
+
+      // Fetch active/waiting rooms for this tenant (for chain + absence rules)
       const roomQuery = supabase
         .from("chat_rooms")
         .select("id, status, attendant_id")
