@@ -1,43 +1,53 @@
 
+# Corrigir URLs publicas do Help Center e adicionar link na pagina de artigos
 
-# Corrigir RLS do Help Center para Acesso Publico
+## Problema 1: URLs publicas dando 404
 
-## Problema Encontrado
+A URL publica dos artigos esta no formato `/help/a/slug` (sem tenant slug), mas as rotas no React Router exigem `/:tenantSlug/help/a/:articleSlug`. Como o dominio `jornadacliente.com.br` e customizado, nao ha tenant slug no path.
 
-As politicas RLS das tabelas do Help Center (`help_articles`, `help_article_versions`, `help_collections`) estao configuradas como **RESTRICTIVE** em vez de **PERMISSIVE**. No PostgreSQL:
+**Solucao:** Adicionar rotas alternativas **sem** tenant slug que resolvem o tenant automaticamente. As rotas `/help`, `/help/a/:slug` e `/help/c/:slug` serao adicionadas ao App.tsx, e os componentes publicos serao atualizados para funcionar tanto com `tenantSlug` do URL quanto com deteccao automatica do tenant.
 
-- Politicas **PERMISSIVE**: basta UMA passar (logica OR)
-- Politicas **RESTRICTIVE**: TODAS devem passar (logica AND), e ainda requerem pelo menos uma permissiva
+A deteccao automatica funcionara assim:
+1. Se `tenantSlug` existir no URL, usar como hoje
+2. Se nao existir, buscar o tenant pela tabela `help_site_settings` com `custom_domain` igual ao hostname atual, ou usar um fallback configuravel
 
-Como todas sao restritivas e nenhuma permissiva existe, usuarios anonimos nao conseguem visualizar artigos publicados, resultando em "Artigo nao encontrado" na pagina publica.
+Como ainda nao existe campo `custom_domain` na tabela, a solucao inicial sera: quando nao houver tenant slug, buscar o unico tenant que tenha artigos publicados (ou o primeiro encontrado). Isso funciona para single-tenant. Futuramente, um campo `custom_domain` pode ser adicionado.
 
-## Solucao
+**Mudancas:**
 
-Recriar as politicas de acesso publico como **PERMISSIVE** nas tres tabelas afetadas. As politicas de gerenciamento por tenant tambem precisam ser permissivas.
+### `src/App.tsx`
+- Adicionar 3 novas rotas sem tenant slug:
+  - `/help` -> HelpPublicHome
+  - `/help/a/:articleSlug` -> HelpPublicArticle  
+  - `/help/c/:collectionSlug` -> HelpPublicCollection
 
-## Mudancas (Migration SQL)
+### `src/pages/HelpPublicArticle.tsx`
+- Quando `tenantSlug` nao existir nos params, buscar o artigo diretamente pelo slug sem filtrar por tenant (a RLS ja garante que so artigos publicados sao vistos)
+- Ajustar breadcrumb para funcionar sem tenantSlug
 
-Uma migration que:
+### `src/pages/HelpPublicHome.tsx`
+- Quando `tenantSlug` nao existir, carregar usando o hostname ou buscar o primeiro tenant com help_site_settings
+- Ajustar links internos
 
-1. **`help_articles`**: Drop e recriar ambas as politicas como PERMISSIVE
-2. **`help_article_versions`**: Drop e recriar ambas as politicas como PERMISSIVE  
-3. **`help_collections`**: Drop e recriar ambas as politicas como PERMISSIVE
-4. **`help_article_events`**: Drop e recriar ambas as politicas como PERMISSIVE
+### `src/pages/HelpPublicCollection.tsx`
+- Mesma logica de fallback sem tenantSlug
 
-```text
-Tabela               | Politica                          | Antes       | Depois
-help_articles        | Public can view published          | RESTRICTIVE | PERMISSIVE
-help_articles        | Tenant members can manage          | RESTRICTIVE | PERMISSIVE
-help_article_versions| Public can view published versions | RESTRICTIVE | PERMISSIVE
-help_article_versions| Tenant members can manage          | RESTRICTIVE | PERMISSIVE
-help_collections     | Public can view active             | RESTRICTIVE | PERMISSIVE
-help_collections     | Tenant members can manage          | RESTRICTIVE | PERMISSIVE
-help_article_events  | Public can insert                  | RESTRICTIVE | PERMISSIVE
-help_article_events  | Tenant members can view            | RESTRICTIVE | PERMISSIVE
-```
+## Problema 2: Link para a home publica na pagina de artigos
 
-## Impacto
+Na pagina admin de artigos (`/help/articles`), adicionar no topo um banner/link para a home publica do Help Center.
 
-- A pagina publica voltara a funcionar para artigos publicados
-- Nenhuma mudanca de codigo necessaria - apenas SQL
-- A seguranca multi-tenant permanece intacta (cada politica filtra por tenant_id ou status)
+### `src/pages/HelpArticles.tsx`
+- Buscar o slug do tenant ao carregar
+- Adicionar abaixo do PageHeader um link clicavel para `/${tenantSlug}/help` (e tambem para `/help` no dominio custom)
+- O link abrira em nova aba com icone ExternalLink
+- Formato: card discreto com icone de link externo e texto "Abrir Help Center publico"
+
+## Resumo de arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `src/App.tsx` | Adicionar 3 rotas sem tenantSlug |
+| `src/pages/HelpPublicArticle.tsx` | Suportar acesso sem tenantSlug |
+| `src/pages/HelpPublicHome.tsx` | Suportar acesso sem tenantSlug |
+| `src/pages/HelpPublicCollection.tsx` | Suportar acesso sem tenantSlug |
+| `src/pages/HelpArticles.tsx` | Adicionar link para home publica no topo |
