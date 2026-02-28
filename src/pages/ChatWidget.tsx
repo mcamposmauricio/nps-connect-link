@@ -115,6 +115,10 @@ const ChatWidget = () => {
       if (isEmbed) {
         window.parent.postMessage({ type: "chat-unread-count", count: 0 }, "*");
       }
+      // Update visitor_last_read_at when widget opens and there's an active room
+      if (roomId && (phase === "chat" || phase === "waiting")) {
+        supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId).then(() => {});
+      }
     }
   }, [isOpen, isEmbed]);
 
@@ -518,12 +522,16 @@ const ChatWidget = () => {
     return () => { supabase.removeChannel(channel); };
   }, [visitorId, phase, fetchHistory]);
 
-  // Trigger scroll when phase changes to chat/viewTranscript
+  // Trigger scroll when phase changes to chat/viewTranscript + update read status
   useEffect(() => {
     if (phase === "chat" || phase === "viewTranscript") {
       setScrollTrigger(prev => prev + 1);
     }
-  }, [phase]);
+    // Update visitor_last_read_at when entering chat phase
+    if (phase === "chat" && roomId) {
+      supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId).then(() => {});
+    }
+  }, [phase, roomId]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -668,7 +676,16 @@ const ChatWidget = () => {
     setLoading(false);
   };
 
+  const [viewTranscriptResolutionStatus, setViewTranscriptResolutionStatus] = useState<string | null>(null);
+
   const handleViewTranscript = async (rId: string) => {
+    // Fetch resolution_status for this room
+    const { data: roomData } = await supabase
+      .from("chat_rooms")
+      .select("resolution_status")
+      .eq("id", rId)
+      .maybeSingle();
+    setViewTranscriptResolutionStatus(roomData?.resolution_status ?? null);
     setRoomId(rId);
     setPhase("viewTranscript");
   };
@@ -1111,8 +1128,8 @@ const ChatWidget = () => {
 
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm leading-tight">{companyName}</p>
-          <p className="text-xs opacity-80 animate-fade-in truncate" key={phase}>
-            {phase === "chat" ? (attendantName ?? "Chat ativo") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
+          <p className="text-xs opacity-80 animate-fade-in truncate" key={phase + (attendantName || "")}>
+            {phase === "chat" ? (attendantName ? `Você está falando com ${attendantName}` : "Chat ativo") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
           </p>
         </div>
 
@@ -1337,13 +1354,20 @@ const ChatWidget = () => {
             </div>
             {/* Input during waiting */}
             <div className="border-t p-3">
-              <div className="flex items-center gap-2 bg-muted/30 rounded-2xl border border-border/50 px-3 py-1">
-                <Input
+            <div className="flex items-end gap-2 bg-muted/30 rounded-2xl border border-border/50 px-3 py-1">
+                <textarea
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
+                  }}
                   placeholder="Envie uma mensagem enquanto aguarda..."
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  className="border-0 bg-transparent px-0 focus-visible:ring-0 h-9"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                  }}
+                  rows={1}
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[36px] max-h-[100px] py-2 px-0 resize-none border-0"
                   onPaste={(e) => {
                     const items = e.clipboardData?.items;
                     if (!items) return;
@@ -1570,7 +1594,7 @@ const ChatWidget = () => {
       {/* ===== INPUT BAR ===== */}
       {phase === "chat" && (
         <div className="border-t p-3">
-          <div className="flex items-center gap-2 bg-muted/30 rounded-2xl border border-border/50 px-1 py-1">
+          <div className="flex items-end gap-2 bg-muted/30 rounded-2xl border border-border/50 px-1 py-1">
             <input
               ref={fileInputRef}
               type="file"
@@ -1589,19 +1613,24 @@ const ChatWidget = () => {
                 <Paperclip className="h-4 w-4" />
               </button>
             )}
-            <input
+            <textarea
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
                 if (roomId && Date.now() - lastTypingBroadcast.current > 2000) {
                   lastTypingBroadcast.current = Date.now();
                   supabase.channel(`typing-${roomId}`).send({ type: "broadcast", event: "typing", payload: { name: formData.name || paramVisitorName || "Visitante" } }).catch(() => {});
                 }
               }}
               placeholder="Digite sua mensagem..."
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+              }}
+              rows={1}
               disabled={uploading}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none h-9 px-2"
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[36px] max-h-[100px] py-2 px-2 resize-none"
               onPaste={(e) => {
                 const items = e.clipboardData?.items;
                 if (!items) return;
@@ -1626,7 +1655,18 @@ const ChatWidget = () => {
       )}
 
       {phase === "viewTranscript" && (
-        <div className="border-t p-3">
+        <div className="border-t p-3 space-y-2">
+          {viewTranscriptResolutionStatus === "pending" && (
+            <Button
+              className="w-full gap-2 rounded-xl active:scale-95 text-white"
+              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
+              onClick={() => roomId && handleReopenChat(roomId)}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              Retomar conversa
+            </Button>
+          )}
           <Button variant="outline" className="w-full gap-2 rounded-xl active:scale-95" onClick={handleBackToHistory}>
             <ArrowLeft className="h-4 w-4" /> Voltar ao histórico
           </Button>
