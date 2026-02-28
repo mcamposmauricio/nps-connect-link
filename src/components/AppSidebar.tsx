@@ -26,6 +26,10 @@ import {
   Star,
   Sun,
   Moon,
+  BookOpen,
+  FileText,
+  FolderOpen,
+  Import,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -108,6 +112,7 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view");
   const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
   const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
+  const showHelp = hasPermission("help", "view") || hasPermission("help.articles", "view") || hasPermission("help.collections", "view");
   const { teamAttendants, totalActiveChats, unassignedCount } = useSidebarData();
 
   const isActive = (path: string) => location.pathname === path;
@@ -434,6 +439,54 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
                       <SidebarMenuItem>
                         <SidebarMenuButton onClick={() => navigate("/nps/people")} isActive={isActive("/nps/people")} tooltip={t("nav.people")} className={cn(isActive("/nps/people") ? activeItemCls : "hover:bg-sidebar-accent")}>
                           <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {/* Help Center */}
+            {showHelp && (
+              <SidebarGroup>
+                <SidebarGroupLabel className={groupLabelCls}>
+                  <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /><span>{t("help.title")}</span></span>
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {hasPermission("help.articles", "view") && (
+                      <>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/help/overview")} isActive={isActive("/help/overview")} tooltip={t("help.overview")} className={cn(isActive("/help/overview") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                            <BarChart3 className="h-4 w-4" /><span>{t("help.overview")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/help/articles")} isActive={isActive("/help/articles") || location.pathname.startsWith("/help/articles/")} tooltip={t("help.articles")} className={cn(isActive("/help/articles") || location.pathname.startsWith("/help/articles/") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                            <FileText className="h-4 w-4" /><span>{t("help.articles")}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </>
+                    )}
+                    {hasPermission("help.collections", "view") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/help/collections")} isActive={isActive("/help/collections")} tooltip={t("help.collections")} className={cn(isActive("/help/collections") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <FolderOpen className="h-4 w-4" /><span>{t("help.collections")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                    {hasPermission("help.settings", "view") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/help/settings")} isActive={isActive("/help/settings")} tooltip={t("help.settings")} className={cn(isActive("/help/settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <Settings className="h-4 w-4" /><span>{t("help.settings")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                    {hasPermission("help.import", "manage") && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => navigate("/help/import")} isActive={isActive("/help/import")} tooltip={t("help.import")} className={cn(isActive("/help/import") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                          <Import className="h-4 w-4" /><span>{t("help.import")}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     )}
