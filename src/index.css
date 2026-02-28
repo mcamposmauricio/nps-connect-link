@@ -257,3 +257,138 @@ html[data-embed] #root {
   background: transparent !important;
   background-color: transparent !important;
 }
+
+/* ============================================================
+   Tiptap Rich Text Editor Styles
+   ============================================================ */
+
+/* Placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
+
+/* Editor content styling */
+.help-editor-content {
+  line-height: 1.7;
+}
+
+.help-editor-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.help-editor-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.help-editor-content p {
+  margin-bottom: 0.75rem;
+}
+
+.help-editor-content img.help-editor-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  cursor: pointer;
+}
+
+.help-editor-content img.help-editor-image.ProseMirror-selectednode {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+.help-editor-content a.help-editor-link {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.help-editor-content blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.help-editor-content hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+.help-editor-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.help-editor-content th,
+.help-editor-content td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.help-editor-content th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.help-editor-content ul,
+.help-editor-content ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+}
+
+.help-editor-content li {
+  margin-bottom: 0.25rem;
+}
+
+/* Help public article content */
+.help-article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.help-article-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.help-article-content th,
+.help-article-content td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+}
+
+.help-article-content th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.help-article-content blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.help-article-content hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
