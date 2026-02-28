@@ -6,6 +6,43 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function sendWelcomeMessage(supabase: any, roomId: string, tenantId: string | null) {
+  if (!tenantId) return;
+
+  // Check if welcome_message rule is enabled for this tenant
+  const { data: welcomeRule } = await supabase
+    .from("chat_auto_rules")
+    .select("id, message_content")
+    .eq("tenant_id", tenantId)
+    .eq("rule_type", "welcome_message")
+    .eq("is_enabled", true)
+    .maybeSingle();
+
+  if (!welcomeRule || !welcomeRule.message_content) return;
+
+  // Check if room already has a welcome message
+  const { data: existingMsgs } = await supabase
+    .from("chat_messages")
+    .select("id, metadata")
+    .eq("room_id", roomId)
+    .eq("sender_type", "system");
+
+  const alreadySent = existingMsgs?.some(
+    (m: any) => (m.metadata as any)?.auto_rule === "welcome_message"
+  );
+
+  if (alreadySent) return;
+
+  await supabase.from("chat_messages").insert({
+    room_id: roomId,
+    sender_type: "system",
+    sender_name: "Sistema",
+    content: welcomeRule.message_content,
+    message_type: "text",
+    metadata: { auto_rule: "welcome_message" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,7 +90,6 @@ Deno.serve(async (req) => {
       .eq("tenant_id", room.tenant_id);
 
     if (bhRows && bhRows.length > 0) {
-      // Hours are configured — check if current time is within active window
       const activeWindow = bhRows.find(
         (bh: any) =>
           bh.day_of_week === dow &&
@@ -63,7 +99,9 @@ Deno.serve(async (req) => {
       );
       outsideHours = !activeWindow;
     }
-    // If no rows at all, outsideHours = false (don't block)
+
+    // Send welcome message for any new room (regardless of assignment)
+    await sendWelcomeMessage(supabase, room_id, room.tenant_id);
 
     // If the trigger already assigned it, just return the result
     if (room.status === "active" && room.attendant_id) {
@@ -122,7 +160,6 @@ Deno.serve(async (req) => {
       }
 
       if (categoryId) {
-        // Get category-team links with enabled configs
         const { data: catTeams } = await supabase
           .from("chat_category_teams")
           .select(`
