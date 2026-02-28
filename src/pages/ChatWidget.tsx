@@ -404,7 +404,7 @@ const ChatWidget = () => {
             return [...withoutOptimistic, msg];
           });
           // Update visitor_last_read_at only when widget is open AND message is from attendant/system
-          if (isOpenRef.current && isOpen && (msg.sender_type === "attendant" || msg.sender_type === "system")) {
+          if (isOpenRef.current && (msg.sender_type === "attendant" || msg.sender_type === "system")) {
             supabase.from("chat_rooms").update({ visitor_last_read_at: new Date().toISOString() }).eq("id", roomId!).then(() => {});
           }
         }
@@ -799,8 +799,9 @@ const ChatWidget = () => {
             .maybeSingle();
           setAttendantName(att?.display_name ?? null);
           setPhase("chat");
-        } else {
+      } else {
           setPhase("waiting");
+          await checkRoomAssignment(room.id);
         }
         postMsg("chat-ready");
       }
@@ -857,6 +858,7 @@ const ChatWidget = () => {
         setPhase("chat");
       } else {
         setPhase("waiting");
+        await checkRoomAssignment(room.id);
       }
       postMsg("chat-ready");
     }
