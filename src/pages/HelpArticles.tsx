@@ -48,6 +48,7 @@ export default function HelpArticles() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [tenantSlug, setTenantSlug] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -56,10 +57,12 @@ export default function HelpArticles() {
 
   const loadData = async () => {
     setLoading(true);
-    const [{ data: arts }, { data: cols }] = await Promise.all([
+    const [{ data: arts }, { data: cols }, { data: tenant }] = await Promise.all([
       supabase.from("help_articles").select("id, title, subtitle, slug, status, collection_id, updated_at").eq("tenant_id", tenantId!).order("updated_at", { ascending: false }),
       supabase.from("help_collections").select("id, name").eq("tenant_id", tenantId!).eq("status", "active").order("order_index"),
+      supabase.from("tenants").select("slug").eq("id", tenantId!).single(),
     ]);
+    if (tenant) setTenantSlug(tenant.slug);
     setCollections(cols ?? []);
     const colMap = new Map((cols ?? []).map(c => [c.id, c.name]));
     setArticles((arts ?? []).map(a => ({ ...a, collection_name: a.collection_id ? colMap.get(a.collection_id) : undefined })));
@@ -89,8 +92,8 @@ export default function HelpArticles() {
   };
 
   const handleCopyLink = (slug: string) => {
-    // TODO: use tenant slug from settings
-    navigator.clipboard.writeText(`${window.location.origin}/help/a/${slug}`);
+    const base = tenantSlug ? `/${tenantSlug}/help` : "/help";
+    navigator.clipboard.writeText(`${window.location.origin}${base}/a/${slug}`);
     toast({ title: t("help.linkCopied") });
   };
 
@@ -132,7 +135,7 @@ export default function HelpArticles() {
     loadData();
   };
 
-  const publicHelpUrl = `${window.location.origin}/help`;
+  const publicHelpUrl = tenantSlug ? `${window.location.origin}/${tenantSlug}/help` : `${window.location.origin}/help`;
 
   return (
     <div className="space-y-6 p-6">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight } from "lucide-react";
@@ -24,8 +25,9 @@ export default function HelpPublicArticle() {
   const [loading, setLoading] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const trackedRef = useRef(false);
+  const [resolvedSlug, setResolvedSlug] = useState<string | null>(tenantSlug || null);
 
-  const helpBase = tenantSlug ? `/${tenantSlug}/help` : "/help";
+  const helpBase = resolvedSlug ? `/${resolvedSlug}/help` : "/help";
 
   useEffect(() => {
     if (articleSlug) loadArticle();
@@ -35,9 +37,10 @@ export default function HelpPublicArticle() {
     let tenantIdResolved: string | null = null;
 
     if (tenantSlug) {
-      const { data: tenant } = await supabase.from("tenants").select("id").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
+      const { data: tenant } = await supabase.from("tenants").select("id, slug").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
       if (!tenant) { setLoading(false); return; }
       tenantIdResolved = tenant.id;
+      setResolvedSlug(tenant.slug);
     }
 
     // Find article - with or without tenant filter
@@ -59,6 +62,12 @@ export default function HelpPublicArticle() {
     if (art.status !== "published") { setLoading(false); return; }
 
     setArticle(art);
+
+    // Resolve tenant slug for breadcrumb if not in URL
+    if (!tenantSlug && art.tenant_id) {
+      const { data: t } = await supabase.from("tenants").select("slug").eq("id", art.tenant_id).single();
+      if (t) setResolvedSlug(t.slug);
+    }
 
     // Load version HTML
     if (art.current_version_id) {

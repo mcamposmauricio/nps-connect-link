@@ -37,9 +37,10 @@ export default function HelpPublicHome() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resolvedSlug, setResolvedSlug] = useState<string | null>(tenantSlug || null);
 
-  // Helper to build links with or without tenantSlug
-  const helpBase = tenantSlug ? `/${tenantSlug}/help` : "/help";
+  // Helper to build links - always use tenant slug when available
+  const helpBase = resolvedSlug ? `/${resolvedSlug}/help` : "/help";
 
   useEffect(() => {
     loadTenant();
@@ -48,18 +49,28 @@ export default function HelpPublicHome() {
   const loadTenant = async () => {
     if (tenantSlug) {
       // Try slug first, then id
-      const { data: tenant } = await supabase.from("tenants").select("id").eq("slug", tenantSlug).maybeSingle();
-      if (tenant) { setTenantId(tenant.id); return; }
-      const { data: t2 } = await supabase.from("tenants").select("id").eq("id", tenantSlug).maybeSingle();
-      if (t2) { setTenantId(t2.id); return; }
+      const { data: tenant } = await supabase.from("tenants").select("id, slug").eq("slug", tenantSlug).maybeSingle();
+      if (tenant) { setTenantId(tenant.id); setResolvedSlug(tenant.slug); return; }
+      const { data: t2 } = await supabase.from("tenants").select("id, slug").eq("id", tenantSlug).maybeSingle();
+      if (t2) { setTenantId(t2.id); setResolvedSlug(t2.slug); return; }
       setLoading(false);
     } else {
       // No tenantSlug: resolve tenant from help_site_settings (first found)
       const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
-      if (site) { setTenantId(site.tenant_id); return; }
+      if (site) {
+        setTenantId(site.tenant_id);
+        const { data: t } = await supabase.from("tenants").select("slug").eq("id", site.tenant_id).single();
+        if (t) setResolvedSlug(t.slug);
+        return;
+      }
       // Fallback: find any tenant with published articles
       const { data: art } = await supabase.from("help_articles").select("tenant_id").eq("status", "published").limit(1).maybeSingle();
-      if (art) { setTenantId(art.tenant_id); return; }
+      if (art) {
+        setTenantId(art.tenant_id);
+        const { data: t } = await supabase.from("tenants").select("slug").eq("id", art.tenant_id).single();
+        if (t) setResolvedSlug(t.slug);
+        return;
+      }
       setLoading(false);
     }
   };

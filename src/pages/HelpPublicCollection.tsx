@@ -21,8 +21,9 @@ export default function HelpPublicCollection() {
   const [collection, setCollection] = useState<CollectionInfo | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvedSlug, setResolvedSlug] = useState<string | null>(tenantSlug || null);
 
-  const helpBase = tenantSlug ? `/${tenantSlug}/help` : "/help";
+  const helpBase = resolvedSlug ? `/${resolvedSlug}/help` : "/help";
 
   useEffect(() => {
     if (collectionSlug) loadData();
@@ -32,16 +33,22 @@ export default function HelpPublicCollection() {
     let tenantIdResolved: string | null = null;
 
     if (tenantSlug) {
-      const { data: tenant } = await supabase.from("tenants").select("id").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
+      const { data: tenant } = await supabase.from("tenants").select("id, slug").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
       if (!tenant) { setLoading(false); return; }
       tenantIdResolved = tenant.id;
+      setResolvedSlug(tenant.slug);
     } else {
       // Resolve tenant from help_site_settings
       const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
-      if (site) tenantIdResolved = site.tenant_id;
-      else {
+      if (site) {
+        tenantIdResolved = site.tenant_id;
+      } else {
         const { data: art } = await supabase.from("help_articles").select("tenant_id").eq("status", "published").limit(1).maybeSingle();
         if (art) tenantIdResolved = art.tenant_id;
+      }
+      if (tenantIdResolved) {
+        const { data: t } = await supabase.from("tenants").select("slug").eq("id", tenantIdResolved).single();
+        if (t) setResolvedSlug(t.slug);
       }
     }
 
