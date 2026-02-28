@@ -115,10 +115,10 @@ export default function HelpOverview() {
       <PageHeader title={t("help.title")} subtitle={t("help.overview")} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title={t("help.totalArticles")} value={totalArticles} icon={<FileText className="h-4 w-4" />} />
-        <MetricCard title={t("help.totalCollections")} value={collectionsCount} icon={<FolderOpen className="h-4 w-4" />} />
-        <MetricCard title={t("help.totalViews")} value={totalViews} subtitle="30d" icon={<Eye className="h-4 w-4" />} />
-        <MetricCard title={t("help.status.published")} value={stats.published} icon={<TrendingUp className="h-4 w-4" />} />
+        <MetricCard title={t("help.totalArticles")} value={totalArticles} icon={FileText} />
+        <MetricCard title={t("help.totalCollections")} value={collectionsCount} icon={FolderOpen} />
+        <MetricCard title={t("help.totalViews")} value={totalViews} subtitle="30d" icon={Eye} />
+        <MetricCard title={t("help.status.published")} value={stats.published} icon={TrendingUp} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
