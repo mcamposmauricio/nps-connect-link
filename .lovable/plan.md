@@ -1,53 +1,50 @@
 
-# Corrigir URLs publicas do Help Center e adicionar link na pagina de artigos
 
-## Problema 1: URLs publicas dando 404
+# Corrigir Hierarquia de URLs do Help Center
 
-A URL publica dos artigos esta no formato `/help/a/slug` (sem tenant slug), mas as rotas no React Router exigem `/:tenantSlug/help/a/:articleSlug`. Como o dominio `jornadacliente.com.br` e customizado, nao ha tenant slug no path.
+## Problema Atual
 
-**Solucao:** Adicionar rotas alternativas **sem** tenant slug que resolvem o tenant automaticamente. As rotas `/help`, `/help/a/:slug` e `/help/c/:slug` serao adicionadas ao App.tsx, e os componentes publicos serao atualizados para funcionar tanto com `tenantSlug` do URL quanto com deteccao automatica do tenant.
+As URLs publicas do Help Center estao sendo geradas sem o slug do tenant. Por exemplo:
+- Atual: `jornadacliente.com.br/help/a/artigo-xyz`
+- Correto: `jornadacliente.com.br/teste-do-zerooo/help/a/artigo-xyz`
 
-A deteccao automatica funcionara assim:
-1. Se `tenantSlug` existir no URL, usar como hoje
-2. Se nao existir, buscar o tenant pela tabela `help_site_settings` com `custom_domain` igual ao hostname atual, ou usar um fallback configuravel
+Cada tenant deve ter seu proprio Help Center com URLs hierarquicas:
 
-Como ainda nao existe campo `custom_domain` na tabela, a solucao inicial sera: quando nao houver tenant slug, buscar o unico tenant que tenha artigos publicados (ou o primeiro encontrado). Isso funciona para single-tenant. Futuramente, um campo `custom_domain` pode ser adicionado.
+```text
+/EMPRESA/help                    -> Home do Help Center
+/EMPRESA/help/c/colecao-slug     -> Colecao
+/EMPRESA/help/a/artigo-slug      -> Artigo
+```
 
-**Mudancas:**
+As rotas ja existem no React Router (`/:tenantSlug/help/...`), mas a pagina admin gera links sem o slug do tenant.
 
-### `src/App.tsx`
-- Adicionar 3 novas rotas sem tenant slug:
-  - `/help` -> HelpPublicHome
-  - `/help/a/:articleSlug` -> HelpPublicArticle  
-  - `/help/c/:collectionSlug` -> HelpPublicCollection
+## Mudancas
 
-### `src/pages/HelpPublicArticle.tsx`
-- Quando `tenantSlug` nao existir nos params, buscar o artigo diretamente pelo slug sem filtrar por tenant (a RLS ja garante que so artigos publicados sao vistos)
-- Ajustar breadcrumb para funcionar sem tenantSlug
+### 1. `src/pages/HelpArticles.tsx`
+- Buscar o `slug` do tenant atual via query na tabela `tenants` usando o `tenantId` do contexto de auth
+- Atualizar `publicHelpUrl` para usar `/${tenantSlug}/help`
+- Atualizar `handleCopyLink` para gerar URLs com o slug do tenant: `${origin}/${tenantSlug}/help/a/${articleSlug}`
 
-### `src/pages/HelpPublicHome.tsx`
-- Quando `tenantSlug` nao existir, carregar usando o hostname ou buscar o primeiro tenant com help_site_settings
-- Ajustar links internos
+### 2. `src/pages/HelpPublicHome.tsx`
+- Quando acessado sem `tenantSlug` (rota `/help`), apos resolver o tenant_id, buscar tambem o slug do tenant para usar nos links internos
+- Garantir que os links para colecoes e artigos usem `/${tenantSlug}/help/...` mesmo quando acessado via `/help`
 
-### `src/pages/HelpPublicCollection.tsx`
-- Mesma logica de fallback sem tenantSlug
+### 3. `src/pages/HelpPublicCollection.tsx`
+- Mesma logica: ao resolver o tenant sem slug na URL, buscar o slug e usar nos links para artigos
 
-## Problema 2: Link para a home publica na pagina de artigos
+### 4. `src/pages/HelpPublicArticle.tsx`
+- Ao resolver o tenant sem slug na URL, buscar o slug para usar no breadcrumb (links de volta para Home e Colecao)
 
-Na pagina admin de artigos (`/help/articles`), adicionar no topo um banner/link para a home publica do Help Center.
+### 5. `src/pages/HelpArticleEditor.tsx`
+- Atualizar o link de "copiar URL publica" (se existir) para incluir o slug do tenant
 
-### `src/pages/HelpArticles.tsx`
-- Buscar o slug do tenant ao carregar
-- Adicionar abaixo do PageHeader um link clicavel para `/${tenantSlug}/help` (e tambem para `/help` no dominio custom)
-- O link abrira em nova aba com icone ExternalLink
-- Formato: card discreto com icone de link externo e texto "Abrir Help Center publico"
+## Resumo
 
-## Resumo de arquivos
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/pages/HelpArticles.tsx` | Buscar slug do tenant, corrigir URLs de copia e link publico |
+| `src/pages/HelpPublicHome.tsx` | Resolver slug do tenant para links internos |
+| `src/pages/HelpPublicCollection.tsx` | Resolver slug do tenant para links internos |
+| `src/pages/HelpPublicArticle.tsx` | Resolver slug do tenant para breadcrumb |
+| `src/pages/HelpArticleEditor.tsx` | Corrigir link de copia se existente |
 
-| Arquivo | Acao |
-|---------|------|
-| `src/App.tsx` | Adicionar 3 rotas sem tenantSlug |
-| `src/pages/HelpPublicArticle.tsx` | Suportar acesso sem tenantSlug |
-| `src/pages/HelpPublicHome.tsx` | Suportar acesso sem tenantSlug |
-| `src/pages/HelpPublicCollection.tsx` | Suportar acesso sem tenantSlug |
-| `src/pages/HelpArticles.tsx` | Adicionar link para home publica no topo |
