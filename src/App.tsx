@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
+import { lazy, Suspense } from "react";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
 import ChatLandingPage from "./pages/ChatLandingPage";
@@ -42,6 +43,17 @@ import MyProfile from "./pages/MyProfile";
 import Backoffice from "./pages/Backoffice";
 import SidebarLayout from "./components/SidebarLayout";
 
+// Help Center - lazy loaded
+const HelpOverview = lazy(() => import("./pages/HelpOverview"));
+const HelpArticles = lazy(() => import("./pages/HelpArticles"));
+const HelpArticleEditor = lazy(() => import("./pages/HelpArticleEditor"));
+const HelpCollections = lazy(() => import("./pages/HelpCollections"));
+const HelpSettings = lazy(() => import("./pages/HelpSettings"));
+const HelpImport = lazy(() => import("./pages/HelpImport"));
+const HelpPublicHome = lazy(() => import("./pages/HelpPublicHome"));
+const HelpPublicCollection = lazy(() => import("./pages/HelpPublicCollection"));
+const HelpPublicArticle = lazy(() => import("./pages/HelpPublicArticle"));
+
 const queryClient = new QueryClient();
 
 // Helper component for dynamic campaign redirect
@@ -49,6 +61,12 @@ const CampaignRedirect = () => {
   const { id } = useParams();
   return <Navigate to={`/nps/campaigns/${id}`} replace />;
 };
+
+const SuspenseFallback = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+  </div>
+);
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light">
@@ -77,6 +95,11 @@ const App = () => (
           
           {/* Embedded NPS Widget */}
           <Route path="/embed" element={<NPSEmbed />} />
+
+          {/* Public Help Center pages */}
+          <Route path="/:tenantSlug/help" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicHome /></Suspense>} />
+          <Route path="/:tenantSlug/help/c/:collectionSlug" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicCollection /></Suspense>} />
+          <Route path="/:tenantSlug/help/a/:articleSlug" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicArticle /></Suspense>} />
           
           {/* Legacy routes redirect to new structure */}
           <Route path="/dashboard" element={<Navigate to="/nps/dashboard" replace />} />
@@ -115,6 +138,15 @@ const App = () => (
             <Route path="/cs-health" element={<CSHealthPage />} />
             <Route path="/cs-churn" element={<CSChurnPage />} />
             <Route path="/cs-financial" element={<CSFinancialPage />} />
+
+            {/* Help Center Module */}
+            <Route path="/help/overview" element={<Suspense fallback={<SuspenseFallback />}><HelpOverview /></Suspense>} />
+            <Route path="/help/articles" element={<Suspense fallback={<SuspenseFallback />}><HelpArticles /></Suspense>} />
+            <Route path="/help/articles/new" element={<Suspense fallback={<SuspenseFallback />}><HelpArticleEditor /></Suspense>} />
+            <Route path="/help/articles/:id/edit" element={<Suspense fallback={<SuspenseFallback />}><HelpArticleEditor /></Suspense>} />
+            <Route path="/help/collections" element={<Suspense fallback={<SuspenseFallback />}><HelpCollections /></Suspense>} />
+            <Route path="/help/settings" element={<Suspense fallback={<SuspenseFallback />}><HelpSettings /></Suspense>} />
+            <Route path="/help/import" element={<Suspense fallback={<SuspenseFallback />}><HelpImport /></Suspense>} />
 
             {/* Profile */}
             <Route path="/profile" element={<MyProfile />} />

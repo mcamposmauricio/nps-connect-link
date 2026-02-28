@@ -1668,6 +1668,294 @@ export type Database = {
           },
         ]
       }
+      help_article_events: {
+        Row: {
+          article_id: string
+          event_meta: Json
+          event_type: string
+          id: string
+          occurred_at: string
+          session_id: string | null
+          tenant_id: string
+          version_id: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          article_id: string
+          event_meta?: Json
+          event_type: string
+          id?: string
+          occurred_at?: string
+          session_id?: string | null
+          tenant_id: string
+          version_id?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          article_id?: string
+          event_meta?: Json
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          session_id?: string | null
+          tenant_id?: string
+          version_id?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_article_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "help_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_article_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_article_events_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "help_article_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_article_versions: {
+        Row: {
+          article_id: string
+          change_summary: string | null
+          created_at: string
+          created_by_user_id: string
+          editor_schema_json: Json
+          html_snapshot: string | null
+          id: string
+          tenant_id: string
+          version_number: number
+        }
+        Insert: {
+          article_id: string
+          change_summary?: string | null
+          created_at?: string
+          created_by_user_id: string
+          editor_schema_json?: Json
+          html_snapshot?: string | null
+          id?: string
+          tenant_id: string
+          version_number?: number
+        }
+        Update: {
+          article_id?: string
+          change_summary?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          editor_schema_json?: Json
+          html_snapshot?: string | null
+          id?: string
+          tenant_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_article_versions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "help_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_article_versions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_articles: {
+        Row: {
+          archived_at: string | null
+          collection_id: string | null
+          created_at: string
+          created_by_user_id: string
+          current_version_id: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          status: string
+          subtitle: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          updated_by_user_id: string | null
+          visibility: string
+        }
+        Insert: {
+          archived_at?: string | null
+          collection_id?: string | null
+          created_at?: string
+          created_by_user_id: string
+          current_version_id?: string | null
+          id?: string
+          published_at?: string | null
+          slug: string
+          status?: string
+          subtitle?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+          visibility?: string
+        }
+        Update: {
+          archived_at?: string | null
+          collection_id?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          current_version_id?: string | null
+          id?: string
+          published_at?: string | null
+          slug?: string
+          status?: string
+          subtitle?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_articles_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "help_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_articles_current_version_id_fkey"
+            columns: ["current_version_id"]
+            isOneToOne: false
+            referencedRelation: "help_article_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_articles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          order_index: number
+          slug: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          order_index?: number
+          slug: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          order_index?: number
+          slug?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_site_settings: {
+        Row: {
+          brand_logo_url: string | null
+          brand_primary_color: string | null
+          brand_secondary_color: string | null
+          contact_channels_json: Json
+          created_at: string
+          custom_css: string | null
+          footer_html: string | null
+          home_subtitle: string | null
+          home_title: string | null
+          public_base_url: string | null
+          tenant_id: string
+          theme: string
+          updated_at: string
+        }
+        Insert: {
+          brand_logo_url?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
+          contact_channels_json?: Json
+          created_at?: string
+          custom_css?: string | null
+          footer_html?: string | null
+          home_subtitle?: string | null
+          home_title?: string | null
+          public_base_url?: string | null
+          tenant_id: string
+          theme?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_logo_url?: string | null
+          brand_primary_color?: string | null
+          brand_secondary_color?: string | null
+          contact_channels_json?: Json
+          created_at?: string
+          custom_css?: string | null
+          footer_html?: string | null
+          home_subtitle?: string | null
+          home_title?: string | null
+          public_base_url?: string | null
+          tenant_id?: string
+          theme?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_site_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           company: string

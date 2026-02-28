@@ -110,6 +110,18 @@ const PERMISSION_TREE: PermNode[] = [
       { key: "settings.apikeys",      labelKey: "team.submodule.settings.apikeys",      actions: ["view", "manage"] },
     ],
   },
+  {
+    key: "help",
+    labelKey: "team.module.help",
+    actions: ["view", "edit", "delete", "manage"],
+    children: [
+      { key: "help.articles",    labelKey: "team.submodule.help.articles",    actions: ["view", "edit", "delete", "manage"] },
+      { key: "help.collections", labelKey: "team.submodule.help.collections", actions: ["view", "edit", "delete"] },
+      { key: "help.settings",    labelKey: "team.submodule.help.settings",    actions: ["view", "manage"] },
+      { key: "help.analytics",   labelKey: "team.submodule.help.analytics",   actions: ["view"] },
+      { key: "help.import",      labelKey: "team.submodule.help.import",      actions: ["manage"] },
+    ],
+  },
 ];
 
 // All unique module keys (parent + children)
