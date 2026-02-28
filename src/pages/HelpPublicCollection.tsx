@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight } from "lucide-react";
 
@@ -18,6 +18,7 @@ interface CollectionInfo {
 
 export default function HelpPublicCollection() {
   const { tenantSlug, collectionSlug } = useParams();
+  const navigate = useNavigate();
   const [collection, setCollection] = useState<CollectionInfo | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,23 +34,28 @@ export default function HelpPublicCollection() {
     let tenantIdResolved: string | null = null;
 
     if (tenantSlug) {
-      const { data: tenant } = await supabase.from("tenants").select("id, slug").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
+      const { data: tenant } = await supabase.from("tenants").select("id, slug").eq("slug", tenantSlug).maybeSingle();
       if (!tenant) { setLoading(false); return; }
       tenantIdResolved = tenant.id;
       setResolvedSlug(tenant.slug);
     } else {
-      // Resolve tenant from help_site_settings
+      // No tenantSlug: resolve tenant and redirect to canonical URL
+      let resolvedTenantId: string | null = null;
       const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
-      if (site) {
-        tenantIdResolved = site.tenant_id;
-      } else {
+      if (site) resolvedTenantId = site.tenant_id;
+      if (!resolvedTenantId) {
         const { data: art } = await supabase.from("help_articles").select("tenant_id").eq("status", "published").limit(1).maybeSingle();
-        if (art) tenantIdResolved = art.tenant_id;
+        if (art) resolvedTenantId = art.tenant_id;
       }
-      if (tenantIdResolved) {
-        const { data: t } = await supabase.from("tenants").select("slug").eq("id", tenantIdResolved).single();
-        if (t) setResolvedSlug(t.slug);
+      if (resolvedTenantId) {
+        const { data: t } = await supabase.from("tenants").select("slug").eq("id", resolvedTenantId).single();
+        if (t?.slug) {
+          navigate(`/${t.slug}/help/c/${collectionSlug}`, { replace: true });
+          return;
+        }
       }
+      setLoading(false);
+      return;
     }
 
     if (!tenantIdResolved) { setLoading(false); return; }

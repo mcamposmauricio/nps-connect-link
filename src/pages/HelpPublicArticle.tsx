@@ -37,7 +37,7 @@ export default function HelpPublicArticle() {
     let tenantIdResolved: string | null = null;
 
     if (tenantSlug) {
-      const { data: tenant } = await supabase.from("tenants").select("id, slug").or(`slug.eq.${tenantSlug},id.eq.${tenantSlug}`).maybeSingle();
+      const { data: tenant } = await supabase.from("tenants").select("id, slug").eq("slug", tenantSlug).maybeSingle();
       if (!tenant) { setLoading(false); return; }
       tenantIdResolved = tenant.id;
       setResolvedSlug(tenant.slug);
@@ -61,13 +61,16 @@ export default function HelpPublicArticle() {
 
     if (art.status !== "published") { setLoading(false); return; }
 
-    setArticle(art);
-
-    // Resolve tenant slug for breadcrumb if not in URL
+    // Redirect to canonical URL if no tenantSlug in URL
     if (!tenantSlug && art.tenant_id) {
       const { data: t } = await supabase.from("tenants").select("slug").eq("id", art.tenant_id).single();
-      if (t) setResolvedSlug(t.slug);
+      if (t?.slug) {
+        navigate(`/${t.slug}/help/a/${articleSlug}`, { replace: true });
+        return;
+      }
     }
+
+    setArticle(art);
 
     // Load version HTML
     if (art.current_version_id) {
