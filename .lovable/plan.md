@@ -1,75 +1,67 @@
 
-# Correcoes e Melhorias no Widget de Chat
 
-## 1. Botao "Retomar conversa" na visualizacao de transcript pendente
+# Correcoes: Header do Atendente, Boas-vindas e Checks Duplos
 
-**Problema:** Ao clicar em um chat pendente na lista de historico, o usuario ve o transcript mas so tem "Voltar ao historico" sem opcao de retomar.
+## Problema 1: Nome do atendente nao aparece no header
 
-**Solucao:** No `ChatWidget.tsx`, na fase `viewTranscript`, verificar se o room visualizado tem `resolution_status === "pending"`. Se sim, exibir dois botoes: "Retomar conversa" e "Voltar ao historico".
+O header mostra "Suporte - Chat ativo" em vez de "Voce esta falando com [Nome]". A logica de `setAttendantName` depende do evento Realtime de UPDATE na `chat_rooms`, mas ha um problema: quando o atendente e atribuido pelo trigger `assign_chat_room` no banco, o widget chama `checkRoomAssignment` (edge function) que retorna `attendant_name`, porem esse valor **nao e usado para setar `attendantName`** no estado do componente. O `setPhase("chat")` acontece na linha 559 mas sem chamar `setAttendantName`. O Realtime eventualmente atualiza, mas pode haver race condition.
 
-**Arquivo:** `src/pages/ChatWidget.tsx` (linhas ~1628-1634 - footer do viewTranscript)
-- Guardar `resolution_status` no estado ao abrir transcript via `handleViewTranscript`
-- Renderizar botao "Retomar conversa" ao lado do "Voltar ao historico" quando pendente
+### Solucao
 
----
-
-## 2. Foto e nome do atendente no header do widget
-
-**Problema:** O header ja mostra iniciais e nome do atendente em fase "chat", mas apenas no subtitulo. O pedido e deixar mais evidente a identificacao.
-
-**Solucao:** O header ja implementa isso (linhas ~1098-1116). Porem, o subtitulo mostra `attendantName ?? "Chat ativo"` de forma generica. Vou:
-- Exibir o nome do atendente de forma mais proeminente no subtitulo (ex: "Voce esta falando com [Nome]")
-- Garantir que so aparece para chats ativos com atendente atribuido (ja e o caso com a condicao `phase === "chat" && attendantName`)
-
-**Arquivo:** `src/pages/ChatWidget.tsx` (linha ~1114-1115)
+No `ChatWidget.tsx`, na funcao `checkRoomAssignment` (linha 556-566):
+- Quando `data.assigned === true`, usar `data.attendant_name` para chamar `setAttendantName(data.attendant_name)`
+- Isso garante que o nome do atendente e setado imediatamente ao detectar a atribuicao, sem depender do Realtime
 
 ---
 
-## 3. Mensagem de boas-vindas automatica
+## Problema 2: Mensagem de boas-vindas nao enviada
 
-**Problema:** A regra `welcome_message` existe no banco e esta habilitada, mas nenhum codigo a processa. Ela deve ser enviada imediatamente quando um novo chat room e criado.
+A welcome_message esta configurada e habilitada no banco, e o edge function `process-chat-auto-rules` processa corretamente rooms em "waiting". Porem, essa funcao so e chamada por **polling a cada 5 minutos** (com primeiro disparo apos 15 segundos) e apenas quando um usuario admin esta logado no SidebarLayout. Se nenhum admin estiver online, a funcao nunca e chamada.
 
-**Solucao:** No `process-chat-auto-rules` edge function, adicionar processamento para `welcome_message`:
-- Buscar rooms recem-criados (status "waiting") que ainda nao receberam uma mensagem de sistema com `auto_rule: "welcome_message"`
-- Se a regra esta habilitada para o tenant, enviar a mensagem automatica imediatamente
-- Nao depende de `trigger_minutes` (e imediata)
+### Solucao
 
-**Arquivo:** `supabase/functions/process-chat-auto-rules/index.ts`
-- Adicionar `welcome_message` na query de regras
-- Para rooms em "waiting" sem mensagem de boas-vindas, inserir a mensagem
+Enviar a welcome_message diretamente no widget, imediatamente apos a criacao do room, em vez de depender do polling:
 
----
+No `ChatWidget.tsx`, nas funcoes `handleNewChat` e `handleSubmitForm` (apos criar o room com sucesso):
+1. Buscar a regra `welcome_message` habilitada para o tenant do room
+2. Verificar se ja existe mensagem com `auto_rule: "welcome_message"` no room
+3. Se nao existir, inserir a mensagem de sistema automaticamente
 
-## 4. Checks de entregue/lido no workspace
+Alternativa mais robusta: chamar o `process-chat-auto-rules` inline logo apos criar o room. Porem, como essa funcao processa TODOS os tenants/rooms, e mais eficiente fazer a insercao direta no widget.
 
-**Problema:** O check duplo so aparece quando o visitante responde, nao quando visualiza. O `visitor_last_read_at` so e atualizado em momentos especificos.
-
-**Solucao:** No `ChatWidget.tsx`, garantir que `visitor_last_read_at` e atualizado:
-- Quando o widget e aberto e ha mensagens (ja existe parcialmente)
-- Quando novas mensagens chegam enquanto o widget esta aberto (ja existe)
-- Quando o usuario abre/navega para a fase "chat" (adicionar)
-- Quando o usuario faz scroll e ve mensagens
-
-O problema principal e que o update so acontece no evento de INSERT de mensagem e no UPDATE de room. Vou adicionar o update tambem:
-- Na abertura do widget (`isOpen` muda para true e fase e "chat")
-- Na mudanca de fase para "chat"
-- Na inicializacao quando o widget carrega com um room ativo
-
-**Arquivo:** `src/pages/ChatWidget.tsx`
+A melhor abordagem e adicionar a logica de welcome_message dentro do `assign-chat-room` edge function, que ja e chamado pelo widget apos criar o room. Dessa forma:
+- O edge function `assign-chat-room` verifica se existe regra `welcome_message` habilitada para o tenant
+- Se sim, e se o room nao tem mensagem de boas-vindas, insere automaticamente
+- Isso garante envio imediato, sem depender de polling ou de admin online
 
 ---
 
-## 5. Quebra de linha no input do widget
+## Problema 3: Check duplo aparecendo imediatamente
 
-**Problema:** O input do chat no widget e um `<input>` HTML simples que nao suporta quebra de linha. O visitante nao consegue enviar mensagens com multiplas linhas.
+O `visitor_last_read_at` esta sendo atualizado em excesso, incluindo situacoes em que o visitante **nao esta realmente vendo** as mensagens:
 
-**Solucao:** Substituir o `<input>` por `<textarea>` no input da fase "chat" e da fase "waiting":
-- Usar `textarea` com auto-resize (altura dinamica baseada no conteudo)
-- Shift+Enter para quebra de linha, Enter para enviar
-- Manter o mesmo visual (rounded, sem borda, transparente)
-- Limitar altura maxima para ~4 linhas
+1. **Linha 407-408**: Atualiza em QUALQUER nova mensagem Realtime, incluindo as proprias mensagens do visitante e mensagens do atendente mesmo com widget minimizado. O `isOpenRef.current` e `true` se o widget foi aberto alguma vez e nao foi explicitamente fechado.
 
-**Arquivo:** `src/pages/ChatWidget.tsx` (linhas ~1592-1614 para fase chat, ~1341-1346 para fase waiting)
+2. **Linha 471-474**: Atualiza em QUALQUER UPDATE da `chat_rooms`, incluindo updates do `attendant_last_read_at` ou outros campos. Condicao `room.status === "active" || phase === "chat"` e muito ampla.
+
+3. **Linha 531-532**: Atualiza ao entrar na fase "chat", o que e correto.
+
+### Solucao
+
+No `ChatWidget.tsx`:
+
+1. **Linha 407-408 (nova mensagem)**: Adicionar condicao para so atualizar se:
+   - O widget esta realmente aberto (`isOpenRef.current === true`)
+   - A mensagem e do atendente (`msg.sender_type === "attendant"` ou `"system"`)
+   - O `isOpen` real (nao apenas o ref) esta `true` — verificar que o embed iframe esta expandido
+
+2. **Linha 471-474 (room UPDATE)**: Remover completamente este update. Nao faz sentido atualizar `visitor_last_read_at` em qualquer update de room. O update de leitura ja acontece nos outros pontos (nova mensagem e abertura do widget).
+
+3. **Linha 118-121 (widget abre)**: Manter — correto, o visitante esta abrindo o widget.
+
+4. **Linha 531-532 (fase muda para chat)**: Manter — correto, o visitante esta entrando na tela de chat.
+
+A chave e que `isOpenRef.current` precisa ser sincronizado corretamente com o estado real do widget embed. Quando o usuario minimiza o widget (clica no FAB), `isOpen` deve ser `false` e `isOpenRef` tambem.
 
 ---
 
@@ -77,5 +69,6 @@ O problema principal e que o update so acontece no evento de INSERT de mensagem 
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/ChatWidget.tsx` | Botao retomar em viewTranscript; header com nome atendente; textarea multiline; fix visitor_last_read_at |
-| `supabase/functions/process-chat-auto-rules/index.ts` | Processar regra welcome_message para rooms novos |
+| `src/pages/ChatWidget.tsx` | Fix `checkRoomAssignment` para setar `attendantName`; remover update de `visitor_last_read_at` no handler de room UPDATE; condicionar update no handler de nova mensagem |
+| `supabase/functions/assign-chat-room/index.ts` | Adicionar envio de welcome_message ao processar room recem-criado |
+
