@@ -38,20 +38,29 @@ export default function HelpPublicHome() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to build links with or without tenantSlug
+  const helpBase = tenantSlug ? `/${tenantSlug}/help` : "/help";
+
   useEffect(() => {
-    if (tenantSlug) loadTenant();
+    loadTenant();
   }, [tenantSlug]);
 
   const loadTenant = async () => {
-    // Find tenant by slug (using name or a slug field - for now match by name/id)
-    const { data: tenant } = await supabase.from("tenants").select("id").eq("slug", tenantSlug!).maybeSingle();
-    if (!tenant) {
-      // Try matching by id
-      const { data: t2 } = await supabase.from("tenants").select("id").eq("id", tenantSlug!).maybeSingle();
-      if (t2) setTenantId(t2.id);
-      else { setLoading(false); return; }
+    if (tenantSlug) {
+      // Try slug first, then id
+      const { data: tenant } = await supabase.from("tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+      if (tenant) { setTenantId(tenant.id); return; }
+      const { data: t2 } = await supabase.from("tenants").select("id").eq("id", tenantSlug).maybeSingle();
+      if (t2) { setTenantId(t2.id); return; }
+      setLoading(false);
     } else {
-      setTenantId(tenant.id);
+      // No tenantSlug: resolve tenant from help_site_settings (first found)
+      const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
+      if (site) { setTenantId(site.tenant_id); return; }
+      // Fallback: find any tenant with published articles
+      const { data: art } = await supabase.from("help_articles").select("tenant_id").eq("status", "published").limit(1).maybeSingle();
+      if (art) { setTenantId(art.tenant_id); return; }
+      setLoading(false);
     }
   };
 
@@ -115,7 +124,7 @@ export default function HelpPublicHome() {
           {searchResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-10 max-h-64 overflow-auto">
               {searchResults.map(r => (
-                <Link key={r.id} to={`/${tenantSlug}/help/a/${r.slug}`} className="block px-4 py-3 hover:bg-muted border-b last:border-0">
+                <Link key={r.id} to={`${helpBase}/a/${r.slug}`} className="block px-4 py-3 hover:bg-muted border-b last:border-0">
                   <p className="font-medium text-sm">{r.title}</p>
                   {r.subtitle && <p className="text-xs text-muted-foreground">{r.subtitle}</p>}
                 </Link>
@@ -130,7 +139,7 @@ export default function HelpPublicHome() {
         {collections.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
             {collections.map(col => (
-              <Link key={col.id} to={`/${tenantSlug}/help/c/${col.slug}`} className="block p-6 border rounded-lg hover:shadow-md transition-shadow bg-card">
+              <Link key={col.id} to={`${helpBase}/c/${col.slug}`} className="block p-6 border rounded-lg hover:shadow-md transition-shadow bg-card">
                 <span className="text-2xl mb-3 block">{col.icon || "📚"}</span>
                 <h3 className="font-semibold mb-1">{col.name}</h3>
                 {col.description && <p className="text-sm text-muted-foreground mb-2">{col.description}</p>}
@@ -146,7 +155,7 @@ export default function HelpPublicHome() {
             <h2 className="text-lg font-semibold mb-4">Artigos Recentes</h2>
             <div className="space-y-2">
               {recentArticles.map(art => (
-                <Link key={art.id} to={`/${tenantSlug}/help/a/${art.slug}`} className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <Link key={art.id} to={`${helpBase}/a/${art.slug}`} className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                   <p className="font-medium text-sm">{art.title}</p>
                   {art.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{art.subtitle}</p>}
                 </Link>

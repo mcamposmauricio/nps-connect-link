@@ -96,10 +96,15 @@ const App = () => (
           {/* Embedded NPS Widget */}
           <Route path="/embed" element={<NPSEmbed />} />
 
-          {/* Public Help Center pages */}
+          {/* Public Help Center pages (with tenant slug) */}
           <Route path="/:tenantSlug/help" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicHome /></Suspense>} />
           <Route path="/:tenantSlug/help/c/:collectionSlug" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicCollection /></Suspense>} />
           <Route path="/:tenantSlug/help/a/:articleSlug" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicArticle /></Suspense>} />
+          
+          {/* Public Help Center pages (without tenant slug - custom domain) */}
+          <Route path="/help" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicHome /></Suspense>} />
+          <Route path="/help/c/:collectionSlug" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicCollection /></Suspense>} />
+          <Route path="/help/a/:articleSlug" element={<Suspense fallback={<SuspenseFallback />}><HelpPublicArticle /></Suspense>} />
           
           {/* Legacy routes redirect to new structure */}
           <Route path="/dashboard" element={<Navigate to="/nps/dashboard" replace />} />
